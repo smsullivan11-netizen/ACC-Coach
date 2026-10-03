@@ -71,9 +71,12 @@ def build_corner_map(r: dict, track: str, source: str = "", drop_kmh: float = CO
 
 
 def map_hash(cmap: dict) -> str:
-    """Fingerprint of the boundaries (not the names): two maps with the same version must match."""
-    key = [(c["id"], c["start_m"], c["apex_m"], c["end_m"]) for c in cmap["corners"]]
-    return hashlib.sha256(json.dumps([cmap["track"], cmap["length_m"], key]).encode()).hexdigest()[:16]
+    """Fingerprint of the boundaries (not the names): two maps with the same version must match.
+    Numbers are written with one decimal, so a map that went through JSON elsewhere (JavaScript
+    writes 3908.0 as 3908) keeps the same fingerprint."""
+    m = lambda x: f"{float(x):.1f}"
+    key = [(int(c["id"]), m(c["start_m"]), m(c["apex_m"]), m(c["end_m"])) for c in cmap["corners"]]
+    return hashlib.sha256(json.dumps([cmap["track"], m(cmap["length_m"]), key]).encode()).hexdigest()[:16]
 
 
 def map_path(track: str) -> Path:

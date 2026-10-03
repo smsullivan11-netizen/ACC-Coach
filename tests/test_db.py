@@ -1,6 +1,6 @@
 """
-Reference import of a session bundle into Postgres (db/schema.sql) + ranking tests.
-The site (Next.js) will reuse the same logic in its upload route.
+Reference import of a session bundle into Postgres (db/migrations/*.sql) + ranking tests.
+The site uses the same logic in TypeScript (web/lib/import-bundle.ts): keep both in step.
 
 Usage: DATABASE_URL=postgresql://… python tests/test_db.py [real_bundle.json.gz]
 Works in an "acc_test" schema that is recreated on every run.
@@ -74,6 +74,8 @@ def import_bundle(conn, b: dict, driver_id: int) -> int:
         raise Rejected("unsupported bundle format")
     s, cm = b["session"], b["corner_map"]
     with conn.transaction(), conn.cursor() as cur:
+        if cur.execute("select 1 from session where source_sha256 = %s", (b["source"]["sha256"],)).fetchone():
+            raise Rejected("session already uploaded")
         track = _upsert(cur, "insert into track (simulator, key, length_m) values (%s, %s, %s)",
                         (b["simulator"], s["track"], s["track_length_m"]),
                         "select id from track where simulator = %s and key = %s", (b["simulator"], s["track"]))
@@ -95,9 +97,9 @@ def import_bundle(conn, b: dict, driver_id: int) -> int:
             if row:
                 map_id = row[0]
             else:
-                map_id = cur.execute("insert into corner_map (track_id, version, hash, length_m)"
-                                     " values (%s, %s, %s, %s) returning id",
-                                     (track, cm["version"], cm["hash"], cm["length_m"])).fetchone()[0]
+                map_id = cur.execute("insert into corner_map (track_id, version, hash, length_m, definition)"
+                                     " values (%s, %s, %s, %s, %s) returning id",
+                                     (track, cm["version"], cm["hash"], cm["length_m"], Jsonb(cm))).fetchone()[0]
                 cur.executemany("insert into corner (corner_map_id, number, name, start_m, apex_m, end_m)"
                                 " values (%s, %s, %s, %s, %s, %s)",
                                 [(map_id, c["id"], c["name"], c["start_m"], c["apex_m"], c["end_m"])
@@ -113,10 +115,11 @@ def import_bundle(conn, b: dict, driver_id: int) -> int:
         try:
             session = cur.execute(
                 "insert into session (driver_id, track_id, car_id, server_session_id, source_kind, source_file,"
-                " source_sha256, recorded_at, bundle_version, agent_version)"
-                " values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id",
+                " source_sha256, recorded_at, session_type, bundle_version, agent_version)"
+                " values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id",
                 (driver_id, track, car, ss, b["source"]["kind"], b["source"]["file"], b["source"]["sha256"],
-                 datetime.fromisoformat(s["recorded_at"]), b["version"], b["agent"]["version"])).fetchone()[0]
+                 datetime.fromisoformat(s["recorded_at"]), s.get("type"), b["version"],
+                 b["agent"]["version"])).fetchone()[0]
         except psycopg.errors.UniqueViolation:
             raise Rejected("session already uploaded")
 
@@ -173,7 +176,8 @@ def main():
         conn.execute("drop schema if exists acc_test cascade")
         conn.execute("create schema acc_test")
         conn.execute("set search_path to acc_test")
-        conn.execute((ROOT / "db" / "schema.sql").read_text(encoding="utf-8"))
+        for migration in sorted((ROOT / "db" / "migrations").glob("*.sql")):
+            conn.execute(migration.read_text(encoding="utf-8"))
 
         alice = conn.execute("insert into driver (display_name, steam_id) values ('Alice', 'SA-TDR') returning id").fetchone()[0]
         bob = conn.execute("insert into driver (display_name, steam_id) values ('Bob', 'SB-TDR') returning id").fetchone()[0]

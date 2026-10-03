@@ -25,7 +25,9 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   lap metrics, server .json matching, CLI, overlay and racing-line plots (reads `.accrec` too).
 - `corners.py`: corner map (`tracks/<track>.json`) and per-corner metrics.
 - `bundle.py`: session bundle uploaded to the site (format `acc-coach/session` v1).
-- `db/schema.sql`: Postgres schema (tables, ranking views).
+- `upload.py`: downloads the team's corner map, builds the bundle and uploads it (upload token).
+- `db/migrations/*.sql`: Postgres schema, applied in order (`npm run db:migrate` in `web/`).
+- `web/`: the team site (Next.js 16, see "Website" below).
 - `tests/`: `test_synthetic.py` (MoTeC), `test_recorder.py` (live, fake game), `test_recording.py`
   (recorder files), `test_db.py` (reference import `import_bundle` for the site), `fake_acc.py`.
 - `ldparser.py`: third party, GPL-3.0, unmodified.
@@ -191,16 +193,24 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Sizes: ~100 KB for 5 laps of 3.9 km (MoTeC); ~210 KB for 5 laps of 2.8 km with positions (fake
   recorder session); 171 KB for one Nordschleife lap (250 KB in the database).
 
-## Database (db/schema.sql)
+## Database (db/migrations/)
 - Tables: `driver`, `agent_token` (token hash), `track`, `car` (class for rankings),
   `corner_map`/`corner`, `server_session`/`official_lap` (.json import, all drivers),
   `session` (unique sha256), `lap` (metrics as jsonb, game lap time and validity for recorder
   sessions), `corner_result` (columns), `lap_trace`.
 - Views: `best_lap`, `lap_ranking`, `corner_best`, `corner_ranking`, `theoretical_best`
   (sum of best corners). Only `comparable` laps are ranked, per track and class.
-- Reference import to port to TypeScript: `import_bundle` and `import_results` in
-  `tests/test_db.py`. Refusals: unknown format, session already uploaded, incompatible map.
-  All or nothing.
+- Import of a bundle: `web/lib/import-bundle.ts` (the site) mirrors the reference
+  `import_bundle` in `tests/test_db.py`: **change both together**. Refusals: unknown format,
+  session already uploaded (checked first), incompatible corner map. All or nothing.
+- Migrations are numbered files, never edited once applied anywhere shared: add a new one.
+  0002: Discord sign-in (`driver.discord_id`, `web_session`), `session.session_type`,
+  `corner_map.definition` (the map as first uploaded, served back verbatim), rankings on the most
+  official time (`coalesce(official_lap_time_ms, game_lap_time_ms, lap_time_ms)`).
+- The corner map fingerprint (`corners.map_hash`) formats numbers with one decimal: a map that
+  went through JavaScript (3908.0 → 3908) must keep the same fingerprint (bug found in the
+  end-to-end test).
+- Car class for rankings is derived from the car key (`carClass` in `import-bundle.ts`).
 - Traces as jsonb to start with; if the database grows (Neon free tier 0.5 GB ≈ 2,000
   Nordschleife laps), move to object storage (`storage_key`).
 
@@ -215,19 +225,46 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - `python tests/test_recording.py`: full fake session written straight into an `.accrec` (pit start,
   out-lap, flying laps, game-invalidated lap, in-lap, dropped packets) → laps, flags, lap times
   (±1 ms of the game), positions, corners, bundle, plots and the `check` report.
-- `python tests/test_db.py [bundle.json.gz]`: schema + import of two synthetic drivers and a fake
-  recorder session into Postgres, rankings, refusals; optional real bundle. Test Postgres:
-  `docker run --rm -d --name acc-coach-pg -e POSTGRES_PASSWORD=test -p 5433:5432 postgres:17`
-  (or `DATABASE_URL`). Works in the `acc_test` schema, recreated on every run.
+- `python tests/test_db.py [bundle.json.gz]`: migrations + import of two synthetic drivers and a
+  fake recorder session into Postgres, rankings, refusals; optional real bundle. Works in the
+  `acc_test` schema, recreated on every run, so it can share the development database
+  (`DATABASE_URL=postgresql://postgres:dev@localhost:5433/acc_coach`).
+- Website: `npm run typecheck`, `npm run lint`, `npm run build` in `web/`; the end-to-end check
+  (dev sign-in, tokens, upload.py with a real recording, refusals, corner map download, every
+  page) is not in the repo yet: it needs a dedicated test database.
 - Environment: `.venv` (`pip install -r requirements.txt`).
 
+## Website (web/)
+- Next.js 16 (App Router, Turbopack), TypeScript, Tailwind 4, `postgres` (postgres.js, plain SQL).
+  **Next.js 16 differs from older versions** (async `params`/`cookies()`, `proxy` instead of
+  `middleware`…): read `web/AGENTS.md` and the docs in `web/node_modules/next/dist/docs/` first.
+- Sign-in: Discord OAuth coded directly (`web/app/auth/*`, `web/lib/auth.ts`), scopes
+  `identify guilds`; only members of the team's Discord server (`DISCORD_GUILD_ID`) get in.
+  Every signed-in member sees everyone's laps. Sessions: random cookie, sha256 in `web_session`.
+  Local development: `DEV_LOGIN=1` adds `/auth/dev?name=Alice` (disabled in production builds).
+- Upload tokens (Settings page, `agent_token`, sha256 only) for `upload.py` and the future app:
+  `Authorization: Bearer acc_…`. API: `POST /api/upload` (raw .json.gz body), `GET /api/corner-maps/<track>`,
+  `/api/tokens`.
+- Pages: sessions list, session (laps, status, metrics), leaderboards per track and class (best
+  lap, gap, theoretical best), upload, settings (tokens).
+- Settings: `web/.env.local` from `web/.env.example` (DATABASE_URL, APP_URL, DISCORD_*, DEV_LOGIN).
+- Local development:
+  `docker start acc-coach-dev-pg` (first time: `docker run -d --name acc-coach-dev-pg -e POSTGRES_PASSWORD=dev
+  -e POSTGRES_DB=acc_coach -p 5433:5432 -v acc-coach-dev:/var/lib/postgresql/data postgres:17`),
+  then in `web/`: `npm run db:migrate`, `npm run dev` → http://localhost:3000.
+- Vercel caps request bodies at 4.5 MB: fine for sessions of a few dozen laps; long sessions will
+  need per-lap uploads.
+
 ## Next steps
+- Deploy: private GitHub repo → Vercel (root directory `web/`) + Neon database + Discord application
+  (redirect `<site>/auth/callback`), then `npm run db:migrate` against Neon.
+- Lap page with interactive charts (speed, inputs, delta), lap comparison across drivers with the
+  racing lines on the track map and the corner table.
 - More real recordings: other tracks/cars, a multiplayer server session, a session with pit stops.
 - Corner map method: a map from a single lap is fragile (an off or a barrier contact creates fake
   corners). With car positions, detect corners from the track's geometry (curvature of the line),
   combine several clean laps, then have the team review and name them once per track on a map.
-- Team site in Next.js + TypeScript: upload route (port of `import_bundle`), corner map served
-  by the site, lap / comparison / racing-line / ranking pages.
-- Local agent: the recorder + automatic processing and upload with a token.
+- Desktop app (local agent): the recorder + automatic processing and upload (`upload.py` logic)
+  with the PC's upload token, running in the background.
 - Name the corners of the team's tracks; weighted composite ranking to define with the team.
 - Safer .json matching when `head.driver` is empty: carModel ↔ car-from-file-name table.
