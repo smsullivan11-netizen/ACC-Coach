@@ -271,19 +271,20 @@ def match_official(laps: list[Lap], results: dict, driver: str = "", tol: float 
 # --- Analysis -------------------------------------------------------------------
 
 def resample_by_distance(lap: Lap, ref_length: float, step: float = 1.0) -> dict:
-    """Resamples a lap onto a common distance grid (m). Distance comes from the game's position
-    along the lap (NPOS, recorder files) when available, otherwise from integrated speed."""
+    """Resamples a lap onto a common distance grid (m). Distance = integrated speed (smooth), held to
+    the game's position along the lap (NPOS, recorder files) over the long term: NPOS only updates
+    once per graphics frame and wobbles by a few cm, which made the time delta jitter by ~4 ms."""
     v = lap.data["SPEED"]
     f = lap.freqs["SPEED"]
-    d = None
+    d = np.concatenate([[0], np.cumsum(v[:-1]) / f])
+    d *= ref_length / d[-1]                  # rescaling: compensates integration drift
     if "NPOS" in lap.data:
         u = np.unwrap(lap.data["NPOS"], period=1.0)
         u -= u[0]
         if 0.95 < u[-1] < 1.05:             # a full lap (pit lanes can leave the track spline)
-            d = np.maximum.accumulate(u) * ref_length
-    if d is None:
-        d = np.concatenate([[0], np.cumsum(v[:-1]) / f])
-        d *= ref_length / d[-1]              # rescaling: compensates integration drift
+            n = max(1, int(f))               # 1 s moving average of the correction
+            corr = np.pad(u * ref_length - d, n // 2, mode="edge")
+            d = np.maximum.accumulate(d + np.convolve(corr, np.ones(n) / n, "valid")[:len(d)])
     t = np.arange(len(v)) / f
     grid = np.arange(0, ref_length, step)
     tq = np.interp(grid, d, t)
