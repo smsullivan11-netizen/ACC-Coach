@@ -1,0 +1,17 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Local data: recordings, plots and bundles stay on each driver's PC
+recordings/
+*.accrec
+*.json.gz
+
+# Website (web/)
+node_modules/
+.next/
+.env
+.env*.local
+*.tsbuildinfo
+next-env.d.ts

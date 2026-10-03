@@ -1,0 +1,3 @@
+numpy
+matplotlib
+psycopg[binary]   # tests/test_db.py only

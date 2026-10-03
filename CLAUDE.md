@@ -1,0 +1,233 @@
+# Project: coaching and ranking for the team's drivers (ACC)
+
+Free alternative to Coach Dave Delta / Racemake, for our team first:
+driving-input analysis, driver comparison, ranking by metrics.
+Current sim: Assetto Corsa Competizione (other sims later → generic data model).
+
+## Chosen architecture: hybrid (like Delta)
+- **Local agent** (Windows, on each driver's PC): collects telemetry, processes it and uploads it.
+- **Team site** (Next.js + TypeScript, hosted Postgres — Neon): stores, displays, ranks.
+  The site recomputes nothing: all processing lives in the agent (this Python code is its core).
+- Upload: one **session bundle** per recorded session (`bundle.py`, `.json.gz`).
+- **The site holds each track's reference corner map**; the agent downloads it.
+  A bundle computed with another map (same version, different fingerprint) is refused.
+- **Main data source: our own recorder reading ACC's shared memory** (like Racemake's recorder app):
+  400 Hz inputs, car position for racing lines, the game's own lap times / validity / pit flags.
+  MoTeC import stays as a fallback for older sessions.
+- Still to decide: final agent language (the prototype is Python).
+
+## Files
+- `acc_shm.py`: ACC shared memory page layouts (official doc v1.8.12) and read-only reader (Windows).
+- `recorder.py`: records the shared memory while driving, one `.accrec` file per session.
+- `accrec.py`: `.accrec` file format (raw pages, zlib chunks): writer and reader.
+- `recording.py`: `.accrec` → laps for the pipeline; `check` command for real recordings.
+- `acc_telemetry.py`: MoTeC .ld/.ldx reading, lap splitting, validation, cleaning, resampling,
+  lap metrics, server .json matching, CLI, overlay and racing-line plots (reads `.accrec` too).
+- `corners.py`: corner map (`tracks/<track>.json`) and per-corner metrics.
+- `bundle.py`: session bundle uploaded to the site (format `acc-coach/session` v1).
+- `db/schema.sql`: Postgres schema (tables, ranking views).
+- `tests/`: `test_synthetic.py` (MoTeC), `test_recorder.py` (live, fake game), `test_recording.py`
+  (recorder files), `test_db.py` (reference import `import_bundle` for the site), `fake_acc.py`.
+- `ldparser.py`: third party, GPL-3.0, unmodified.
+
+## Conventions
+- Everything in English (code, comments, CLI messages, docs): not everyone on the team speaks French.
+- Data keys (metrics, bundle, SQL columns) in snake_case, unit as suffix (`_m`, `_s`, `_ms`, `_kmh`, `_pct`).
+- Laps are "L1, L2…", corners are "T1, T2…" (turns).
+- Distances in m from the line, on the track's reference length.
+- Lap exclusion codes: `distance`, `server_invalid`, `game_invalid`, `pit_out`, `pit_in`.
+
+## Data sources
+- **ACC shared memory** (live, while the game runs; see "Recorder" below): pages
+  `Local\acpmf_physics` (player's car, every physics step), `Local\acpmf_graphics` (session, laps,
+  every car's coordinates, every frame) and `Local\acpmf_static` (track, car, driver name).
+  Layouts from Kunos' "ACC Shared Memory Documentation v1.8.12" (struct pack 4, wchar_t = 2 bytes).
+- **ACC server results (.json)**: official lap times per driver and lap (ms), `isValidForBest`.
+  Often UTF-16 LE encoded. Written on the server machine, not on the drivers' PCs.
+- **MoTeC telemetry exported by ACC**: always require the `.ld` + `.ldx` pair.
+  - `.ld` (binary): 55 channels. Inputs at 60 Hz: SPEED (m/s), THROTTLE, BRAKE (%),
+    STEERANGLE (°), CLUTCH, RPMS. 20 Hz: GEAR, G_LAT, G_LON, TC, ABS, tyres/brakes.
+    200 Hz: wheels, suspension. TIME channel (50 Hz) = current lap timer.
+    No world position (X/Y) channel.
+  - `.ldx` (XML): lap beacons `<Marker ClassName="BCN" Time="…">`, time in µs.
+  - `LAP_BEACON` in the .ld is always empty: do not use it.
+- Reading: `ldparser.py` (github.com/gotzl/ldparser, **GPL-3.0**: matters if the agent
+  is distributed with this file).
+
+## Validated findings
+- **Server** sessions: consistent files (.ldx beacons = TIME resets;
+  integrated distance per lap ≈ track length, ±0.3 % at Brands Hatch).
+- **Solo Hotlap** sessions: inconsistent files (channels of different durations,
+  sometimes near-empty exports, TIME resets on aborted laps). Refuse or flag them.
+- The last lap can be missing from the .ldx → complete it with TIME resets.
+- TIME can run longer than the inputs (468 s vs 348 s observed): keep an eye on it.
+- The first lap after leaving the pits starts slowly: exclude it from comparisons.
+- Cumulative delta at the end of the lap ≈ lap time gap (0.68 s vs 0.665 s, Brands Hatch L3/L2):
+  distance resampling is reliable.
+- **Precise line-crossing instant** = TIME sample instant − TIME value right after the reset.
+  Nordschleife: 754.1225 s vs 754.122 s official (0.5 ms), versus 16 ms from the sample alone.
+  .ldx beacons are written in 6-digit scientific notation (`1.33442e+08` µs):
+  10 ms resolution beyond 1000 s into the session, 100 ms beyond 10,000 s.
+- **Auto-blips**: THROTTLE pulses ~47-50 %, 0.10-0.12 s, while braking; 52/52 within ±0.2 s
+  of a downshift (Nordschleife). All removed by `THROTTLE_NB`.
+  Known limit: a blip immediately followed by throttle application would not be removed.
+- **Brake drops**: clean steps ~70 → 0 → ~70 within 0.1-0.25 s, ABS *inactive* during the drop
+  but 77 % within ±0.15 s of an ABS episode (often right after it ends). Not in the ACC replay
+  and not in the driver's input: a logging artefact linked to ABS. Filled by `BRAKE_FILLED`.
+  The 0.3 s threshold fits (36 gaps < 0.3 s, 8 between 0.3 and 1 s with no throttle).
+- ABS channel (20 Hz) = 0/1 "ABS active" flag; same for TC.
+- GEAR is reliable: 0 = neutral at standstill, then the real gears (distinct speed/RPM ratios,
+  no time lag).
+- `head.driver` is empty in the .ld (Nordschleife): .json matching cannot filter by driver;
+  with a single lap, risk of a wrong match on a server with several cars.
+- Integrated distance Nordschleife 24h: 25,412 m vs 25,378 m official (+0.13 %).
+- The Nordschleife sample lap (2026-10-03) was driven with several barrier contacts: fine for
+  testing the pipeline, not representative for driving analysis or a corner map.
+- Results .json: `2147483647` = no value (e.g. `bestlap` with no valid lap);
+  `timing.totalTime` can be nonsensical (816,144,442 ms observed).
+
+## Recorder (recorder.py, accrec.py, recording.py)
+- `python recorder.py [--out recordings] [--poll-ms 0.5]`: start before or after ACC, stop with Ctrl+C.
+  Opens the pages read-only and only if ACC created them (never creates them). Records only when
+  the status is live or pause (nothing in menus or replays). New file at each session change.
+  Polls every ~0.5-1 ms (Python `time.sleep` precision on Windows), so every 2.5 ms physics packet is
+  caught; missed packets = gaps in `packetId`, counted and reported. A copy is retried if the game
+  wrote during it (`packetId` changed), so fields never mix two steps.
+- `.accrec` keeps the **raw pages** (zlib chunks of ~1 s, written by a background thread): if a
+  field turns out to be decoded wrongly, past recordings can be re-read with a fixed layout.
+  Format v2 stores each chunk column-wise (~35 % smaller than v1); v1 files stay readable.
+- `recording.py` (`load_recording`, same contract as `load_session`):
+  - physics clock = packet count × step length, the step calibrated against the game's lap timer
+    (2.500 ms per packet, median over laps); the recorder clock is only a fallback (in the pits and
+    menus the packet counter misbehaves: measuring against it gave 2.493 ms → laps 0.28 % short);
+  - lap boundary = frame where `completedLaps` increases, minus the game's lap timer `iCurrentTime`
+    at that frame (~1 ms); game lap time = `iLastTime`; validity = `isValidLap` over the lap
+    (`game_invalid`); pit lap = `isInPitLane` during the lap (start → out, else in);
+  - channels resampled at the physics rate: SPEED, THROTTLE, BRAKE, CLUTCH (pedal inputs × 100),
+    STEER_NORM (−1…1) and STEERANGLE (× lock / 2 when the car is in `acc_shm.STEER_LOCK_DEG`),
+    GEAR (ACC: 0 = R, 1 = N, 2 = 1st → converted to 1 = 1st), RPMS, ABS_ACTIVE / TC_ACTIVE (from
+    the float fields `abs` / `tc`; `absInAction` / `tcInAction` are always 0 in ACC),
+    NPOS (normalizedCarPosition), POS_X/Y/Z (tyre contact points if consistent with the speed,
+    else the player's `carCoordinates`, found through `carID[] == playerCarID`);
+  - distance along the lap from NPOS (the game's track spline), else integrated speed.
+- `python recording.py check <file>`: report to run on real recordings (rates, missed packets,
+  speed vs velocity, value ranges, gear numbering, coordinates in metres, lap times vs game).
+- Layout sizes 800 / 1588 / 820 bytes (physics and graphics match the sizes used by
+  PyAccSharedMemory, MIT; its static map of 784 bytes is too short for its own field list).
+- **Validated on a real recording** (Brands Hatch, Ford Mustang GT3, 2026-10-04, 7.8 min, 13/13 checks):
+  - physics 400.0 Hz, 0.02 % packets missed, graphics ~118 Hz (frame rate); speedKmh = |velocity|;
+  - lap times within 2 ms of the game's `iLastTime`; `isValidLap` works (track limits);
+  - coordinates in metres, y up, x and z horizontal; seen from above z points down the page
+    (plotting z upwards mirrors the map: Druids became a left-hander); ~11 % of graphics frames
+    repeat the previous position, so speed checks on coordinates need ~0.5 s stretches;
+  - tyre contact points are filled in (0.5 m from `carCoordinates`) and used for positions;
+  - the live pedal values have the same quirks as MoTeC: brake drops to 0 for 40-270 ms inside
+    braking zones (4-11 per lap) and ~15 short throttle pulses per lap while braking (auto-blips):
+    the same cleaning applies;
+  - the driver is often still at full throttle when the brake goes on (overlap): the lift point
+    is searched after the braking point too;
+  - `acVersion` reads "1.7" and `playerNick` is empty (not used);
+  - file size 424 MB per hour in format v1 (driving data is noisy), ~280 MB per hour in v2.
+- Missing: steering lock of cars newer than the doc (Ford Mustang GT3…): steering stays in % of lock
+  until a lock table entry is added (e.g. from a MoTeC export of the same car: STEERANGLE vs steerAngle).
+
+## Pipeline (acc_telemetry.py; MoTeC steps 1-4, recorder files: see above)
+1. Lap boundaries: .ldx, completed with TIME; precise instant from TIME when available.
+   A lap starts at the first sample at or after the crossing instant.
+2. Validation: lap distance within ±3 % of the reference (`--track-length`, otherwise
+   `TRACK_LENGTHS` by venue, otherwise median of the laps).
+3. Pit out-laps / in-laps: mean speed over 1 s at the line < 60 % of the median.
+4. `--results` option: matching with the server .json (car of the .ld driver if found,
+   best lap offset within ±50 ms, at least 2 laps) → official lap time + `isValidForBest`.
+5. Input cleaning: `BRAKE_ZONE` (brake > 5 %, gaps < 0.3 s filled), `BRAKE_FILLED`
+   (artefact drops filled; braking points are read from raw BRAKE), `THROTTLE_NB`
+   (throttle pulses < 0.3 s inside braking zones removed).
+6. Resampling onto a common distance grid (1 m), distance rescaled to the reference;
+   discrete channels (GEAR, BRAKE_ZONE, ABS_ACTIVE, TC_ACTIVE) use the last known value.
+7. Overlay + cumulative time delta vs distance (`--raw`: raw throttle/brake).
+   Default: first comparable lap vs best comparable lap; with fewer than two,
+   metrics only, no plot.
+8. Provisional lap metrics (on cleaned inputs): `full_throttle_pct`, `braking_pct`,
+   `avg_throttle_pct`, `max_speed_kmh`, `steering_rate_deg_s` (proxy for corrections;
+   `steering_rate_pct_s` when the steering lock is unknown). Final metrics to be defined with the team.
+9. Corner map (`--rebuild-corners` to redo it), then corner-by-corner comparison
+   (the 8 corners where A loses the most to B); corner bands on the plot.
+10. With car positions (recorder): racing-line plot `<file>_L<a>_vs_L<b>_lines.png`, whole track +
+    zooms (±60 m around the apex) on the 3 corners where A loses the most, braking point (●),
+    throttle pickup (▲), lateral gap at the apex (inside / outside).
+11. `--bundle file.json.gz`: session bundle to upload to the site.
+
+## Corners (corners.py)
+- A "corner map" is not a drawing of the track: it is the list of corner segments along the lap
+  (start / apex / end in m from the line), used to cut every lap of every driver at the same places.
+- Detection on a resampled lap: speed smoothed over 15 m, alternating peaks/dips at least
+  10 km/h apart (`CORNER_DROP_KMH`). Corner = from the previous speed peak to the next; the first
+  starts at 0 and the last ends at the line, so sum of corner times = lap time.
+  A dip right at the line is ignored (start/end of the lap, not a corner).
+- Map built **only from a comparable lap** (the fastest) and saved to `tracks/<track>.json`.
+  Without a comparable lap: provisional map, not saved, and the site does not import
+  per-corner results. Rebuild: version +1, names kept if the apex moves by less than 30 m.
+  Names ("Druids"…) are filled in by hand in the .json.
+- Per corner and per lap: `time_s`, `entry_speed_kmh`, `lift_point_m`, `braking_point_m`,
+  `brake_release_m`, `max_brake_pct`, `min_speed_kmh`, `apex_m` (this lap's minimum speed),
+  `throttle_pickup_m` (throttle > 10 % after the brake), `full_throttle_m`, `coasting_s`, `exit_speed_kmh`.
+  `None` when the event does not happen (flat-out corner, no braking).
+- Braking point = start of the **main** braking event before the apex (the braking run losing the
+  most speed): a short dab near the apex, or a brief full-throttle moment in a long arc, must not
+  move it. Lift = start of the partial-throttle run around the braking point (without braking:
+  around the apex, or the last one before it). Full throttle = first full throttle from the apex on.
+- The apex (minimum speed) is ambiguous along a constant-radius arc (can move by tens of metres
+  between laps for the same speed): compare `min_speed_kmh`, not `apex_m`, there.
+- Nordschleife: 64 corners detected at 10 km/h (53 at 20 km/h).
+
+## Session bundle (bundle.py)
+- Gzipped JSON: metadata (source kind `motec` / `shared_memory`, track, car, session type, file
+  sha256 for deduplication, server .json info if matched), corner map used (`version`, `hash`,
+  `provisional`), and per lap: lap times (own, server, game), validity, exclusion codes, metrics,
+  corners, traces.
+- Traces: 1 m grid; time, speed, raw/clean throttle, raw/clean brake, steering (° and/or −1…1),
+  gear, and for recorder sessions the car position `pos_x_m` / `pos_y_m` / `pos_z_m` (game
+  coordinates); little-endian base64 integers with a scale (Int16Array/Int32Array on the JS side).
+- Sizes: ~100 KB for 5 laps of 3.9 km (MoTeC); ~210 KB for 5 laps of 2.8 km with positions (fake
+  recorder session); 171 KB for one Nordschleife lap (250 KB in the database).
+
+## Database (db/schema.sql)
+- Tables: `driver`, `agent_token` (token hash), `track`, `car` (class for rankings),
+  `corner_map`/`corner`, `server_session`/`official_lap` (.json import, all drivers),
+  `session` (unique sha256), `lap` (metrics as jsonb, game lap time and validity for recorder
+  sessions), `corner_result` (columns), `lap_trace`.
+- Views: `best_lap`, `lap_ranking`, `corner_best`, `corner_ranking`, `theoretical_best`
+  (sum of best corners). Only `comparable` laps are ranked, per track and class.
+- Reference import to port to TypeScript: `import_bundle` and `import_results` in
+  `tests/test_db.py`. Refusals: unknown format, session already uploaded, incompatible map.
+  All or nothing.
+- Traces as jsonb to start with; if the database grows (Neon free tier 0.5 GB ≈ 2,000
+  Nordschleife laps), move to object storage (`storage_key`).
+
+## Tests
+- `python tests/test_synthetic.py`: synthetic session (.ld/.ldx/.json UTF-16) covering out-lap,
+  in-lap, missing beacon, server-invalid lap, blips, chattering brake, corner detection,
+  saved/rebuilt map and bundle (encode/decode round trip).
+- `python tests/test_recorder.py` (~15 s, real time): the fake game (`tests/fake_acc.py --live`)
+  publishes pages under a **test prefix** `Local\acctest_` (never ACC's names) through a scenario
+  (menu, practice, pause, practice, qualifying, menu); checks files per session, no torn reads,
+  nothing from menus, pause kept, missed-packet count.
+- `python tests/test_recording.py`: full fake session written straight into an `.accrec` (pit start,
+  out-lap, flying laps, game-invalidated lap, in-lap, dropped packets) → laps, flags, lap times
+  (±1 ms of the game), positions, corners, bundle, plots and the `check` report.
+- `python tests/test_db.py [bundle.json.gz]`: schema + import of two synthetic drivers and a fake
+  recorder session into Postgres, rankings, refusals; optional real bundle. Test Postgres:
+  `docker run --rm -d --name acc-coach-pg -e POSTGRES_PASSWORD=test -p 5433:5432 postgres:17`
+  (or `DATABASE_URL`). Works in the `acc_test` schema, recreated on every run.
+- Environment: `.venv` (`pip install -r requirements.txt`).
+
+## Next steps
+- More real recordings: other tracks/cars, a multiplayer server session, a session with pit stops.
+- Corner map method: a map from a single lap is fragile (an off or a barrier contact creates fake
+  corners). With car positions, detect corners from the track's geometry (curvature of the line),
+  combine several clean laps, then have the team review and name them once per track on a map.
+- Team site in Next.js + TypeScript: upload route (port of `import_bundle`), corner map served
+  by the site, lap / comparison / racing-line / ranking pages.
+- Local agent: the recorder + automatic processing and upload with a token.
+- Name the corners of the team's tracks; weighted composite ranking to define with the team.
+- Safer .json matching when `head.driver` is empty: carModel ↔ car-from-file-name table.

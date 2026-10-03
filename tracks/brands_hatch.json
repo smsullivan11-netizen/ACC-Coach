@@ -1,0 +1,72 @@
+{
+ "track": "brands_hatch",
+ "length_m": 3908.0,
+ "version": 1,
+ "source": "20261004-001243_brands_hatch_ford_mustang_gt3_practice.accrec L2",
+ "drop_kmh": 10.0,
+ "corners": [
+  {
+   "id": 1,
+   "name": null,
+   "start_m": 0.0,
+   "apex_m": 267.0,
+   "end_m": 498.0
+  },
+  {
+   "id": 2,
+   "name": null,
+   "start_m": 498.0,
+   "apex_m": 610.0,
+   "end_m": 781.0
+  },
+  {
+   "id": 3,
+   "name": null,
+   "start_m": 781.0,
+   "apex_m": 862.0,
+   "end_m": 1120.0
+  },
+  {
+   "id": 4,
+   "name": null,
+   "start_m": 1120.0,
+   "apex_m": 1264.0,
+   "end_m": 1906.0
+  },
+  {
+   "id": 5,
+   "name": null,
+   "start_m": 1906.0,
+   "apex_m": 2125.0,
+   "end_m": 2277.0
+  },
+  {
+   "id": 6,
+   "name": null,
+   "start_m": 2277.0,
+   "apex_m": 2373.0,
+   "end_m": 2658.0
+  },
+  {
+   "id": 7,
+   "name": null,
+   "start_m": 2658.0,
+   "apex_m": 2756.0,
+   "end_m": 2900.0
+  },
+  {
+   "id": 8,
+   "name": null,
+   "start_m": 2900.0,
+   "apex_m": 2998.0,
+   "end_m": 3343.0
+  },
+  {
+   "id": 9,
+   "name": null,
+   "start_m": 3343.0,
+   "apex_m": 3464.0,
+   "end_m": 3907.0
+  }
+ ]
+}
