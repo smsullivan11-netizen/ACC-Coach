@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
@@ -74,7 +75,9 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
             const isBest = l.comparable && time(l) === best;
             return (
               <tr key={l.id} className="border-b border-white/5">
-                <td className="py-2 text-zinc-400">L{l.number}</td>
+                <td className="py-2">
+                  <Link href={`/laps/${l.id}`} className="text-zinc-300 underline-offset-2 hover:underline">L{l.number}</Link>
+                </td>
                 <td className={`text-right ${isBest ? "font-semibold text-purple-300" : l.comparable ? "text-white" : "text-zinc-500"}`}>
                   {lapTime(time(l))}
                 </td>
@@ -97,7 +100,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
         </tbody>
       </table>
       <p className="mt-4 text-xs text-zinc-500">
-        Lap times are the game&apos;s when recorded live. Lap charts and lap comparison come next.
+        Lap times are the game&apos;s when recorded live. Click a lap for its charts, racing line and corners.
       </p>
     </div>
   );

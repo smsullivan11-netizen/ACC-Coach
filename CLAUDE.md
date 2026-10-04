@@ -246,7 +246,13 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   `Authorization: Bearer acc_…`. API: `POST /api/upload` (raw .json.gz body), `GET /api/corner-maps/<track>`,
   `/api/tokens`.
 - Pages: sessions list, session (laps, status, metrics), leaderboards per track and class (best
-  lap, gap, theoretical best), upload, settings (tokens).
+  lap, gap, theoretical best, "vs leader"), upload, settings (tokens), and the lap page
+  `/laps/<id>?vs=<other lap>`: uPlot charts on the 1 m grid (time gap, speed, throttle, brake,
+  steering, gear) with shared cursor and zoom, SVG track map (ACC x/z: z points down like SVG's y,
+  so no flip needed) with both racing lines and the cursor position, corner table (click = zoom).
+  Traces are fetched from `/api/laps/<id>` and decoded in the browser (`web/lib/trace.ts`).
+- Visual checks: headless Chrome through Playwright (Python package installed outside the
+  project, `channel="chrome"`), screenshots of the lap page; no browser console errors.
 - Settings: `web/.env.local` from `web/.env.example` (DATABASE_URL, APP_URL, DISCORD_*, DEV_LOGIN).
 - Local development:
   `docker start acc-coach-dev-pg` (first time: `docker run -d --name acc-coach-dev-pg -e POSTGRES_PASSWORD=dev
@@ -256,10 +262,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   need per-lap uploads.
 
 ## Next steps
-- Deploy: private GitHub repo → Vercel (root directory `web/`) + Neon database + Discord application
-  (redirect `<site>/auth/callback`), then `npm run db:migrate` against Neon.
-- Lap page with interactive charts (speed, inputs, delta), lap comparison across drivers with the
-  racing lines on the track map and the corner table.
+- Deployed (2026-10-04): https://acc-coach.vercel.app — GitHub Xhanet/ACC-Coach (private, pushes
+  deploy automatically), Vercel root directory `web/`, Neon Postgres (Frankfurt; pooled address for
+  the site, direct address for `npm run db:migrate`), Discord application with redirects for
+  localhost and the site. Settings are trimmed in code: a tab pasted into APP_URL once broke sign-in.
 - More real recordings: other tracks/cars, a multiplayer server session, a session with pit stops.
 - Corner map method: a map from a single lap is fragile (an off or a barrier contact creates fake
   corners). With car positions, detect corners from the track's geometry (curvature of the line),

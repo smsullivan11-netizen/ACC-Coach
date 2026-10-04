@@ -8,6 +8,7 @@ type Row = {
   position: number;
   gap_ms: number;
   lap_time_ms: number;
+  lap_id: string;
   car_class: string | null;
   driver_id: string;
   driver: string;
@@ -27,7 +28,7 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
   // track's latest corner map
   const rows = await sql<Row[]>`
     with map as (select id from corner_map where track_id = ${t.id} order by version desc limit 1)
-    select r.position::int, r.gap_ms, r.lap_time_ms, r.car_class, r.driver_id, d.display_name as driver,
+    select r.position::int, r.gap_ms, r.lap_time_ms, r.lap_id, r.car_class, r.driver_id, d.display_name as driver,
            c.key as car, l.session_id, to_char(r.recorded_at, 'DD Mon YYYY') as date,
            round(tb.theoretical_s * 1000)::int as theoretical_ms
     from lap_ranking r
@@ -58,22 +59,30 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
                 <th className="text-right font-normal">Gap</th>
                 <th className="text-right font-normal" title="Sum of the driver's best corners">Theoretical</th>
                 <th className="pl-6 font-normal">Date</th>
+                <th />
               </tr>
             </thead>
             <tbody>
               {rows
                 .filter((r) => (r.car_class ?? "Other") === cls)
-                .map((r) => (
+                .map((r, k, list) => (
                   <tr key={r.driver_id} className={`border-b border-white/5 ${r.driver_id === me.id ? "bg-white/5" : ""}`}>
                     <td className="py-2 text-zinc-400">{r.position}</td>
                     <td className="text-white">{r.driver}</td>
                     <td className="text-zinc-300">{prettyKey(r.car)}</td>
                     <td className="text-right font-medium text-white">
-                      <Link href={`/sessions/${r.session_id}`} className="hover:underline">{lapTime(r.lap_time_ms)}</Link>
+                      <Link href={`/laps/${r.lap_id}`} className="hover:underline">{lapTime(r.lap_time_ms)}</Link>
                     </td>
                     <td className="text-right text-zinc-400">{gap(r.gap_ms)}</td>
                     <td className="text-right text-zinc-400">{lapTime(r.theoretical_ms)}</td>
                     <td className="pl-6 text-zinc-500">{r.date}</td>
+                    <td className="text-right">
+                      {k > 0 && (
+                        <Link href={`/laps/${r.lap_id}?vs=${list[0].lap_id}`} className="text-zinc-400 underline hover:text-white">
+                          vs leader
+                        </Link>
+                      )}
+                    </td>
                   </tr>
                 ))}
             </tbody>
