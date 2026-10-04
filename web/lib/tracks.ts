@@ -34,8 +34,16 @@ export const TRACKS: Record<string, { name: string; country: string }> = {
   zolder: { name: "Zolder", country: "be" },
 };
 
+// ACC names some tracks with capitals ("Zolder", "Paul_Ricard", "Barcelona") and others in lowercase:
+// every lookup goes through the lowercase key.
+export const trackKey = (key: string) => key.toLowerCase();
+export const trackInfo = (key: string) => TRACKS[trackKey(key)];
+
 /** Whether public/tracks/<key>.jpg exists (every ACC track in TRACKS has one). */
-export const hasPhoto = (key: string) => key in TRACKS;
+export const hasPhoto = (key: string) => trackKey(key) in TRACKS;
+
+/** The track's photo; ?v= changes when photos are replaced, so browsers do not keep the old one. */
+export const photoUrl = (key: string) => `/tracks/${trackKey(key)}.jpg?v=3`;
 
 /** SVG path of each track's outline, scaled into a 100 × 60 box (keys: track keys). */
 export async function trackOutlines(): Promise<Record<string, string>> {
@@ -54,7 +62,7 @@ export async function trackOutlines(): Promise<Record<string, string>> {
     const step = Math.max(1, Math.floor(x.length / 400));
     let d = "";
     for (let i = 0; i < x.length; i += step) d += `${d ? "L" : "M"}${(ox + (x[i] - x0) * k).toFixed(1)},${(oz + (z[i] - z0) * k).toFixed(1)}`;
-    out[r.key] = d + "Z";
+    out[trackKey(r.key)] = d + "Z";
   }
   return out;
 }

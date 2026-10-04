@@ -7,7 +7,7 @@ import { requireDriver } from "@/lib/auth";
 import { coachSession } from "@/lib/coaching";
 import { sql } from "@/lib/db";
 import { lapTime, prettyKey, REASONS } from "@/lib/format";
-import { TRACKS, hasPhoto } from "@/lib/tracks";
+import { hasPhoto, photoUrl, trackInfo } from "@/lib/tracks";
 import Coach from "./Coach";
 
 type Session = {
@@ -57,7 +57,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   const best = Math.min(...laps.filter((l) => l.comparable).map(time));
   const coaching = await coachSession(id);
 
-  const info = TRACKS[session.track];
+  const info = trackInfo(session.track);
   const photo = hasPhoto(session.track);
 
   return (
@@ -68,7 +68,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
       <div className="card rise relative overflow-hidden">
         {photo && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={`/tracks/${session.track}.jpg`} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" />
+          <img src={photoUrl(session.track)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" />
         )}
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-black/30" />
         <div className="stripe absolute inset-x-0 bottom-0 h-[2px]" />

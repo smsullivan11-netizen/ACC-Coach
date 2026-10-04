@@ -446,6 +446,12 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   `/telemetry` = pick a track (photo tiles, the driver's tracks first), "your lap" (yellow) and an
   optional lap to compare with (grey), then "Watch replay" (`/laps/<id>?vs=<id>&replay=1` opens the
   lap page with the replay shown) or "Open telemetry"; plus a quick "your best vs the team best".
+- **ACC track keys are mixed case** ("Zolder", "Paul_Ricard", "Barcelona", "Hungaroring",
+  "Silverstone"… but "brands_hatch", "misano"): stored as sent; every lookup (names, flags, photos,
+  `car_target` targets) goes through the lowercase key (`trackKey`/`trackInfo`/`photoUrl` in
+  lib/tracks.ts, `lower()` in SQL). Before this fix, those tracks showed outlines, no flag, and
+  their ratings ignored the targets. Photo URLs carry `?v=` (bump it when photos change: browsers
+  cached the old Misano photo).
 - Round 3: every page in the same style (shared `.data-table`, `.btn`, `.input`, `PageTitle`,
   `SectionTitle`, `Position`, `Chip`, `Avatar`): track leaderboard with a photo banner, drivers,
   profiles, session page and coach card, lap comparison (lap cards, charts in cards), replay, track

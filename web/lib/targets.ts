@@ -25,7 +25,7 @@ export async function paceReference(db: Sql, sessionId: string): Promise<PaceRef
     select ct.target_ms, ct.source, me.car_key as car,
            (select min(t) from laps where car_id = me.car_id) as car_best,
            (select min(t) from laps where class is not distinct from me.class) as class_best
-    from me left join car_target ct on ct.track_key = me.track_key and ct.car_key = me.car_key`;
+    from me left join car_target ct on ct.track_key = lower(me.track_key) and ct.car_key = me.car_key`;
   if (!r) return { target_ms: null, source: null, team_best_ms: null, reference_ms: null, car: null };
   const teamBest = r.target_ms != null ? r.car_best : r.class_best;
   const candidates = [r.target_ms, teamBest].filter((x): x is number => x != null);

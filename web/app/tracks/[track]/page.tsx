@@ -7,7 +7,7 @@ import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, gap, lapTime, prettyKey } from "@/lib/format";
 import { carClass } from "@/lib/import-bundle";
-import { TRACKS, hasPhoto } from "@/lib/tracks";
+import { hasPhoto, photoUrl, trackInfo } from "@/lib/tracks";
 import TargetForm from "./TargetForm";
 
 type Row = {
@@ -28,7 +28,7 @@ type Row = {
 
 export async function generateMetadata(props: PageProps<"/tracks/[track]">): Promise<Metadata> {
   const { track } = await props.params;
-  return { title: TRACKS[track]?.name ?? prettyKey(track) };
+  return { title: trackInfo(track)?.name ?? prettyKey(track) };
 }
 
 export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
@@ -55,7 +55,7 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
   // Rating references per car: the car's target (LFM 101 % for the team's cars) or the team's best
   // in that car when faster; cars without a target use the class's team best (lib/targets.ts)
   const targets = await sql<{ car: string; target_ms: number; source: string | null }[]>`
-    select car_key as car, target_ms, source from car_target where track_key = ${track} order by car_key`;
+    select car_key as car, target_ms, source from car_target where track_key = lower(${track}) order by car_key`;
   const cars = new Map<string, { cls: string; target: (typeof targets)[number] | null; best: number | null }>();
   for (const x of targets) cars.set(x.car, { cls: carClass(x.car), target: x, best: null });
   for (const r of rows) {
@@ -66,7 +66,7 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
   }
   const classes = [...new Set([...rows.map((r) => r.car_class ?? "Other"), ...[...cars.values()].map((e) => e.cls)])];
 
-  const info = TRACKS[track] ?? { name: prettyKey(track), country: "" };
+  const info = trackInfo(track) ?? { name: prettyKey(track), country: "" };
 
   return (
     <div>
@@ -77,7 +77,7 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
       <div className="card rise relative overflow-hidden">
         {hasPhoto(track) ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={`/tracks/${track}.jpg`} alt="" className="h-44 w-full object-cover sm:h-56" />
+          <img src={photoUrl(track)} alt="" className="h-44 w-full object-cover sm:h-56" />
         ) : (
           <div className="h-44 w-full bg-[radial-gradient(120%_90%_at_50%_0%,#26262b_0%,#0d0d10_70%)] sm:h-56" />
         )}

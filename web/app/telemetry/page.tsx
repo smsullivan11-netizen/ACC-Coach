@@ -5,7 +5,7 @@ import { delay, PageTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { lapTime, prettyKey } from "@/lib/format";
-import { TRACKS, hasPhoto } from "@/lib/tracks";
+import { hasPhoto, photoUrl, trackInfo } from "@/lib/tracks";
 import LapPicker, { type PickLap } from "./LapPicker";
 
 export const metadata: Metadata = { title: "Telemetry" };
@@ -60,11 +60,11 @@ export default async function TelemetryPage(props: PageProps<"/telemetry">) {
                       className={`card relative h-24 w-44 shrink-0 overflow-hidden transition ${on ? "ring-2 ring-accent" : "opacity-70 hover:opacity-100"}`}>
                   {hasPhoto(t.key) && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={`/tracks/${t.key}.jpg`} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    <img src={photoUrl(t.key)} alt="" className="absolute inset-0 h-full w-full object-cover" />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 p-2.5">
-                    <div className="truncate text-sm font-semibold text-white">{TRACKS[t.key]?.name ?? prettyKey(t.key)}</div>
+                    <div className="truncate text-sm font-semibold text-white">{trackInfo(t.key)?.name ?? prettyKey(t.key)}</div>
                     <div className="text-[11px] text-zinc-400">{t.laps} lap{t.laps === 1 ? "" : "s"}</div>
                   </div>
                 </Link>

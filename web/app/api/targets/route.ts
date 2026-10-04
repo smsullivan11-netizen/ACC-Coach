@@ -7,9 +7,12 @@ import { parseLapTime } from "@/lib/targets";
 export async function POST(request: Request) {
   const driver = await currentDriver();
   if (!driver?.is_admin) return Response.json({ error: "admins only" }, { status: 403 });
-  const { track, car, time } = (await request.json().catch(() => ({}))) as { track?: string; car?: string; time?: string | null };
-  const key = /^[a-z0-9_]{2,60}$/;
+  const body = (await request.json().catch(() => ({}))) as { track?: string; car?: string; time?: string | null };
+  const { car, time } = body;
+  let { track } = body;
+  const key = /^[A-Za-z0-9_]{2,60}$/;
   if (!track || !car || !key.test(track) || !key.test(car)) return Response.json({ error: "track and car keys expected" }, { status: 400 });
+  track = track.toLowerCase();   // targets are keyed by the lowercase track key
   if (!time) {
     await sql`delete from car_target where track_key = ${track} and car_key = ${car}`;
     return Response.json({ ok: true, target_ms: null });

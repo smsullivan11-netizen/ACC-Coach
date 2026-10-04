@@ -6,7 +6,7 @@ import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
 import CREDITS from "@/lib/track-photo-credits.json";
-import { TRACKS, hasPhoto, trackOutlines } from "@/lib/tracks";
+import { hasPhoto, photoUrl, trackInfo, trackKey, trackOutlines, TRACKS } from "@/lib/tracks";
 
 export const metadata: Metadata = { title: "Leaderboards" };
 
@@ -28,12 +28,15 @@ export default async function TracksPage() {
       where r.position = 1 order by r.lap_time_ms`,
     sql<{ key: string; last: Date }[]>`
       select t.key, max(coalesce(s.recorded_at, s.uploaded_at)) as last from session s join track t on t.id = s.track_id group by t.key`,
-    sql<{ track: string; car: string; target_ms: number }[]>`select track_key as track, car_key as car, target_ms from car_target`,
+    sql<{ track: string; car: string; target_ms: number }[]>`select lower(track_key) as track, car_key as car, target_ms from car_target`,
     trackOutlines(),
   ]);
-  const last = new Map(recent.map((r) => [r.key, new Date(r.last).getTime()]));
-  const keys = [...new Set([...Object.keys(TRACKS), ...recent.map((r) => r.key)])]
-    .sort((a, b) => (last.get(b) ?? 0) - (last.get(a) ?? 0) || (TRACKS[a]?.name ?? a).localeCompare(TRACKS[b]?.name ?? b));
+  // Links use the key as stored (ACC's case); cards and lookups use the lowercase key
+  const stored = new Map(recent.map((r) => [trackKey(r.key), r.key]));
+  const last = new Map(recent.map((r) => [trackKey(r.key), new Date(r.last).getTime()]));
+  for (const b of best) b.track = trackKey(b.track);
+  const keys = [...new Set([...Object.keys(TRACKS), ...stored.keys()])]
+    .sort((a, b) => (last.get(b) ?? 0) - (last.get(a) ?? 0) || (trackInfo(a)?.name ?? a).localeCompare(trackInfo(b)?.name ?? b));
 
   return (
     <div>
@@ -42,7 +45,7 @@ export default async function TracksPage() {
       </PageTitle>
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {keys.filter((k) => last.has(k)).map((key, i) => {
-          const info = TRACKS[key] ?? { name: prettyKey(key), country: "" };
+          const info = trackInfo(key) ?? { name: prettyKey(key), country: "" };
           // One team best per class (the first to set it when two drivers share the time)
           const rows = best.filter((b, j) => b.track === key && best.findIndex((o) => o.track === key && o.car_class === b.car_class) === j);
           const goals = targets.filter((t) => t.track === key);
@@ -97,7 +100,7 @@ export default async function TracksPage() {
             </>
           );
           return driven ? (
-            <Link key={key} href={`/tracks/${key}`} className="card card-hover rise group flex min-w-0 flex-col overflow-hidden" style={delay(Math.min(i, 9) * 40)}>
+            <Link key={key} href={`/tracks/${stored.get(key)}`} className="card card-hover rise group flex min-w-0 flex-col overflow-hidden" style={delay(Math.min(i, 9) * 40)}>
               {body}
             </Link>
           ) : (
@@ -112,13 +115,13 @@ export default async function TracksPage() {
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">Not driven by the team yet</h2>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {keys.filter((k) => !last.has(k)).map((key) => {
-              const info = TRACKS[key] ?? { name: prettyKey(key), country: "" };
+              const info = trackInfo(key) ?? { name: prettyKey(key), country: "" };
               const goals = targets.filter((t) => t.track === key);
               return (
                 <div key={key} className="card flex min-w-0 items-center gap-3 overflow-hidden p-0 pr-3">
                   {hasPhoto(key) ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={`/tracks/${key}.jpg`} alt="" loading="lazy" className="h-14 w-24 shrink-0 object-cover opacity-80" />
+                    <img src={photoUrl(key)} alt="" loading="lazy" className="h-14 w-24 shrink-0 object-cover opacity-80" />
                   ) : <div className="h-14 w-24 shrink-0 bg-white/5" />}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 truncate text-sm text-zinc-200">
@@ -150,7 +153,7 @@ function TrackImage({ trackKey, outline }: { trackKey: string; outline?: string 
     return (
       <div className="relative aspect-[2/1] w-full overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/tracks/${trackKey}.jpg`} alt="" loading="lazy"
+        <img src={photoUrl(trackKey)} alt="" loading="lazy"
              className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
         <div className="stripe absolute inset-x-0 bottom-0 h-[2px]" />
