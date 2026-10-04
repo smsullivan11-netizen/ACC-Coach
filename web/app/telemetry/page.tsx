@@ -5,12 +5,11 @@ import { delay, PageTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { lapTime, prettyKey } from "@/lib/format";
-import { TRACKS } from "@/lib/tracks";
+import { TRACKS, hasPhoto } from "@/lib/tracks";
 import LapPicker, { type PickLap } from "./LapPicker";
 
 export const metadata: Metadata = { title: "Telemetry" };
 
-const PHOTOS = new Set((process.env.TRACK_PHOTOS ?? "").split(",").filter(Boolean));
 
 // Telemetry and replay, one click from the top bar: pick a track, then your lap and the one to
 // compare with, and open the replay or the charts. Defaults: your last track, your best lap there
@@ -59,7 +58,7 @@ export default async function TelemetryPage(props: PageProps<"/telemetry">) {
               return (
                 <Link key={t.key} href={`/telemetry?track=${t.key}`} scroll={false}
                       className={`card relative h-24 w-44 shrink-0 overflow-hidden transition ${on ? "ring-2 ring-accent" : "opacity-70 hover:opacity-100"}`}>
-                  {PHOTOS.has(t.key) && (
+                  {hasPhoto(t.key) && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={`/tracks/${t.key}.jpg`} alt="" className="absolute inset-0 h-full w-full object-cover" />
                   )}

@@ -435,7 +435,11 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   the user did not like the outlines, so real photos from Wikimedia Commons (free licences only,
   CC BY / BY-SA / CC0, picked by eye among 6+ candidates per track, cropped 2:1 to 1200 × 600):
   `public/tracks/<key>.jpg`, credits in `lib/track-photo-credits.json`, shown on each photo and on
-  the public `/credits` page (licence requirement). Flags self-hosted in `public/flags/` (flagcdn,
+  the public `/credits` page (licence requirement). Then the user sent their own ACC screenshots: they
+  replace the Commons photos for 23 tracks (Misano and the Nordschleife keep Commons photos);
+  credit "PCGR, team screenshot", no credit on the picture. Photo availability is `hasPhoto()` in
+  `lib/tracks.ts` (every ACC track): a list built in next.config.ts at build time came out empty on
+  Vercel, so the live site showed outlines. Flags self-hosted in `public/flags/` (flagcdn,
   Spain simplified); every flag SVG needs a viewBox (without one it does not scale and only its
   corner shows: the "missing flags" the user saw). Names/countries: `lib/tracks.ts`.
 - Telemetry section (top bar, user's request: the replay must not be hidden in sessions):

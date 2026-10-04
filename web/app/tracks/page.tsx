@@ -6,14 +6,13 @@ import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
 import CREDITS from "@/lib/track-photo-credits.json";
-import { trackOutlines, TRACKS } from "@/lib/tracks";
+import { TRACKS, hasPhoto, trackOutlines } from "@/lib/tracks";
 
 export const metadata: Metadata = { title: "Leaderboards" };
 
 type Best = { track: string; car_class: string | null; driver_id: string; driver: string; avatar_url: string | null;
               car: string | null; lap_time_ms: number; drivers: number; laps: number };
 
-const PHOTOS = new Set((process.env.TRACK_PHOTOS ?? "").split(",").filter(Boolean));
 
 // The tracks the team has driven as cards (most recent first): photo or outline, the team's best
 // lap per class and the targets. The other ACC tracks below, compact, with their targets.
@@ -117,7 +116,7 @@ export default async function TracksPage() {
               const goals = targets.filter((t) => t.track === key);
               return (
                 <div key={key} className="card flex min-w-0 items-center gap-3 overflow-hidden p-0 pr-3">
-                  {PHOTOS.has(key) ? (
+                  {hasPhoto(key) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={`/tracks/${key}.jpg`} alt="" loading="lazy" className="h-14 w-24 shrink-0 object-cover opacity-80" />
                   ) : <div className="h-14 w-24 shrink-0 bg-white/5" />}
@@ -147,7 +146,7 @@ export default async function TracksPage() {
  *  its outline on a dark background. */
 function TrackImage({ trackKey, outline }: { trackKey: string; outline?: string }) {
   const credit = (CREDITS as Record<string, { author: string; license: string }>)[trackKey];
-  if (PHOTOS.has(trackKey))
+  if (hasPhoto(trackKey))
     return (
       <div className="relative aspect-[2/1] w-full overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -155,7 +154,7 @@ function TrackImage({ trackKey, outline }: { trackKey: string; outline?: string 
              className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
         <div className="stripe absolute inset-x-0 bottom-0 h-[2px]" />
-        {credit && <span className="absolute bottom-1.5 right-2 text-[9px] text-white/50">Photo: {credit.author} · {credit.license}</span>}
+        {credit && credit.license !== "team screenshot" && <span className="absolute bottom-1.5 right-2 text-[9px] text-white/50">Photo: {credit.author} · {credit.license}</span>}
       </div>
     );
   return (

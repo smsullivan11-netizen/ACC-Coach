@@ -7,7 +7,7 @@ import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, gap, lapTime, prettyKey } from "@/lib/format";
 import { carClass } from "@/lib/import-bundle";
-import { TRACKS } from "@/lib/tracks";
+import { TRACKS, hasPhoto } from "@/lib/tracks";
 import TargetForm from "./TargetForm";
 
 type Row = {
@@ -25,7 +25,6 @@ type Row = {
   theoretical_ms: number | null;
 };
 
-const PHOTOS = new Set((process.env.TRACK_PHOTOS ?? "").split(",").filter(Boolean));
 
 export async function generateMetadata(props: PageProps<"/tracks/[track]">): Promise<Metadata> {
   const { track } = await props.params;
@@ -76,7 +75,7 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
       </Link>
       {/* Banner: photo, flag and name */}
       <div className="card rise relative overflow-hidden">
-        {PHOTOS.has(track) ? (
+        {hasPhoto(track) ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={`/tracks/${track}.jpg`} alt="" className="h-44 w-full object-cover sm:h-56" />
         ) : (

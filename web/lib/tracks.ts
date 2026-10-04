@@ -2,9 +2,10 @@ import "server-only";
 import { sql } from "./db";
 import { decodeChannel, type EncodedChannel } from "./trace";
 
-// The ACC tracks: full names and countries (flags in public/flags/), and each track's outline for
-// the leaderboard cards, drawn from the team's best lap with car positions. A photo in
-// public/tracks/<key>.jpg (an ACC screenshot, for example) replaces the outline.
+// The ACC tracks: full names and countries (flags in public/flags/) and their photos
+// (public/tracks/<key>.jpg: the team's ACC screenshots, Wikimedia Commons for Misano and the
+// Nordschleife; credits in track-photo-credits.json). Every track listed here has a photo; the
+// outline (from the team's best lap with car positions) is only for other tracks.
 
 export const TRACKS: Record<string, { name: string; country: string }> = {
   barcelona: { name: "Circuit de Barcelona-Catalunya", country: "es" },
@@ -33,6 +34,9 @@ export const TRACKS: Record<string, { name: string; country: string }> = {
   zandvoort: { name: "Zandvoort", country: "nl" },
   zolder: { name: "Zolder", country: "be" },
 };
+
+/** Whether public/tracks/<key>.jpg exists (every ACC track in TRACKS has one). */
+export const hasPhoto = (key: string) => key in TRACKS;
 
 /** SVG path of each track's outline, scaled into a 100 × 60 box (keys: track keys). */
 export async function trackOutlines(): Promise<Record<string, string>> {

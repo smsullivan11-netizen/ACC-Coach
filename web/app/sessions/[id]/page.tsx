@@ -7,7 +7,7 @@ import { requireDriver } from "@/lib/auth";
 import { coachSession } from "@/lib/coaching";
 import { sql } from "@/lib/db";
 import { lapTime, prettyKey, REASONS } from "@/lib/format";
-import { TRACKS } from "@/lib/tracks";
+import { TRACKS, hasPhoto } from "@/lib/tracks";
 import Coach from "./Coach";
 
 type Session = {
@@ -35,7 +35,6 @@ type Lap = {
 };
 
 export const metadata: Metadata = { title: "Session" };
-const PHOTOS = new Set((process.env.TRACK_PHOTOS ?? "").split(",").filter(Boolean));
 
 export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   await requireDriver();
@@ -59,7 +58,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   const coaching = await coachSession(id);
 
   const info = TRACKS[session.track];
-  const photo = PHOTOS.has(session.track);
+  const photo = hasPhoto(session.track);
 
   return (
     <div>
