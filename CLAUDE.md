@@ -262,9 +262,11 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Store package (MSIX): `build.ps1` also builds `agent\dist\ACC-Coach-<version>.msix` (`-Store`:
   only that, no installer/site copy): PyInstaller folder + `agent\store\AppxManifest.xml` (template,
   runFullTrust, startup task `Enabled="true"` = on after the first launch) + images
-  (`store\make_assets.py`) + resources.pri (makepri). Identity in `agent\store\identity.json`: test
-  values until the user reserves the name in Partner Center (then Name, Publisher CN=…,
-  PublisherDisplayName from Product identity). Version = version.py + ".0" (Store: last part 0).
+  (`store\make_assets.py`) + resources.pri (makepri; the `<packaging>` part of the generated config is
+  removed, or every scale above 100 % goes to resource packs that only bundles use). Identity in
+  `agent\store\identity.json` = Partner Center's Product identity (name reserved 2026-10-04:
+  PCGRXhanet.ACCCoach, publisher "PCGR Xhanet"). Version = version.py + ".0" (Store: last part 0;
+  every new submission needs a higher version).
   Partner Center texts (listing, age rating, certification notes): `agent\store\listing.md`;
   listing hidden (direct link only), free.
 - Packaged mode (`PACKAGE` = package family name, via GetCurrentPackageFamilyName): files in the
@@ -344,7 +346,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   corners). With car positions, detect corners from the track's geometry (curvature of the line),
   combine several clean laps, then have the team review and name them once per track on a map.
 - Microsoft Store release of the desktop app (see "Desktop app"): the teammate install failed on
-  Smart App Control. Waiting for the user's Partner Center account and name reservation.
+  Smart App Control. Name reserved; first submission (0.1.0) to upload by the user, then the
+  Store link goes on the site's download page.
 - Production: migration 0003 applied on Neon (2026-10-04); "Recompute all ratings" to click once.
 - Ideas not requested yet: rating change in the app's upload notification, coaching summary per
   session, stint view, server results import.

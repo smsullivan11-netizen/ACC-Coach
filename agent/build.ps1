@@ -55,6 +55,11 @@ foreach ($k in $values.Keys) { $manifest = $manifest.Replace("`$$k`$", [System.S
 [System.IO.File]::WriteAllText((Join-Path $root "$layout\AppxManifest.xml"), $manifest)
 & "$sdk\makepri.exe" createconfig /cf agent\build\pri\priconfig.xml /dq en-US /pv 10.0.0 /o | Out-Null
 if ($LASTEXITCODE) { throw "makepri createconfig failed" }
+# One package, not a bundle: keep every scale in resources.pri (the default config moves scales
+# other than 100 % to resource packs, and Windows would then stretch the 100 % images)
+$cfg = [xml](Get-Content agent\build\pri\priconfig.xml -Raw)
+$cfg.SelectNodes("//packaging") | ForEach-Object { [void]$_.ParentNode.RemoveChild($_) }
+$cfg.Save((Join-Path $root "agent\build\pri\priconfig.xml"))
 & "$sdk\makepri.exe" new /pr agent\build\pri /cf agent\build\pri\priconfig.xml /mn "$layout\AppxManifest.xml" `
     /of "$layout\resources.pri" /o | Out-Null
 if ($LASTEXITCODE) { throw "makepri failed" }

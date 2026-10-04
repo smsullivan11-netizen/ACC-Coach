@@ -1,6 +1,6 @@
 {
-  "_note": "Partner Center > ACC Coach > Product management > Product identity. Until the name is reserved: test values (local test installs only, signed with a self-signed certificate of the same CN).",
-  "name": "ACCCoach.Test",
-  "publisher": "CN=ACC Coach Test",
-  "publisher_display_name": "ACC Coach (test)"
+  "_note": "From Partner Center > ACC Coach > Product management > Product identity (name reserved 2026-10-04). The package must carry exactly these values or Partner Center refuses it.",
+  "name": "PCGRXhanet.ACCCoach",
+  "publisher": "CN=87BF1E4C-8199-4D2F-B70E-6A3D3C70652B",
+  "publisher_display_name": "PCGR Xhanet"
 }
