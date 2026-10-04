@@ -265,6 +265,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   (`store\make_assets.py`) + resources.pri (makepri). Identity in `agent\store\identity.json`: test
   values until the user reserves the name in Partner Center (then Name, Publisher CN=…,
   PublisherDisplayName from Product identity). Version = version.py + ".0" (Store: last part 0).
+  Partner Center texts (listing, age rating, certification notes): `agent\store\listing.md`;
+  listing hidden (direct link only), free.
 - Packaged mode (`PACKAGE` = package family name, via GetCurrentPackageFamilyName): files in the
   package's own folders by their real path (`Packages\<family>\LocalState` and `LocalCache`: Windows
   would redirect %APPDATA% writes there anyway, but Explorer only sees real paths); no Run key and
