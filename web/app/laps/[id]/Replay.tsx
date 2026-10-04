@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TrackSurface, { type Edges } from "@/components/TrackSurface";
 import { lapTime } from "@/lib/format";
 import { labelPoint } from "@/lib/geometry";
-import type { Trace } from "@/lib/trace";
+import { smoothGear, type Trace } from "@/lib/trace";
 
 // Replay of one or two laps on the track map, by elapsed time (like watching both cars on track at
 // once): play/pause, speed, timeline, camera following a car, live speed / gear / inputs and gap.
@@ -26,6 +26,24 @@ const CAR_L = 4.6, CAR_W = 2.0;                                    // GT3 footpr
 const ASPECT = 9 / 16;
 const INPUT_COLORS = { brake: "#ef4444", abs: "#2563eb", full: "#22c55e", partial: "#facc15", coast: "#a1a1aa" };
 const ABS_ON = 5;   // % of the time with ABS working, per metre
+const GRAPH_S = 4, GRAPH_N = 80;   // input graphs: the last 4 s, 80 points
+
+/** Throttle / brake / ABS-braking paths of the last GRAPH_S seconds (viewBox 0 0 400 100). */
+function inputPaths(car: Car, t: number) {
+  let thr = "", brk = "", abs = "", penUp = true;
+  for (let k = 0; k < GRAPH_N; k++) {
+    const ts = t - GRAPH_S + (k * GRAPH_S) / (GRAPH_N - 1);
+    const x = ((k * 400) / (GRAPH_N - 1)).toFixed(1);
+    if (ts < 0) { penUp = true; continue; }
+    const { i } = locate(car, ts);
+    const y = (v: number) => (100 - Math.max(0, Math.min(100, v))).toFixed(1);
+    thr += `${thr ? "L" : "M"}${x},${y(car.thr ? car.thr[i] : 0)}`;
+    const b = car.brk ? car.brk[i] : 0;
+    brk += `${brk ? "L" : "M"}${x},${y(b)}`;
+    if (car.abs && car.abs[i] > ABS_ON && b > 5) { abs += `${penUp ? "M" : "L"}${x},${y(b)}`; penUp = false; } else penUp = true;
+  }
+  return { thr, brk, abs };
+}
 
 function prepare(l: ReplayLap): Car | null {
   const c = l.t.channels;
@@ -34,7 +52,7 @@ function prepare(l: ReplayLap): Car | null {
   return {
     driver: l.driver, color: l.color, n, step: l.t.dist[1] - l.t.dist[0] || 1, end: c.time_s[n - 1],
     time: c.time_s, x: c.pos_x_m, z: c.pos_z_m, v: c.speed_ms,
-    thr: c.throttle_clean_pct ?? null, brk: c.brake_clean_pct ?? null, gear: c.gear ?? null, abs: c.abs_pct ?? null,
+    thr: c.throttle_clean_pct ?? null, brk: c.brake_clean_pct ?? null, gear: c.gear ? smoothGear(c.gear) : null, abs: c.abs_pct ?? null,
   };
 }
 
@@ -114,6 +132,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
   const svg = useRef<SVGSVGElement>(null);
   const carEls = useRef<(SVGGElement | null)[]>([]);
   const absEls = useRef<(SVGRectElement | null)[]>([]);
+  const graphEls = useRef<{ thr?: SVGPathElement | null; brk?: SVGPathElement | null; abs?: SVGPathElement | null }[]>([]);
   const hud = useRef<Record<string, HTMLElement | null>>({});
   const slider = useRef<HTMLInputElement>(null);
   const lastSync = useRef(0);
@@ -163,6 +182,10 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
         brkEl.style.width = `${car.brk ? car.brk[s.i] : 0}%`;
         brkEl.style.background = abs ? INPUT_COLORS.abs : "";
       }
+      const g = inputPaths(car, t);
+      graphEls.current[k]?.thr?.setAttribute("d", g.thr);
+      graphEls.current[k]?.brk?.setAttribute("d", g.brk);
+      graphEls.current[k]?.abs?.setAttribute("d", g.abs);
     });
 
     // Camera
@@ -291,6 +314,13 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
               <span ref={(el) => { hud.current[`speed${k}`] = el; }} className="tabular text-white" />
               <span ref={(el) => { hud.current[`gear${k}`] = el; }} className="text-zinc-400" />
             </div>
+            <svg viewBox="0 0 400 100" preserveAspectRatio="none" className="mt-2 h-14 w-full rounded bg-black/40"
+                 aria-label={`${c.driver}: throttle and brake over the last ${GRAPH_S} seconds`}>
+              {[25, 50, 75].map((y) => <line key={y} x1={0} x2={400} y1={y} y2={y} stroke="#ffffff10" vectorEffect="non-scaling-stroke" />)}
+              <path ref={(el) => { (graphEls.current[k] ??= {}).thr = el; }} fill="none" stroke={INPUT_COLORS.full} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+              <path ref={(el) => { (graphEls.current[k] ??= {}).brk = el; }} fill="none" stroke={INPUT_COLORS.brake} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+              <path ref={(el) => { (graphEls.current[k] ??= {}).abs = el; }} fill="none" stroke={INPUT_COLORS.abs} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+            </svg>
             <div className="mt-2 grid grid-cols-[56px_1fr] items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
               <span>Throttle</span>
               <div className="h-2 rounded bg-white/10"><div ref={(el) => { hud.current[`thr${k}`] = el; }} className="h-2 rounded bg-green-500" /></div>

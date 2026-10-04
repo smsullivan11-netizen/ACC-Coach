@@ -25,3 +25,17 @@ export function decodeTrace(t: EncodedTrace): Trace {
   for (let i = 0; i < t.length; i++) dist[i] = i * t.step_m;
   return { dist, channels };
 }
+
+/** Gear changes go through neutral for a few metres: those short neutrals take the previous gear,
+ *  so the trace shows the shifts only (a real neutral, such as in the pits, stays). */
+export function smoothGear(g: Float64Array): Float64Array {
+  const out = Float64Array.from(g);
+  for (let i = 1; i < out.length; i++) {
+    if (out[i] !== 0 || out[i - 1] <= 0) continue;
+    let e = i;
+    while (e < out.length && out[e] === 0) e++;
+    if (e - i < 40 && e < out.length) out.fill(out[i - 1], i, e);
+    i = e;
+  }
+  return out;
+}

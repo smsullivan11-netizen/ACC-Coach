@@ -239,6 +239,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   3-lap session). The recorder sends `abs_pct` (bundle channel, from app 0.1.1) = share of the last
   50 ms with ABS working, so the 1 m grid keeps the pulses; older sessions have no ABS data. The charts' cursor
   follows the first car (every chart, `setCursor`). Drawing runs outside React (rAF + refs).
+- Replay HUD: per car, a rolling graph of the last 4 s of throttle (green) and brake (red, blue
+  with ABS) above the bars. Charts: values under the cursor in each chart's title (both laps).
+- Gear: ACC passes through neutral (0) for a few metres at every shift; `smoothGear` (lib/trace.ts)
+  gives those short neutrals (< 40 m) the previous gear, in the charts and the replay.
 
 ## Coaching summary (web/lib/coaching.ts)
 - Shown on every session page ("Coach" card) and, for the latest session with a valid lap, on the

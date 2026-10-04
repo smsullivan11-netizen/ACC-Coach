@@ -7,7 +7,7 @@ import "uplot/dist/uPlot.min.css";
 import TrackSurface, { type Edges } from "@/components/TrackSurface";
 import { lapTime, prettyKey, REASONS } from "@/lib/format";
 import { labelPoint } from "@/lib/geometry";
-import { decodeTrace, type EncodedTrace, type Trace } from "@/lib/trace";
+import { decodeTrace, smoothGear, type EncodedTrace, type Trace } from "@/lib/trace";
 import Replay from "./Replay";
 
 export type Candidate = { id: string; label: string };
@@ -162,9 +162,10 @@ export default function LapView({ lapId, vsId, candidates, corner }: {
 type Panel = {
   title: string;
   height: number;
-  series: { data: ArrayLike<number | null>; color: string }[];
+  series: { data: ArrayLike<number | null>; color: string; readout?: boolean }[];
   range?: uPlot.Scale["range"];
   stepped?: boolean;
+  format?: (v: number) => string;   // value shown in the title while hovering
 };
 
 function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
@@ -194,7 +195,11 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
     };
     // Reference lap drawn first, so this lap stays on top
     const both = (name: string, f = 1) =>
-      traces.map((t, i) => ({ data: ch(t, name, f), color: COLORS[i] })).filter((s) => s.data).reverse() as Panel["series"];
+      traces.map((t, i) => ({ data: ch(t, name, f), color: COLORS[i], readout: true })).filter((s) => s.data).reverse() as Panel["series"];
+    const gears = traces.map((t, i) => {
+      const g = ch(t, "gear");
+      return g ? { data: smoothGear(g), color: COLORS[i], readout: true } : null;
+    }).filter((s) => s !== null).reverse();
     const steerDeg = traces.every((t) => t.channels.steering_deg);
     // ABS (recorded from app 0.1.1): the brake trace drawn again in blue where the ABS works
     const ABS_COLORS = ["#3b82f6", "#93c5fd"];
@@ -212,17 +217,19 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
       const delta = new Float64Array(n);
       for (let i = 0; i < n; i++) delta[i] = ta[i] - tb[i];
       panels.push({ title: `Time gap (s): above 0 = ${laps[0].driver} behind`, height: 130,
-                    series: [{ data: new Float64Array(n), color: "#ffffff30" }, { data: delta, color: "#ffffff" }],
-                    range: (_u, min, max) => [Math.min(min, -0.05), Math.max(max, 0.05)] });
+                    series: [{ data: new Float64Array(n), color: "#ffffff30" }, { data: delta, color: "#ffffff", readout: true }],
+                    range: (_u, min, max) => [Math.min(min, -0.05), Math.max(max, 0.05)],
+                    format: (v) => `${v > 0 ? "+" : ""}${v.toFixed(3)} s` });
     }
     panels.push(
-      { title: "Speed (km/h)", height: 230, series: both("speed_ms", 3.6) },
-      { title: "Throttle (%)", height: 110, series: both("throttle_clean_pct"), range: [0, 105] },
+      { title: "Speed (km/h)", height: 230, series: both("speed_ms", 3.6), format: (v) => `${Math.round(v)} km/h` },
+      { title: "Throttle (%)", height: 110, series: both("throttle_clean_pct"), range: [0, 105], format: (v) => `${Math.round(v)} %` },
       { title: absOverlay.length ? "Brake (%) · blue: ABS working" : "Brake (%)", height: 110,
-        series: [...both("brake_clean_pct"), ...absOverlay], range: [0, 105] },
+        series: [...both("brake_clean_pct"), ...absOverlay], range: [0, 105], format: (v) => `${Math.round(v)} %` },
       { title: steerDeg ? "Steering (°)" : "Steering (% of lock)", height: 120,
-        series: steerDeg ? both("steering_deg") : both("steering_norm", 100) },
-      { title: "Gear", height: 90, series: both("gear"), stepped: true },
+        series: steerDeg ? both("steering_deg") : both("steering_norm", 100), format: (v) => `${Math.round(v)}${steerDeg ? "°" : " %"}` },
+      { title: "Gear", height: 90, series: gears, stepped: true, range: [0, 7],
+        format: (v) => (v < 0 ? "R" : v === 0 ? "N" : String(Math.round(v))) },
     );
 
     el.innerHTML = "";
@@ -234,6 +241,14 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
       const title = document.createElement("div");
       title.className = "mt-2 text-xs text-zinc-500";
       title.textContent = p.title; // plain text: titles contain driver names
+      // Values under the cursor, in each lap's colour (this lap first)
+      const values = p.series.map((s, j) => ({ s, j: j + 1 })).filter(({ s }) => s.readout).reverse().map(({ s, j }) => {
+        const span = document.createElement("span");
+        span.className = "ml-3 font-medium tabular";
+        span.style.color = s.color;
+        title.appendChild(span);
+        return { span, j };
+      });
       wrap.appendChild(title);
       el.appendChild(wrap);
       const last = k === panels.length - 1;
@@ -253,7 +268,14 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
           ...(p.stepped ? { paths: uPlot.paths.stepped!({ align: 1 }) } : {}),
         }))],
         hooks: {
-          setCursor: [(u) => callbacks.current.onCursor(u.cursor.idx ?? null)],
+          setCursor: [(u) => {
+            const i = u.cursor.idx;
+            for (const { span, j } of values) {
+              const v = i == null ? null : (u.data[j][i] as number | null);
+              span.textContent = v == null || !p.format ? "" : p.format(v);
+            }
+            if (k === 0) callbacks.current.onCursor(i ?? null);
+          }],
           setScale: [(u, key) => {
             if (key !== "x" || syncing) return;
             syncing = true;
