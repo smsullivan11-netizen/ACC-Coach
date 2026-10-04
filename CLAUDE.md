@@ -436,7 +436,7 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   CC BY / BY-SA / CC0, picked by eye among 6+ candidates per track, cropped 2:1 to 1200 × 600):
   `public/tracks/<key>.jpg`, credits in `lib/track-photo-credits.json`, shown on each photo and on
   the public `/credits` page (licence requirement). Then the user sent their own ACC screenshots: they
-  replace the Commons photos for 23 tracks (Misano and the Nordschleife keep Commons photos);
+  replace the Commons photos for all 25 tracks (Misano and the Nordschleife came a bit later);
   credit "PCGR, team screenshot", no credit on the picture. Photo availability is `hasPhoto()` in
   `lib/tracks.ts` (every ACC track): a list built in next.config.ts at build time came out empty on
   Vercel, so the live site showed outlines. Flags self-hosted in `public/flags/` (flagcdn,

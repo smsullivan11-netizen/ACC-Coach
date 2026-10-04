@@ -3,8 +3,7 @@ import { sql } from "./db";
 import { decodeChannel, type EncodedChannel } from "./trace";
 
 // The ACC tracks: full names and countries (flags in public/flags/) and their photos
-// (public/tracks/<key>.jpg: the team's ACC screenshots, Wikimedia Commons for Misano and the
-// Nordschleife; credits in track-photo-credits.json). Every track listed here has a photo; the
+// (public/tracks/<key>.jpg: the team's ACC screenshots; credits in track-photo-credits.json). Every track listed here has a photo; the
 // outline (from the team's best lap with car positions) is only for other tracks.
 
 export const TRACKS: Record<string, { name: string; country: string }> = {

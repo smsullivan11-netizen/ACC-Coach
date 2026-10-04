@@ -13,7 +13,7 @@ export default function CreditsPage() {
     .sort(([a], [b]) => (TRACKS[a]?.name ?? a).localeCompare(TRACKS[b]?.name ?? b));
   return (
     <div className="max-w-3xl">
-      <PageTitle icon={Camera} sub="Track photos: in-game screenshots by the team, and Wikimedia Commons photos used under their free licences (cropped and resized).">
+      <PageTitle icon={Camera} sub="Track photos: Assetto Corsa Competizione screenshots by the team.">
         Credits
       </PageTitle>
       <div className="card divide-y divide-white/5">
