@@ -36,8 +36,8 @@ export async function POST(request: Request) {
   const rating = await rateSession(sql, result.sessionId);
   await afterUpload(result.sessionId);
   // Achievements and the Discord post must never fail an upload
-  const unlocked = await awardAchievements(result.sessionId).catch((e) => { console.error("achievements", e); return []; });
-  await announceSession(result.sessionId, unlocked);
+  await awardAchievements(result.sessionId).catch((e) => console.error("achievements", e));
+  await announceSession(result.sessionId);
   await pruneTraces();
   return Response.json({
     ok: true,

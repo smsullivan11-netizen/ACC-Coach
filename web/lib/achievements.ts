@@ -4,7 +4,7 @@ import { sql } from "./db";
 import { lapTime } from "./format";
 import { trackInfo } from "./tracks";
 
-// Achievements: checked after each upload (and replayed for every session by `rebuildAchievements`).
+// Achievements (rating levels are ranks instead: lib/ranks.ts): checked after each upload (and replayed for every session by `rebuildAchievements`).
 // Each check looks at the driver's data as of that session and returns what is earned; the table
 // keeps the first time, so re-checking never duplicates. Icons are lucide-react names.
 
@@ -12,20 +12,17 @@ type Sql = postgres.Sql | postgres.TransactionSql;
 export type AchievementDef = { code: string; title: string; description: string; icon: string; tier: "bronze" | "silver" | "gold"; perTrack?: boolean };
 
 export const ACHIEVEMENTS: AchievementDef[] = [
-  { code: "first_session", title: "Rookie", description: "Upload your first session", icon: "Flag", tier: "bronze" },
+  { code: "first_session", title: "Welcome aboard", description: "Upload your first session", icon: "Flag", tier: "bronze" },
   { code: "first_valid", title: "On the board", description: "Drive your first valid lap", icon: "Timer", tier: "bronze" },
   { code: "clean_10", title: "Clean sheet", description: "10 valid laps in a row in one session", icon: "ShieldCheck", tier: "silver" },
   { code: "metronome", title: "Metronome", description: "5 valid laps in a row within 0.3 s of each other", icon: "Activity", tier: "gold" },
   { code: "laps_100", title: "Centurion", description: "100 valid laps in total", icon: "Repeat", tier: "silver" },
   { code: "laps_500", title: "Mileage monster", description: "500 valid laps in total", icon: "Gauge", tier: "gold" },
   { code: "explorer", title: "Globetrotter", description: "Valid laps on 5 different tracks", icon: "Globe", tier: "silver" },
-  { code: "long_run", title: "Endurance", description: "60 minutes of driving in one session", icon: "Hourglass", tier: "silver" },
+  { code: "long_run", title: "Endurance", description: "45 minutes of driving in one stint", icon: "Hourglass", tier: "silver" },
   { code: "team_best", title: "Team record", description: "Set the team's fastest lap on a track", icon: "Crown", tier: "gold", perTrack: true },
   { code: "target_beaten", title: "Target hunter", description: "Beat the car's target lap time on a track", icon: "Target", tier: "gold", perTrack: true },
   { code: "track_master", title: "Track master", description: "Hold the team record on 3 tracks at once", icon: "Trophy", tier: "gold" },
-  { code: "rating_70", title: "Contender", description: "Overall Driver Rating of 70", icon: "TrendingUp", tier: "bronze" },
-  { code: "rating_80", title: "Front runner", description: "Overall Driver Rating of 80", icon: "TrendingUp", tier: "silver" },
-  { code: "rating_90", title: "Alien", description: "Overall Driver Rating of 90", icon: "Sparkles", tier: "gold" },
 ];
 export const ACHIEVEMENT_BY_CODE = new Map(ACHIEVEMENTS.map((a) => [a.code, a]));
 
@@ -59,7 +56,7 @@ async function check(db: Sql, sessionId: string): Promise<Earned[]> {
   if (clean >= 10) out.push({ code: "clean_10", scope: "", detail: `${clean} valid laps in a row` });
   if (metronome) out.push({ code: "metronome", scope: "", detail: "5 laps within 0.3 s" });
   const minutes = laps.reduce((a, l) => a + l.t, 0) / 60000;
-  if (minutes >= 60) out.push({ code: "long_run", scope: "", detail: `${Math.round(minutes)} min in one session` });
+  if (minutes >= 45) out.push({ code: "long_run", scope: "", detail: `${Math.round(minutes)} min in one stint` });
 
   // Career totals up to this session (uploads in order)
   const [tot] = await db<{ laps: number; tracks: number }[]>`
@@ -88,10 +85,6 @@ async function check(db: Sql, sessionId: string): Promise<Earned[]> {
   // Records held right now
   const [held] = await db<{ n: number }[]>`select count(distinct track_id)::int as n from lap_ranking where driver_id = ${s.driver_id} and position = 1`;
   if (held.n >= 3) out.push({ code: "track_master", scope: "", detail: `${held.n} team records` });
-  // Rating after this session
-  const [r] = await db<{ rating: number }[]>`select rating from driver_rating where session_id = ${sessionId} order by id desc limit 1`;
-  for (const [code, v] of [["rating_70", 70], ["rating_80", 80], ["rating_90", 90]] as const)
-    if (r && r.rating >= v) out.push({ code, scope: "", detail: `rating ${r.rating.toFixed(1)}` });
   return out;
 }
 

@@ -1,15 +1,15 @@
 import "server-only";
-import type { AchievementDef, Earned } from "./achievements";
 import { appUrl, env } from "./auth";
 import { lapCardUrl } from "./cards";
 import { sql } from "./db";
+import { rankFor, rankLevel } from "./ranks";
 import { carShortName, lapTime } from "./format";
 import { trackInfo } from "./tracks";
 
 // Team news on Discord through a webhook (DISCORD_WEBHOOK_URL, created in the channel's settings:
 // Integrations > Webhooks). No bot to host: the site posts after each upload. Never fails an upload.
 
-const YELLOW = 0xffd200, RED = 0xe10600, GREEN = 0x22c55e;
+const YELLOW = 0xffd200, GREEN = 0x22c55e;
 
 async function post(body: unknown) {
   const url = env("DISCORD_WEBHOOK_URL");
@@ -27,8 +27,8 @@ async function post(body: unknown) {
   }
 }
 
-/** After an upload: team record or personal best (with the lap card), achievements, rating change. */
-export async function announceSession(sessionId: string, achievements: (Earned & AchievementDef)[]) {
+/** After an upload: team record, record equalled or personal best (with the lap card), and rank promotions. */
+export async function announceSession(sessionId: string) {
   if (!env("DISCORD_WEBHOOK_URL")) return;
   const [s] = await sql<{ driver: string; driver_id: string; track: string; car: string | null }[]>`
     select d.display_name as driver, d.id as driver_id, t.key as track, c.key as car
@@ -63,19 +63,21 @@ export async function announceSession(sessionId: string, achievements: (Earned &
       image: { url: lapCardUrl(best.lap_id, best.t) },
     });
   }
-  if (achievements.length)
+  // Rank promotion (lib/ranks.ts): the only post besides lap records
+  const [r] = await sql<{ rating: number; prev: number | null }[]>`
+    select rating, prev from (select session_id, rating, lag(rating) over (order by id) as prev
+                              from driver_rating where driver_id = ${s.driver_id}) x
+    where session_id = ${sessionId}`;   // only this upload's rating: no repeat when a session is not rated
+  if (r?.prev != null && rankLevel(r.rating) > rankLevel(r.prev)) {
+    const rank = rankFor(r.rating);
     embeds.push({
-      color: RED,
-      title: `🏅 ${s.driver} unlocked ${achievements.length === 1 ? "an achievement" : `${achievements.length} achievements`}`,
-      description: achievements.map((a) => `**${a.title}**: ${a.detail ?? a.description}`).join("\n"),
+      color: parseInt(rank.color.slice(1), 16),
+      title: `🎖️ ${s.driver} is now ${rank.title}`,
+      description: `Overall Driver Rating ${r.rating.toFixed(1)} (from ${rankFor(r.prev).title}).`,
       url: `${appUrl()}/drivers/${s.driver_id}`,
     });
-  const [r] = await sql<{ rating: number; prev: number | null }[]>`
-    select rating, lag(rating) over (order by id) as prev from driver_rating where driver_id = ${s.driver_id} order by id desc limit 1`;
-  const ratingLine = r?.prev != null && Math.abs(r.rating - r.prev) >= 0.5
-    ? ` · rating ${r.rating.toFixed(1)} (${r.rating > r.prev ? "+" : ""}${(r.rating - r.prev).toFixed(1)})` : "";
-  if (!embeds.length && !ratingLine) return;
-  await post({ content: `**${s.driver}** uploaded a session at ${track}${ratingLine}`, embeds: embeds.slice(0, 10) });
+  }
+  if (embeds.length) await post({ embeds });
 }
 
 /** Admin test message from Settings. */

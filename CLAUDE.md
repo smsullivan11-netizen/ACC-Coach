@@ -458,18 +458,23 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   map, settings, download, upload, linking, privacy. Page titles: "<page> · ACC Coach".
 
 ## Team features: Discord, lap cards, achievements, head to head, mentors
-- Discord: a **webhook** (`DISCORD_WEBHOOK_URL`, Vercel setting), not a bot (Vercel cannot host an
-  always-on bot). After each upload (`lib/discord.ts`): team record (beats every earlier lap of the
-  class), record equalled, or personal best, with the lap card as the embed image; achievements
-  unlocked; rating change ≥ 0.5. Never fails an upload. Admin button "Test the Discord channel".
+- Discord: a **webhook** (`DISCORD_WEBHOOK_URL`, Vercel secret, working since 2026-10-05), not a
+  bot (Vercel cannot host an always-on bot). After each upload (`lib/discord.ts`), user's rule: only
+  team record (beats every earlier lap of the class), record equalled, or personal best, with the lap
+  card as the embed image, plus **rank promotions** (this upload's rating only). No achievement or
+  rating-change posts. Never fails an upload. Admin button "Test the Discord channel".
+- Ranks (`lib/ranks.ts`, user's scale): Rookie 0, Apprentice 20, Intermediate 40, Advanced 50,
+  Contender 60, Front Runner 70, Expert 80, Alien 90. `RankBadge` next to ratings (drivers list,
+  profile, dashboard).
 - Lap cards: `/api/cards/lap/<id>.png` (next/og ImageResponse, 1200 × 630, track photo, Konexy). Open
   to signed-in members, or with `?s=` = HMAC(CARD_SECRET or DISCORD_CLIENT_SECRET, lap id) so Discord
   can fetch it. Font and photos read from disk: traced via `outputFileTracingIncludes` in
   next.config.ts. "Share" button on the lap page (preview, copy link, download). Privacy policy
   mentions both.
-- Achievements (migration 0006, `lib/achievements.ts`): 14 rules (first session/valid lap, 10 clean
-  laps in a row, metronome 5 laps within 0.3 s, 100/500 laps, 5 tracks, 60 min session, team record
-  and target beaten per track, 3 records held, rating 70/80/90). Checked after each upload; "Recompute
+- Achievements (migration 0006, `lib/achievements.ts`): 11 rules (first session "Welcome aboard",
+  first valid lap, 10 clean laps in a row, metronome 5 laps within 0.3 s, 100/500 laps, 5 tracks,
+  Endurance 45 min in one stint (= session), team record and target beaten per track, 3 records
+  held). Rating badges were dropped: ranks cover them. Checked after each upload; "Recompute
   all ratings" also replays achievements (no Discord posts). Shown on profiles (locked ones greyed).
 - Head to head: `/drivers/compare?a=&b=`: shared tracks/classes (best laps), tracks won, corners
   faster (corner_best on the latest map), replay link per track.

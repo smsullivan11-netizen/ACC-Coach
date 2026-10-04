@@ -1,6 +1,6 @@
 import { Activity, ArrowUpRight, Crown, Gauge, Medal, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Link from "next/link";
-import { Avatar, Chip, delay, Position, SectionTitle } from "@/components/ui";
+import { Avatar, Chip, delay, Position, RankBadge, SectionTitle } from "@/components/ui";
 import type { Driver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
@@ -44,7 +44,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
           <div className="flex items-end gap-4">
             <div className="tabular text-6xl font-bold leading-none text-accent">{rating != null ? rating.toFixed(1) : "–"}</div>
             <div className="pb-1 text-sm text-zinc-400">
-              <div>Overall Driver Rating</div>
+              <div className="flex items-center gap-2">Overall Driver Rating <RankBadge rating={rating} /></div>
               <div className="mt-0.5">
                 {rating == null ? "after your first valid lap"
                   : history.length < PROVISIONAL_SESSIONS ? `provisional (${history.length}/${PROVISIONAL_SESSIONS} sessions)`
@@ -106,6 +106,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
                   <Position n={i + 1} />
                   <Avatar url={d.avatar_url} name={d.display_name} size={28} />
                   <span className="min-w-0 flex-1 truncate text-sm text-white">{d.display_name}</span>
+                  <span className="hidden md:inline"><RankBadge rating={d.rating} /></span>
                   {d.sessions < PROVISIONAL_SESSIONS && <span className="hidden text-[11px] text-zinc-500 sm:inline">provisional</span>}
                   <div className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-white/5 sm:block">
                     <div className="fill h-full rounded-full bg-gradient-to-r from-race to-accent" style={{ width: `${d.rating}%`, ...delay(200 + i * 50) }} />

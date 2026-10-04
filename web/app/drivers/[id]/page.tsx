@@ -4,7 +4,7 @@ import { ACHIEVEMENTS } from "@/lib/achievements";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Chip, delay, Position, SectionTitle } from "@/components/ui";
+import { Chip, delay, Position, RankBadge, SectionTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
@@ -92,6 +92,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
           <div className="ml-auto text-right">
             <div className="text-xs uppercase tracking-wider text-zinc-500">Overall Driver Rating</div>
             <div className="tabular text-6xl font-bold leading-none text-accent">{rating != null ? rating.toFixed(1) : "–"}</div>
+            <div className="mt-2 flex justify-end"><RankBadge rating={rating} size="md" /></div>
             <div className="mt-1 text-sm text-zinc-400">
               {rating == null
                 ? "no rated session yet"
@@ -143,7 +144,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
         </section>
 
         <section className="card rise p-5 lg:col-span-2" style={delay(120)}>
-          <SectionTitle icon={Award} action={<span className="text-zinc-500">{new Set(earned.map((e) => e.code)).size} of {ACHIEVEMENTS.length}</span>}>
+          <SectionTitle icon={Award} action={<span className="text-zinc-500">{new Set(earned.map((e) => e.code).filter((c) => ACHIEVEMENTS.some((a) => a.code === c))).size} of {ACHIEVEMENTS.length}</span>}>
             Achievements
           </SectionTitle>
           <Achievements earned={earned} />

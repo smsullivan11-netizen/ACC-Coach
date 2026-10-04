@@ -1,7 +1,7 @@
 import { Swords, TrendingDown, TrendingUp, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Avatar, Chip, delay, PageTitle, Position } from "@/components/ui";
+import { Avatar, Chip, delay, PageTitle, Position, RankBadge } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { PROVISIONAL_SESSIONS } from "@/lib/ratings";
@@ -26,7 +26,7 @@ export default async function DriversPage() {
 
   return (
     <div>
-      <PageTitle icon={Users} sub="Overall Driver Rating (0-100): pace against the reference lap, consistency, clean driving and smoothness, updated after every session.">
+      <PageTitle icon={Users} sub="Overall Driver Rating (0-100): pace against the reference lap, consistency, clean driving and smoothness, updated after every session. Ranks: Rookie, Apprentice (20), Intermediate (40), Advanced (50), Contender (60), Front Runner (70), Expert (80), Alien (90).">
         Drivers
       </PageTitle>
       <Link href="/drivers/compare" className="btn btn-ghost -mt-2 mb-5"><Swords size={15} /> Head to head</Link>
@@ -60,6 +60,7 @@ export default async function DriversPage() {
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
                           <div className="fill h-full rounded-full bg-gradient-to-r from-race to-accent" style={{ width: `${r.rating}%`, ...delay(150 + i * 50) }} />
                         </div>
+                        <RankBadge rating={r.rating} />
                         {r.sessions < PROVISIONAL_SESSIONS && <Chip>provisional</Chip>}
                       </div>
                     ) : (

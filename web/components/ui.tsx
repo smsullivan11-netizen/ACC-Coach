@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
+import { rankFor } from "@/lib/ranks";
 
 // Small shared pieces of the interface (server and client components).
 
@@ -67,4 +68,16 @@ export const delay = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
 export function Position({ n }: { n: number }) {
   const style = n === 1 ? "bg-accent text-ink" : n === 2 ? "bg-zinc-300 text-ink" : n === 3 ? "bg-race text-white" : "bg-white/5 text-zinc-400";
   return <span className={`tabular grid h-6 w-6 shrink-0 place-items-center rounded-md text-xs font-bold ${style}`}>{n}</span>;
+}
+
+/** Rank title of a rating (lib/ranks.ts), as a coloured pill. */
+export function RankBadge({ rating, size = "sm" }: { rating: number | null | undefined; size?: "sm" | "md" }) {
+  if (rating == null) return null;
+  const r = rankFor(rating);
+  return (
+    <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full border font-semibold uppercase tracking-wider ${size === "md" ? "px-2.5 py-0.5 text-xs" : "px-2 py-px text-[10px]"}`}
+          style={{ color: r.color, borderColor: `${r.color}66`, background: `${r.color}14` }}>
+      {r.title}
+    </span>
+  );
 }
