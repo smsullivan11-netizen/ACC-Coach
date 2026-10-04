@@ -7,6 +7,9 @@ Tray icon next to the clock, starts with Windows. Its files:
   %LOCALAPPDATA%\\ACC Coach\\recordings\\      .accrec files, deleted after 30 days once handled
   %LOCALAPPDATA%\\ACC Coach\\uploads.json      what happened to each recording
   %LOCALAPPDATA%\\ACC Coach\\acc-coach.log
+Microsoft Store version (MSIX package): the same files in the package's own folders
+(%LOCALAPPDATA%\\Packages\\<package>\\LocalState and LocalCache, deleted on uninstall); Windows
+starts it at sign-in (startup task in the package manifest) and the Store updates it.
 
 Development: python agent/acc_coach_app.py [--site http://localhost:3000] [--no-tray]
 """
@@ -47,10 +50,28 @@ def frozen() -> bool:
     return getattr(sys, "frozen", False)
 
 
+def package_family() -> str | None:
+    """Package family name when running as the Microsoft Store app (MSIX), else None."""
+    kernel32 = ctypes.WinDLL("kernel32")
+    n = ctypes.c_uint32(0)
+    if kernel32.GetCurrentPackageFamilyName(ctypes.byref(n), None) != 122:   # 15700: not packaged
+        return None
+    buf = ctypes.create_unicode_buffer(n.value)
+    return buf.value if kernel32.GetCurrentPackageFamilyName(ctypes.byref(n), buf) == 0 else None
+
+
+PACKAGE = package_family()
+
+
 def app_dirs() -> tuple[Path, Path]:
     """(settings folder, data folder). ACC_COACH_HOME puts both in one folder (tests)."""
     if os.environ.get("ACC_COACH_HOME"):
         roaming = local = Path(os.environ["ACC_COACH_HOME"])
+    elif PACKAGE:
+        # The package's own folders, by their real path: Windows would redirect %APPDATA% writes
+        # there anyway, but Explorer ("Open recordings folder") only sees real paths
+        base = Path(os.environ["LOCALAPPDATA"]) / "Packages" / PACKAGE
+        roaming, local = base / "LocalState", base / "LocalCache"
     else:
         roaming = Path(os.environ.get("APPDATA", Path.home())) / APP
         local = Path(os.environ.get("LOCALAPPDATA", Path.home())) / APP
@@ -98,9 +119,10 @@ def autostart_enabled() -> bool:
 
 
 def set_autostart(on: bool):
-    """Start with Windows (current user only). Only for the installed app, not the dev script."""
+    """Start with Windows (current user only). Only for the installed app, not the dev script;
+    the Store app has a startup task instead (switched in Windows settings)."""
     import winreg
-    if not frozen():
+    if not frozen() or PACKAGE:
         return
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
         if on:
@@ -233,6 +255,8 @@ class Agent:
                 log.info("deleted old recording %s", p.name)
 
     def check_update(self):
+        if PACKAGE:                                # the Microsoft Store updates the app
+            return
         try:
             with urllib.request.urlopen(f"{self.site}/api/app/latest", timeout=15) as res:
                 latest = json.loads(res.read())
@@ -335,7 +359,9 @@ def run_tray(agent: Agent):
              visible=lambda _: agent.linked() and bool(agent.pending())),
         Item("Download the new version…", lambda: webbrowser.open(agent.update_url), visible=lambda _: bool(agent.update_url)),
         Menu.SEPARATOR,
-        Item("Start with Windows", toggle_autostart, checked=lambda _: autostart_enabled(), visible=lambda _: frozen()),
+        Item("Start with Windows", toggle_autostart, checked=lambda _: autostart_enabled(),
+             visible=lambda _: frozen() and not PACKAGE),
+        Item("Start with Windows…", lambda: os.startfile("ms-settings:startupapps"), visible=lambda _: bool(PACKAGE)),
         Item("Open recordings folder", lambda: os.startfile(agent.rec_dir) if agent.rec_dir.exists() else None),
         Item(f"About ACC Coach {__version__}", open_url("/download")),
         Item("Quit", quit_app),
@@ -377,7 +403,7 @@ def main():
         log.info("already running")
         return
     agent = Agent(args.site, args.shm_prefix)
-    log.info("ACC Coach %s started (site %s)", __version__, agent.site)
+    log.info("ACC Coach %s started (site %s%s)", __version__, agent.site, f", package {PACKAGE}" if PACKAGE else "")
     if agent.config.get("autostart") is None:          # first run: start with Windows by default
         set_autostart(True)
         agent.config.set("autostart", True)

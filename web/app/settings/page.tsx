@@ -27,7 +27,8 @@ export default async function SettingsPage() {
         <>
           <h2 className="mt-10 font-medium text-white">Admin</h2>
           <p className="mt-1 text-sm text-zinc-400">
-            Admins set the target lap times (on each leaderboard) and manage other admins.
+            Admins set the target lap times (on each leaderboard), manage other admins, and delete a member&apos;s
+            data when they ask (<Link href="/privacy" className="underline">privacy policy</Link>).
           </p>
           <AdminPanel members={members} me={driver.id} />
         </>

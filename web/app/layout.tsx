@@ -45,6 +45,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </nav>
         </header>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+        <footer className="mx-auto w-full max-w-6xl px-4 py-4 text-xs text-zinc-600">
+          <Link href="/privacy" className="hover:text-zinc-400">Privacy</Link>
+        </footer>
       </body>
     </html>
   );

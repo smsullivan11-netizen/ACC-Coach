@@ -17,6 +17,13 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
     router.refresh();
   }
 
+  async function remove(m: Member) {
+    if (!confirm(`Delete ${m.display_name} and all their sessions, laps and ratings? This cannot be undone.`)) return;
+    const res = await fetch(`/api/drivers/${m.id}`, { method: "DELETE" });
+    setMessage(res.ok ? `${m.display_name} deleted.` : (await res.json()).error);
+    router.refresh();
+  }
+
   async function rebuild() {
     setBusy(true);
     const res = await fetch("/api/ratings/rebuild", { method: "POST" });
@@ -40,6 +47,11 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
                          className="accent-[#ffd200]" />
                   admin
                 </label>
+              </td>
+              <td className="w-20 text-right">
+                {m.id !== me && (
+                  <button onClick={() => remove(m)} className="text-xs text-zinc-500 hover:text-red-400">Delete</button>
+                )}
               </td>
             </tr>
           ))}

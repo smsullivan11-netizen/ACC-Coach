@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Microsoft Store package of ACC Coach. Template: build.ps1 fills the $...$ values from identity.json
+     and version.py. runFullTrust = a classic desktop app (reads ACC's shared memory, tray icon). -->
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+         xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+         xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+         IgnorableNamespaces="uap desktop rescap">
+  <Identity Name="$NAME$" Publisher="$PUBLISHER$" Version="$VERSION$" ProcessorArchitecture="x64" />
+  <Properties>
+    <DisplayName>ACC Coach</DisplayName>
+    <PublisherDisplayName>$PUBLISHER_DISPLAY_NAME$</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <Description>Records Assetto Corsa Competizione sessions and uploads them to the team site.</Description>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+  <Applications>
+    <Application Id="ACCCoach" Executable="ACC Coach.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="ACC Coach" Description="ACC telemetry recorder for the team"
+                          BackgroundColor="transparent"
+                          Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
+      <Extensions>
+        <!-- Starts at sign-in once the app has been opened once; switched off in Settings > Apps > Startup -->
+        <desktop:Extension Category="windows.startupTask" Executable="ACC Coach.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="ACCCoachStartup" Enabled="true" DisplayName="ACC Coach" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

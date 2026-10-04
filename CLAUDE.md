@@ -257,11 +257,23 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   copied to `web\public\downloads\` and `app-release.ts` updated. Release = bump `version.py`, build,
   commit, push. Unsigned: Windows SmartScreen asks "More info → Run anyway".
 - **Smart App Control blocks the unsigned installer outright** (error 4551 on a teammate's PC, no
-  "Run anyway"). No budget for a code-signing certificate: the plan is the Microsoft Store (free
-  individual developer account; the Store signs the MSIX). Packaged mode needs: a startup task in
-  the manifest instead of the Run key, no own update check (the Store updates), the real path for
-  "Open recordings folder", a privacy policy page on the site. Windows SDK 10.0.26100 (makeappx) is
-  installed. Waiting for the Partner Center identity (Name, Publisher CN=…, PublisherDisplayName).
+  "Run anyway"). No budget for a code-signing certificate: Microsoft Store instead (free individual
+  developer account at storedeveloper.microsoft.com, ID + selfie; the Store signs the package).
+- Store package (MSIX): `build.ps1` also builds `agent\dist\ACC-Coach-<version>.msix` (`-Store`:
+  only that, no installer/site copy): PyInstaller folder + `agent\store\AppxManifest.xml` (template,
+  runFullTrust, startup task `Enabled="true"` = on after the first launch) + images
+  (`store\make_assets.py`) + resources.pri (makepri). Identity in `agent\store\identity.json`: test
+  values until the user reserves the name in Partner Center (then Name, Publisher CN=…,
+  PublisherDisplayName from Product identity). Version = version.py + ".0" (Store: last part 0).
+- Packaged mode (`PACKAGE` = package family name, via GetCurrentPackageFamilyName): files in the
+  package's own folders by their real path (`Packages\<family>\LocalState` and `LocalCache`: Windows
+  would redirect %APPDATA% writes there anyway, but Explorer only sees real paths); no Run key and
+  no own update check; the menu's "Start with Windows…" opens Settings > Apps > Startup.
+- Local install tests of the MSIX need admin once: unsigned packages cannot contain programs
+  (0x80073D2B) and a self-signed test certificate must be trusted machine-wide (CurrentUser
+  TrustedPeople is not enough, 0x800B0109). Developer Mode + `Add-AppxPackage -Register
+  agentuild\msix\AppxManifest.xml` is the simplest route. The App Certification Kit
+  (`appcert.exe`, in the SDK) also needs admin.
 - Tested: core end to end (linking through the real page in headless Chrome, automatic upload of a
   waiting session, live recording of the fake game), the frozen exe (upload, single instance), and
   a silent install/uninstall of the installer.
@@ -287,6 +299,9 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   (`/drivers/<id>`: avatar, rating, driving style, rating breakdown and history, best laps with
   position, recent sessions). Admin section in Settings (admins, "Recompute all ratings"); admins
   set target lap times on each leaderboard (`POST /api/targets`, `1:24.500`, empty = remove).
+- Public pages (no sign-in): `/`, `/privacy` (privacy policy, linked from the Store listing: keep
+  it in line with what the app and site do). Admins can delete a driver and all their data
+  (`DELETE /api/drivers/<id>`, Settings), as the policy promises.
 - Visual checks: headless Chrome through Playwright (Python package installed outside the
   project, `channel="chrome"`), screenshots of the lap page; no browser console errors.
 - Settings: `web/.env.local` from `web/.env.example` (DATABASE_URL, APP_URL, DISCORD_*, DEV_LOGIN).
@@ -327,8 +342,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   corners). With car positions, detect corners from the track's geometry (curvature of the line),
   combine several clean laps, then have the team review and name them once per track on a map.
 - Microsoft Store release of the desktop app (see "Desktop app"): the teammate install failed on
-  Smart App Control.
-- Production: apply migration 0003 on Neon, then Settings → Admin → "Recompute all ratings".
+  Smart App Control. Waiting for the user's Partner Center account and name reservation.
+- Production: migration 0003 applied on Neon (2026-10-04); "Recompute all ratings" to click once.
 - Ideas not requested yet: rating change in the app's upload notification, coaching summary per
   session, stint view, server results import.
 - Name the corners of the team's tracks; weighted composite ranking to define with the team.
