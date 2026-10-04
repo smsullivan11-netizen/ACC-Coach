@@ -232,7 +232,12 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   medium / wide = 120 / 250 / 500 m view, centred between the cars when close) or whole track,
   0.25×-4×, timeline, live speed / gear / throttle / brake and gap ("ahead by 0.385 s · 20 m":
   time since the leader passed the follower's position). Lines in driver colours or by inputs
-  (braking red, full throttle green, part throttle yellow, coasting grey). The charts' cursor
+  (braking red, ABS working blue, full throttle green, part throttle yellow, coasting grey).
+- ABS (user's request, replacing a brake light): a flashing dark-blue light at the front of the car
+  while the ABS works, the brake bar and the brake chart in blue there. ACC's `abs` float is the
+  ABS intervention (only while braking: 37 % of hard-braking samples, ~1,000 pulses of ~10 ms in a
+  3-lap session). The recorder sends `abs_pct` (bundle channel, from app 0.1.1) = share of the last
+  50 ms with ABS working, so the 1 m grid keeps the pulses; older sessions have no ABS data. The charts' cursor
   follows the first car (every chart, `setCursor`). Drawing runs outside React (rAF + refs).
 
 ## Coaching summary (web/lib/coaching.ts)
@@ -250,7 +255,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   last 3 sessions there. Links open the comparison zoomed on the corner (`/laps/<id>?vs=…&corner=N`).
 - Session: no valid lap, track limits (≥ 25 % of flying laps), consistency (median gap > 1 %, or
   very consistent < 0.4 %), laps > 7 % off (mistakes), progress from the first valid lap, gap to the
-  car's target, short runs, race sessions. Break advice for a lasting pace drop only (user's rule):
+  car's target with the session's optimal lap (sum of the best corner times over its valid laps),
+  short runs, race sessions. Break advice for a lasting pace drop only (user's rule):
   ≥ 3 complete laps in a row after the best lap, each > 2 % slower (one slow lap = a mistake, tyre
   wear stays under 2 %). Car damage is not in the bundle yet ("if the car was not damaged"):
   `carDamage` from the physics page would let the app flag damaged laps.
@@ -428,6 +434,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - More real recordings: other tracks/cars, a multiplayer server session, a session with pit stops.
 - Track edges: the user does not want to drive edge laps on every track. The edge-lap tool stays,
   but an automatic estimate from the team's laps is the direction to explore.
+- App 0.1.1 (ABS channel): installer published on the site; `ACC-Coach-0.1.1.msix` to submit to the
+  Store once 0.1.0 has passed certification.
 - Coaching: tune thresholds with real sessions; maybe the rating change and the top focus in the
   desktop app's upload notification (needs an app release).
 - Corner maps: done on the site (geometry). Mount Panorama upgrades at its next upload (or an

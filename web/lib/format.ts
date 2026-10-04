@@ -48,3 +48,14 @@ export const REASONS: Record<string, string> = {
   pit_in: "in-lap",
   track_edges: "edge lap (track map)",
 };
+
+const SHORT_CARS: Record<string, string> = {
+  ford_mustang_gt3: "Ford",
+  mclaren_720s_gt3_evo: "McLaren",
+  mclaren_720s_gt3: "McLaren 720S (2019)",
+};
+
+/** Short car name for one-line summaries: "Ford", "McLaren"; otherwise the full name. */
+export function carShortName(key: string): string {
+  return SHORT_CARS[key] ?? prettyKey(key);
+}

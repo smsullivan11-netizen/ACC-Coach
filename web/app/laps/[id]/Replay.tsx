@@ -8,6 +8,8 @@ import type { Trace } from "@/lib/trace";
 
 // Replay of one or two laps on the track map, by elapsed time (like watching both cars on track at
 // once): play/pause, speed, timeline, camera following a car, live speed / gear / inputs and gap.
+// ABS (sessions recorded with app 0.1.1 or later): a flashing blue light at the front of the car,
+// blue braking on the lines and the brake bar.
 // Drawing happens outside React on every animation frame (refs and setAttribute).
 
 export type ReplayLap = { driver: string; color: string; t: Trace };
@@ -15,14 +17,15 @@ type Corner = { number: number; apex_m: number };
 type Car = {
   driver: string; color: string; n: number; step: number; end: number;
   time: Float64Array; x: Float64Array; z: Float64Array; v: Float64Array;
-  thr: Float64Array | null; brk: Float64Array | null; gear: Float64Array | null;
+  thr: Float64Array | null; brk: Float64Array | null; gear: Float64Array | null; abs: Float64Array | null;
 };
 
 const RATES = [0.25, 0.5, 1, 2, 4];
 const ZOOMS = { close: 120, medium: 250, wide: 500 } as const;   // view width in metres when following
 const CAR_L = 4.6, CAR_W = 2.0;                                    // GT3 footprint (m)
 const ASPECT = 9 / 16;
-const INPUT_COLORS = { brake: "#ef4444", full: "#22c55e", partial: "#facc15", coast: "#a1a1aa" };
+const INPUT_COLORS = { brake: "#ef4444", abs: "#2563eb", full: "#22c55e", partial: "#facc15", coast: "#a1a1aa" };
+const ABS_ON = 5;   // % of the time with ABS working, per metre
 
 function prepare(l: ReplayLap): Car | null {
   const c = l.t.channels;
@@ -31,7 +34,7 @@ function prepare(l: ReplayLap): Car | null {
   return {
     driver: l.driver, color: l.color, n, step: l.t.dist[1] - l.t.dist[0] || 1, end: c.time_s[n - 1],
     time: c.time_s, x: c.pos_x_m, z: c.pos_z_m, v: c.speed_ms,
-    thr: c.throttle_clean_pct ?? null, brk: c.brake_clean_pct ?? null, gear: c.gear ?? null,
+    thr: c.throttle_clean_pct ?? null, brk: c.brake_clean_pct ?? null, gear: c.gear ?? null, abs: c.abs_pct ?? null,
   };
 }
 
@@ -68,7 +71,7 @@ function timeAt(car: Car, d: number) {
 }
 
 function inputCategory(car: Car, i: number): keyof typeof INPUT_COLORS {
-  if (car.brk && car.brk[i] > 5) return "brake";
+  if (car.brk && car.brk[i] > 5) return car.abs && car.abs[i] > ABS_ON ? "abs" : "brake";
   const thr = car.thr ? car.thr[i] : 100;
   return thr >= 98 ? "full" : thr > 5 ? "partial" : "coast";
 }
@@ -110,7 +113,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
   const dirty = useRef(true);
   const svg = useRef<SVGSVGElement>(null);
   const carEls = useRef<(SVGGElement | null)[]>([]);
-  const brakeEls = useRef<(SVGRectElement | null)[]>([]);
+  const absEls = useRef<(SVGRectElement | null)[]>([]);
   const hud = useRef<Record<string, HTMLElement | null>>({});
   const slider = useRef<HTMLInputElement>(null);
   const lastSync = useRef(0);
@@ -146,15 +149,20 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
     const states = cars.map((c) => carState(c, t));
     states.forEach((s, k) => {
       carEls.current[k]?.setAttribute("transform", `translate(${s.x} ${s.z}) rotate(${s.angle}) scale(${carScale})`);
-      const brk = cars[k].brk;
-      brakeEls.current[k]?.setAttribute("opacity", String(brk ? Math.min(1, brk[s.i] / 60) : 0));
       const h = hud.current, car = cars[k];
+      const abs = car.abs != null && car.abs[s.i] > ABS_ON;
+      // Flashes while playing (about 6 times a second), steady when paused
+      const flash = !playingRef.current || Math.floor(performance.now() / 80) % 2 === 0;
+      absEls.current[k]?.setAttribute("opacity", abs ? (flash ? "1" : "0.15") : "0");
       const set = (key: string, text: string) => { const el = h[`${key}${k}`]; if (el && el.textContent !== text) el.textContent = text; };
       set("speed", `${Math.round(car.v[s.i] * 3.6)} km/h`);
       set("gear", car.gear ? (car.gear[s.i] <= 0 ? (car.gear[s.i] < 0 ? "R" : "N") : `gear ${Math.round(car.gear[s.i])}`) : "");
       const thrEl = h[`thr${k}`], brkEl = h[`brk${k}`];
       if (thrEl) thrEl.style.width = `${car.thr ? car.thr[s.i] : 0}%`;
-      if (brkEl) brkEl.style.width = `${car.brk ? car.brk[s.i] : 0}%`;
+      if (brkEl) {
+        brkEl.style.width = `${car.brk ? car.brk[s.i] : 0}%`;
+        brkEl.style.background = abs ? INPUT_COLORS.abs : "";
+      }
     });
 
     // Camera
@@ -269,7 +277,8 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
           <g key={k} ref={(el) => { carEls.current[k] = el; }}>
             <rect x={-CAR_L / 2} y={-CAR_W / 2} width={CAR_L} height={CAR_W} rx={0.6} fill={c.color} stroke="#000" strokeWidth={0.2} />
             <rect x={0.2} y={-CAR_W / 2 + 0.25} width={1.1} height={CAR_W - 0.5} rx={0.2} fill="#000" opacity={0.6} />
-            <rect ref={(el) => { brakeEls.current[k] = el; }} x={-CAR_L / 2} y={-CAR_W / 2} width={0.45} height={CAR_W} fill="#ff2a2a" opacity={0} />
+            <rect ref={(el) => { absEls.current[k] = el; }} x={CAR_L / 2 - 0.55} y={-CAR_W / 2 + 0.1} width={0.5} height={CAR_W - 0.2} rx={0.15}
+                  fill="#1d4ed8" stroke="#93c5fd" strokeWidth={0.12} opacity={0} />
           </g>
         ))}
       </svg>
@@ -295,11 +304,15 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
         {cars.length === 2 && <span ref={(el) => { hud.current.gap = el; }} className="tabular font-medium" />}
         {byInputs && (
           <span className="flex gap-3 text-xs text-zinc-400">
-            {Object.entries({ Braking: INPUT_COLORS.brake, "Full throttle": INPUT_COLORS.full, "Part throttle": INPUT_COLORS.partial, Coasting: INPUT_COLORS.coast })
+            {Object.entries({ Braking: INPUT_COLORS.brake, "ABS working": INPUT_COLORS.abs, "Full throttle": INPUT_COLORS.full, "Part throttle": INPUT_COLORS.partial, Coasting: INPUT_COLORS.coast })
+              .filter(([label]) => label !== "ABS working" || cars.some((car) => car.abs))
               .map(([label, color]) => <span key={label} className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm" style={{ background: color }} />{label}</span>)}
           </span>
         )}
-        <span className="ml-auto text-xs text-zinc-500">Space: play / pause. Both cars are placed by elapsed time; the charts follow {cars[0].driver}.</span>
+        <span className="ml-auto text-xs text-zinc-500">
+          Space: play / pause. Both cars are placed by elapsed time; the charts follow {cars[0].driver}.
+          {cars.some((c) => c.abs) ? " Blue light at the front: ABS working." : ""}
+        </span>
       </div>
     </section>
   );

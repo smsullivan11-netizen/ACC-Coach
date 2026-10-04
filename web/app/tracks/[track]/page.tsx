@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { gap, lapTime, prettyKey } from "@/lib/format";
+import { carShortName, gap, lapTime, prettyKey } from "@/lib/format";
 import { carClass } from "@/lib/import-bundle";
 import TargetForm from "./TargetForm";
 
@@ -64,32 +64,35 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
       </p>
       {rows.length === 0 && <p className="mt-6 text-zinc-400">No valid lap yet.</p>}
       {classes.map((cls) => {
-        const classBest = rows.find((r) => (r.car_class ?? "Other") === cls)?.lap_time_ms ?? null;
         return (
         <section key={cls} className="mt-6">
           <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-400">{cls}</h2>
-          <div className="tabular mt-1 space-y-1 text-sm text-zinc-400">
-            <div className="text-xs text-zinc-500">Rating reference per car:</div>
-            {[...cars.entries()].filter(([, e]) => e.cls === cls).map(([car, e]) => {
-              const beaten = e.target && e.best != null && e.best < e.target.target_ms;
-              return (
-                <div key={car} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="w-44 text-zinc-300">{prettyKey(car)}</span>
-                  <span>
-                    {e.target && !beaten ? (
-                      <><span className="text-accent">{lapTime(e.target.target_ms)}</span> target{e.target.source && ` (${e.target.source})`}</>
-                    ) : e.target ? (
-                      <><span className="text-accent">{lapTime(e.best)}</span> team best (beats the {lapTime(e.target.target_ms)} target)</>
-                    ) : (
-                      <><span className="text-accent">{lapTime(classBest)}</span> {cls} team best (no target for this car)</>
-                    )}
-                    {e.target && e.best != null && !beaten && <span className="text-zinc-500"> · team best {lapTime(e.best)}</span>}
-                  </span>
-                  {me.is_admin && <TargetForm track={track} car={car} current={e.target ? lapTime(e.target.target_ms) : ""} />}
-                </div>
-              );
-            })}
-          </div>
+          {(() => {
+            const inClass = [...cars.entries()].filter(([, e]) => e.cls === cls);
+            const withTarget = inClass.filter(([, e]) => e.target);
+            return (
+              <>
+                {withTarget.length > 0 && (
+                  <p className="tabular mt-1 text-sm text-zinc-400">
+                    {withTarget.map(([car, e]) => `Target reference ${carShortName(car)}: ${lapTime(e.target!.target_ms)}`).join(". ")}.
+                  </p>
+                )}
+                {me.is_admin && (
+                  <details className="mt-1 text-sm text-zinc-400">
+                    <summary className="cursor-pointer text-xs text-zinc-500 hover:text-zinc-300">Edit targets</summary>
+                    <div className="mt-1 space-y-1">
+                      {inClass.map(([car, e]) => (
+                        <div key={car} className="flex flex-wrap items-center gap-3">
+                          <span className="w-44 text-zinc-300">{prettyKey(car)}</span>
+                          <TargetForm track={track} car={car} current={e.target ? lapTime(e.target.target_ms) : ""} />
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </>
+            );
+          })()}
           <table className="tabular mt-2 w-full text-sm">
             <thead className="text-left text-zinc-500">
               <tr className="border-b border-white/10">

@@ -38,6 +38,7 @@ TRACE_CHANNELS = {   # name in the bundle: (resampled channel, type, scale)
     "steering_deg": ("STEERANGLE", "int16", 0.1),
     "steering_norm": ("STEER_NORM", "int16", 0.0001),     # recorder: raw input −1…1
     "gear": ("GEAR", "int8", 1),
+    "abs_pct": ("ABS_PCT", "int8", 1),                    # recorder: share of time with ABS working (%)
     "pos_x_m": ("POS_X", "int32", 0.01),                   # recorder: car position in game coordinates
     "pos_y_m": ("POS_Y", "int32", 0.01),
     "pos_z_m": ("POS_Z", "int32", 0.01),

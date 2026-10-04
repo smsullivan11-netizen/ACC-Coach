@@ -237,13 +237,26 @@ export async function coachSession(sessionId: string): Promise<Coaching | null> 
     if (longest >= 3)
       notes.push({ topic: "wellbeing", tone: "warning", text: `From lap ${from}, ${longest} laps in a row were more than 2 % off your best. If the car was not damaged, that is fatigue or lost focus talking: take a break instead of piling up laps, tired laps build bad habits.` });
   }
-  // Target lap time of this car on this track (LFM 101 % for the team's cars)
+  // Target lap time of this car on this track (LFM 101 % for the team's cars), and the session's
+  // optimal lap: the sum of the driver's best time through each corner over the session's valid laps
   const target = best ? await paceReference(sql, sessionId) : null;
+  const [opt] = best ? await sql<{ ms: number | null }[]>`
+    select case when count(*) = (select count(*) from corner k where k.corner_map_id = l0.corner_map_id)
+                then round(sum(t) * 1000)::int end as ms
+    from (select cr.corner_number, min(cr.time_s) as t
+          from corner_result cr join lap l on l.id = cr.lap_id
+          where l.session_id = ${sessionId} and l.comparable
+            and cr.corner_map_id = (select corner_map_id from lap where id = ${best.id})
+          group by 1) x, (select corner_map_id from lap where id = ${best.id}) l0
+    group by l0.corner_map_id` : [];
+  const optimal = opt?.ms && opt.ms < best!.t ? ` Your optimal lap time: ${lapTime(opt.ms)}.` : "";
   if (best && target?.target_ms) {
     const off = (best.t - target.target_ms) / 1000;
     notes.push(off <= 0
-      ? { topic: "progress", tone: "good", text: `Target beaten: ${lapTime(best.t)} against ${lapTime(target.target_ms)} for the ${prettyKey(target.car)} here (${target.source ?? "team target"}).` }
-      : { topic: "progress", tone: "tip", text: `Target for the ${prettyKey(target.car)} here: ${lapTime(target.target_ms)} (${target.source ?? "team target"}). You are ${s2(off)} away (${((off * 100000) / target.target_ms).toFixed(1)} %).` });
+      ? { topic: "progress", tone: "good", text: `Target beaten: ${lapTime(best.t)} against ${lapTime(target.target_ms)} for the ${prettyKey(target.car)} here.${optimal}` }
+      : { topic: "progress", tone: "tip", text: `Target for the ${prettyKey(target.car)} here: ${lapTime(target.target_ms)}. You are ${s2(off)} away (${((off * 100000) / target.target_ms).toFixed(1)} %).${optimal}` });
+  } else if (optimal) {
+    notes.push({ topic: "progress", tone: "tip", text: optimal.trim() });
   }
   if (flying.length > 0 && flying.length < 5)
     notes.push({ topic: "progress", tone: "tip", text: `Short run (${flying.length} flying lap${flying.length > 1 ? "s" : ""}). Runs of 8 to 10 laps are where consistency is built.` });

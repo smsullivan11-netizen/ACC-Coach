@@ -162,7 +162,7 @@ export default function LapView({ lapId, vsId, candidates, corner }: {
 type Panel = {
   title: string;
   height: number;
-  series: { data: Float64Array; color: string }[];
+  series: { data: ArrayLike<number | null>; color: string }[];
   range?: uPlot.Scale["range"];
   stepped?: boolean;
 };
@@ -196,6 +196,15 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
     const both = (name: string, f = 1) =>
       traces.map((t, i) => ({ data: ch(t, name, f), color: COLORS[i] })).filter((s) => s.data).reverse() as Panel["series"];
     const steerDeg = traces.every((t) => t.channels.steering_deg);
+    // ABS (recorded from app 0.1.1): the brake trace drawn again in blue where the ABS works
+    const ABS_COLORS = ["#3b82f6", "#93c5fd"];
+    const absOverlay = traces.flatMap((t, i) => {
+      const abs = t.channels.abs_pct, brk = t.channels.brake_clean_pct;
+      if (!abs || !brk) return [];
+      const data: (number | null)[] = new Array(n).fill(null);
+      for (let j = 0; j < n; j++) if (abs[j] > 5 || (abs[j - 1] > 5 && j > 0)) data[j] = brk[j];
+      return [{ data, color: ABS_COLORS[i] }];
+    }).reverse();
 
     const panels: Panel[] = [];
     if (traces.length === 2) {
@@ -209,7 +218,8 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
     panels.push(
       { title: "Speed (km/h)", height: 230, series: both("speed_ms", 3.6) },
       { title: "Throttle (%)", height: 110, series: both("throttle_clean_pct"), range: [0, 105] },
-      { title: "Brake (%)", height: 110, series: both("brake_clean_pct"), range: [0, 105] },
+      { title: absOverlay.length ? "Brake (%) · blue: ABS working" : "Brake (%)", height: 110,
+        series: [...both("brake_clean_pct"), ...absOverlay], range: [0, 105] },
       { title: steerDeg ? "Steering (°)" : "Steering (% of lock)", height: 120,
         series: steerDeg ? both("steering_deg") : both("steering_norm", 100) },
       { title: "Gear", height: 90, series: both("gear"), stepped: true },

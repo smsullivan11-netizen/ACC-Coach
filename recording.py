@@ -111,6 +111,10 @@ def load_recording(path: str, track_length: float | None = None, tol: float = 0.
     lock = shm.STEER_LOCK_DEG.get(car)
     crossings = _crossings(g, g_tg)
 
+    # ABS works in pulses of ~10 ms: share of the last 50 ms with ABS working (0-1), so the 1 m grid
+    # keeps the information instead of picking one pulse or gap per metre
+    abs_share = np.convolve((p["abs"] > 0).astype(float), np.ones(20) / 20, mode="same")
+
     laps = []
     for n, (c0, c1) in enumerate(zip(crossings[:-1], crossings[1:]), start=1):
         a, b = c0["t"], c1["t"]
@@ -127,6 +131,7 @@ def load_recording(path: str, track_length: float | None = None, tol: float = 0.
             # ACC fills the float flags abs / tc (0 or 1); absInAction / tcInAction stay at 0
             "ABS_ACTIVE": (hold(tq, p_tg, p["abs"]) > 0).astype(float),
             "TC_ACTIVE": (hold(tq, p_tg, p["tc"]) > 0).astype(float),
+            "ABS_PCT": 100 * ip(abs_share),
             "NPOS": np.interp(tq, g_tg, npos_u) % 1.0,
         }
         if lock:
