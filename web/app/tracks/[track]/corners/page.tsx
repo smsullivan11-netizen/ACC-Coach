@@ -8,7 +8,8 @@ import { latestMap } from "@/lib/corner-maps";
 import { sql } from "@/lib/db";
 import { prettyKey } from "@/lib/format";
 import { trackEdges } from "@/lib/track-edges";
-import { decodeChannel, type EncodedChannel } from "@/lib/trace";
+import type { EncodedChannel } from "@/lib/trace";
+import { decodeStored } from "@/lib/trace-store";
 import CornerMapEditor from "./CornerMapEditor";
 import EdgesPanel, { type EdgeCandidate, type EdgeStatus } from "./EdgesPanel";
 
@@ -31,7 +32,7 @@ export default async function CornersPage(props: PageProps<"/tracks/[track]/corn
     order by l.comparable desc, coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms) limit 1`;
   let line: { x: number[]; z: number[] } | null = null;
   if (lap) {
-    const x = decodeChannel(lap.x), z = decodeChannel(lap.z);
+    const x = decodeStored(lap.x), z = decodeStored(lap.z);
     const k = Math.ceil(x.length / MAX_POINTS);
     line = { x: [], z: [] };
     for (let i = 0; i < x.length; i += k) { line.x.push(Math.round(x[i] * 10) / 10); line.z.push(Math.round(z[i] * 10) / 10); }

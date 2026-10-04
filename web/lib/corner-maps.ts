@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import type postgres from "postgres";
 import { sql } from "./db";
 import { buildFromLines, carryNames, cornerMetrics, mapHashKey, scaledCorners, type CornerMap, type Detail, type Proposal } from "./corners";
-import { decodeChannel, type EncodedTrace } from "./trace";
+import type { EncodedTrace } from "./trace";
+import { decodeStored } from "./trace-store";
 
 // Team corner maps on the site. The first upload on a track brings a map built by the app from one
 // lap's speed; the site replaces it by a map built from the shape of the racing line of the team's
@@ -40,7 +41,7 @@ export async function proposeMap(trackId: string, detail: Detail): Promise<{ pro
   const mid = lengths[lengths.length >> 1];
   const laps = rows.filter((r) => Math.abs(r.length - mid) <= mid * 0.01);
   const proposal = buildFromLines(
-    laps.map((r) => ({ x: decodeChannel(r.channels.pos_x_m), z: decodeChannel(r.channels.pos_z_m), speed: decodeChannel(r.channels.speed_ms) })),
+    laps.map((r) => ({ x: decodeStored(r.channels.pos_x_m), z: decodeStored(r.channels.pos_z_m), speed: decodeStored(r.channels.speed_ms) })),
     detail,
   );
   return { proposal, laps: laps.map(({ id, driver, time_ms }) => ({ id, driver, time_ms })) };
@@ -62,7 +63,7 @@ export async function recomputeCornerResults(tx: Sql, mapId: string, map: Corner
     if (!usable.length) continue;
     const rows = usable.flatMap(({ lap_id, step_m, length, channels: ch }) =>
       cornerMetrics(
-        { time: decodeChannel(ch.time_s), speed: decodeChannel(ch.speed_ms), throttle: decodeChannel(ch.throttle_clean_pct), brake: decodeChannel(ch.brake_clean_pct) },
+        { time: decodeStored(ch.time_s), speed: decodeStored(ch.speed_ms), throttle: decodeStored(ch.throttle_clean_pct), brake: decodeStored(ch.brake_clean_pct) },
         scaledCorners(map, length * step_m),
       ).map(({ corner, ...r }) => ({ lap_id, corner_map_id: mapId, corner_number: corner, ...r })),
     );

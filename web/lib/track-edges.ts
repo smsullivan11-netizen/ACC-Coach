@@ -1,7 +1,8 @@
 import "server-only";
 import { sql } from "./db";
 import { rebuildRatings } from "./ratings";
-import { decodeChannel, type EncodedChannel } from "./trace";
+import type { EncodedChannel } from "./trace";
+import { decodeStored } from "./trace-store";
 
 // Track edges (white lines) for drawing the track surface. ACC does not publish them, so they come
 // from two edge laps: one driven with the left wheels on the white line, one with the right wheels.
@@ -65,7 +66,7 @@ export async function setEdge(trackId: string, side: Side, lapId: string | null,
   if (!lap.x || !lap.z) return "this lap has no car positions (MoTeC import): record it with the ACC Coach app";
   const [other] = await sql`select 1 from track_edge where track_id = ${trackId} and side <> ${side} and lap_id = ${lapId}`;
   if (other) return "this lap is already the other edge";
-  const points = edgeFromLine(decodeChannel(lap.x), decodeChannel(lap.z), side);
+  const points = edgeFromLine(decodeStored(lap.x), decodeStored(lap.z), side);
   await sql.begin(async (tx) => {
     await tx`
       insert into track_edge (track_id, side, lap_id, points, set_by) values (${trackId}, ${side}, ${lapId}, ${tx.json(points)}, ${by})

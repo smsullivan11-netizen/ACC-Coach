@@ -1,10 +1,12 @@
-import { KeyRound, Settings, Shield } from "lucide-react";
+import { Database, KeyRound, Settings, Shield } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Avatar, delay, PageTitle, SectionTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
+import { storageStats } from "@/lib/storage";
 import AdminPanel from "./AdminPanel";
+import StoragePanel from "./StoragePanel";
 import Tokens from "./Tokens";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -15,6 +17,7 @@ export default async function SettingsPage() {
     ? await sql<{ id: string; display_name: string; is_admin: boolean }[]>`
         select id, display_name, is_admin from driver order by display_name`
     : [];
+  const storage = driver.is_admin ? await storageStats() : null;
   return (
     <div className="max-w-3xl">
       <PageTitle icon={Settings} sub={
@@ -41,6 +44,12 @@ export default async function SettingsPage() {
             data when they ask (<Link href="/privacy" className="underline">privacy policy</Link>).
           </p>
           <AdminPanel members={members} me={driver.id} />
+        </section>
+      )}
+      {storage && (
+        <section className="card rise mt-5 p-5" style={delay(160)}>
+          <SectionTitle icon={Database}>Database storage</SectionTitle>
+          <StoragePanel s={storage} />
         </section>
       )}
     </div>

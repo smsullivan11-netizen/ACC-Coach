@@ -4,7 +4,8 @@ import { awardAchievements } from "@/lib/achievements";
 import { afterUpload } from "@/lib/corner-maps";
 import { announceSession } from "@/lib/discord";
 import { sql } from "@/lib/db";
-import { importBundle, pruneTraces, Rejected, type Bundle } from "@/lib/import-bundle";
+import { importBundle, Rejected, type Bundle } from "@/lib/import-bundle";
+import { compressOldTraces, pruneTraces } from "@/lib/storage";
 import { rateSession } from "@/lib/ratings";
 
 // Upload of a session bundle (.json.gz written by bundle.py), from the desktop app / upload script
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
   await awardAchievements(result.sessionId).catch((e) => console.error("achievements", e));
   await announceSession(result.sessionId);
   await pruneTraces();
+  await compressOldTraces(10).catch((e) => console.error("compress traces", e));   // older traces, a few per upload
   return Response.json({
     ok: true,
     session_id: result.sessionId,

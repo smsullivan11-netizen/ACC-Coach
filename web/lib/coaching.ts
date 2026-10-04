@@ -2,7 +2,8 @@ import "server-only";
 import { sql } from "./db";
 import { lapTime, prettyKey } from "./format";
 import { paceReference } from "./targets";
-import { decodeChannel, type EncodedChannel } from "./trace";
+import type { EncodedChannel } from "./trace";
+import { decodeStored } from "./trace-store";
 
 // Coaching summary of a session, from data only (no AI service): where the driver loses time
 // against the team's best lap (corner by corner, split into braking/entry and exit, with what to
@@ -134,7 +135,7 @@ export async function coachSession(sessionId: string): Promise<Coaching | null> 
       const refName = own ? "your best lap" : ref.driver;
       reference = { id: ref.id, driver: ref.driver, time_ms: ref.t, own };
       gap = (best.t - ref.t) / 1000;
-      const tYou = decodeChannel(mine.time), tRef = decodeChannel(ref.time);
+      const tYou = decodeStored(mine.time), tRef = decodeStored(ref.time);
       const corners = await sql<(CR & { name: string | null; start_m: number; end_m: number; k: number; side: "you" | "ref" })[]>`
         select k.name, k.start_m * (tr.length * tr.step_m / m.length_m) as start_m, k.end_m * (tr.length * tr.step_m / m.length_m) as end_m,
                case when cr.lap_id = ${best.id} then 'you' else 'ref' end as side, cr.*

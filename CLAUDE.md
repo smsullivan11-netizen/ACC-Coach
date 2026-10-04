@@ -481,6 +481,19 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Mentors: for each of the coach's 3 weak corners, the teammate with the best pass (same map and
   class, ≥ 0.03 s faster) with a link to the replay of both laps zoomed on the corner.
 
+## Storage (web/lib/storage.ts, web/lib/trace-store.ts)
+- Neon free plan: 0.5 GB. Lap traces are ~99 % of the data (a lap's times/metrics/corners ≈ 1 KB).
+- Traces stored compressed: per channel, wrapping differences between consecutive integers, deflated,
+  base64 (`enc: "dz"` in the jsonb). Brands Hatch lap 82 KB → ~18-23 KB (3.5-4×), lossless (checked
+  on every test lap through /api/laps). Bundles from the app stay plain; packing happens at import,
+  `/api/laps` unpacks for the browser, server code reads with `decodeStored`. Old plain traces: 10
+  compressed per upload, or all at once with the admin button (then `vacuum full lap_trace`).
+- Pruning after each upload: traces of non-comparable laps (invalid, out/in-laps, incomplete) after
+  7 days, except edge laps; all traces after 60 days except each driver's best laps per track/class
+  and last 10 sessions.
+- Admin gauge (Settings): database size vs 512 MB, biggest tables, traces count and average size.
+- If the team grows a lot: traces to Cloudflare R2 (10 GB free), results stay in Postgres.
+
 ## Ratings and profiles (web/lib/ratings.ts, web/lib/style.ts)
 - Overall Driver Rating 0-100, computed by the site after each upload (`rateSession`), never by
   the app. Session score = pace 50 / consistency 25 / clean 15 / smoothness 10 (formulas in the

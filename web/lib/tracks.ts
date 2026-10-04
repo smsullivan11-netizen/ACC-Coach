@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "./db";
-import { decodeChannel, type EncodedChannel } from "./trace";
+import type { EncodedChannel } from "./trace";
+import { decodeStored } from "./trace-store";
 
 // The ACC tracks: full names and countries (flags in public/flags/) and their photos
 // (public/tracks/<key>.jpg: the team's ACC screenshots; credits in track-photo-credits.json). Every track listed here has a photo; the
@@ -54,7 +55,7 @@ export async function trackOutlines(): Promise<Record<string, string>> {
     order by t.key, l.comparable desc, coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms)`;
   const out: Record<string, string> = {};
   for (const r of rows) {
-    const x = decodeChannel(r.x), z = decodeChannel(r.z);
+    const x = decodeStored(r.x), z = decodeStored(r.z);
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     for (let i = 0; i < x.length; i++) { x0 = Math.min(x0, x[i]); x1 = Math.max(x1, x[i]); z0 = Math.min(z0, z[i]); z1 = Math.max(z1, z[i]); }
     const k = Math.min(92 / (x1 - x0), 52 / (z1 - z0));             // fit into 100 × 60 with a margin

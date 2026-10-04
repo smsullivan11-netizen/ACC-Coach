@@ -1,6 +1,7 @@
 import { driverFromRequest } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { trackEdges } from "@/lib/track-edges";
+import { unpackChannels } from "@/lib/trace-store";
 
 // One lap for the lap page: header, trace (1 m grid, encoded channels), corner results and the
 // track's edges (white lines, when set) for the map. Corners come from the lap's corner map, or the
@@ -48,7 +49,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/laps/[id]">)
   const { step_m, length, channels, track_id, ...header } = lap;
   const edges = await trackEdges(track_id);
   return Response.json(
-    { ...header, trace: channels ? { step_m, length, channels } : null, corners, edges },
+    { ...header, trace: channels ? { step_m, length, channels: unpackChannels(channels) } : null, corners, edges },
     { headers: { "Cache-Control": "private, max-age=60" } },   // short: maps and edges can change
   );
 }
