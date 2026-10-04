@@ -503,6 +503,9 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   the small numbers, only traces are large).
 
 ## Next steps
+- Vercel functions pinned to **Frankfurt (fra1)** in `web/vercel.json`, next to Neon: by default they ran
+  in Washington (iad1, seen in the X-Vercel-Id header), ~90 ms per query; "Recompute all ratings"
+  (≈ 15 queries per session) had grown to ~30 s.
 - Deployed (2026-10-04): https://acc-coach.vercel.app — GitHub Xhanet/ACC-Coach (private, pushes
   deploy automatically), Vercel root directory `web/`, Neon Postgres (Frankfurt; pooled address for
   the site, direct address for `npm run db:migrate`), Discord application with redirects for
