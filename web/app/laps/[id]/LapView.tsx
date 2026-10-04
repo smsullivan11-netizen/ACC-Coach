@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 import { lapTime, prettyKey, REASONS } from "@/lib/format";
+import { labelPoint } from "@/lib/geometry";
 import { decodeTrace, type EncodedTrace, type Trace } from "@/lib/trace";
 
 export type Candidate = { id: string; label: string };
@@ -300,8 +301,9 @@ function TrackMap({ laps, range, moveRef }: { laps: Loaded[]; range: Range; move
       ))}
       {laps[0].corners.map((c) => {
         const i = Math.min(n - 1, Math.round(c.apex_m));
+        const p = labelPoint(a.x, a.z, i, size / 30, 15);
         return (
-          <text key={c.number} x={a.x[i]} y={a.z[i]} fontSize={size / 32} fill="#a1a1aa" textAnchor="middle" dy={-size / 60}>
+          <text key={c.number} x={p.x} y={p.z} fontSize={size / 32} fill="#a1a1aa" textAnchor="middle" dominantBaseline="central">
             T{c.number}
           </text>
         );

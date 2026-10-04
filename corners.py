@@ -2,7 +2,10 @@
 Corners: a track's corner map and per-corner metrics.
 
 The map (tracks/<track>.json) is built once from a reference lap, then reused for every lap and
-every driver: same corners, same boundaries, same numbers. A corner runs from the speed peak
+every driver: same corners, same boundaries, same numbers. This speed-based map is only a track's
+first map: the team site then builds one from the shape of the racing line of several laps
+(web/lib/corners.ts), which the app downloads before processing each session. corner_metrics has a
+port on the site (cornerMetrics): change both together. A corner runs from the speed peak
 before it to the speed peak after it (end of one straight → end of the next); its metrics are
 recomputed lap by lap inside those boundaries.
 

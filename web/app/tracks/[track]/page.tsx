@@ -50,7 +50,10 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
   return (
     <div>
       <h1 className="text-xl font-semibold text-white">{prettyKey(track)}</h1>
-      <p className="mt-1 text-sm text-zinc-400">{Math.round(t.length_m)} m · best valid lap of each driver</p>
+      <p className="mt-1 text-sm text-zinc-400">
+        {Math.round(t.length_m)} m · best valid lap of each driver ·{" "}
+        <Link href={`/tracks/${track}/corners`} className="text-zinc-300 underline hover:text-white">corner map</Link>
+      </p>
       {rows.length === 0 && <p className="mt-6 text-zinc-400">No valid lap yet.</p>}
       {classes.map((cls) => {
         const target = targets.get(cls);

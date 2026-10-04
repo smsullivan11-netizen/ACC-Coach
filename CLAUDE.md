@@ -171,7 +171,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Map built **only from a comparable lap** (the fastest) and saved to `tracks/<track>.json`.
   Without a comparable lap: provisional map, not saved, and the site does not import
   per-corner results. Rebuild: version +1, names kept if the apex moves by less than 30 m.
-  Names ("Druids"…) are filled in by hand in the .json.
+- This speed-based map is only the **first** map of a track (the app makes it when the site has
+  none). One lap's speed is fragile: Mount Panorama got 10 corners for ~20 real turns and labels
+  on top of each other. The site then replaces it (see "Corner maps on the site"); the app always
+  downloads the site's latest map before processing a session.
 - Per corner and per lap: `time_s`, `entry_speed_kmh`, `lift_point_m`, `braking_point_m`,
   `brake_release_m`, `max_brake_pct`, `min_speed_kmh`, `apex_m` (this lap's minimum speed),
   `throttle_pickup_m` (throttle > 10 % after the brake), `full_throttle_m`, `coasting_s`, `exit_speed_kmh`.
@@ -183,6 +186,32 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - The apex (minimum speed) is ambiguous along a constant-radius arc (can move by tens of metres
   between laps for the same speed): compare `min_speed_kmh`, not `apex_m`, there.
 - Nordschleife: 64 corners detected at 10 km/h (53 at 20 km/h).
+
+## Corner maps on the site (web/lib/corners.ts, web/lib/corner-maps.ts)
+- Built from the **shape of the racing line**: median position of the team's best clean laps with
+  car positions (up to 10, at most 4 per driver, same distance grid ±1 %), smoothed (Gaussian 8 m),
+  signed curvature (heading change per metre, Gaussian 10 m; positive = right turn). Curve = curvature
+  over `on` (radius < 200 m at "normal"), extended while over on/2 with the same sign; same-direction
+  curves < 30 m apart merged, then split again at a curvature valley under 25 % of the smaller peak
+  (double corners, esses); kept if it turns by ≥ 25°. Detail levels "fewer"/"normal"/"more" change
+  these thresholds. Apex = slowest point of the curve (tightest point when flat out, < 3 km/h
+  variation). Boundaries = speed peak between two apexes, or halfway between the curves when there
+  is no real peak (chicane). First corner starts at 0, last ends at the line (corner times add up).
+- Brands Hatch (real laps, "normal"): 9 corners matching the real layout (Paddock Hill, Druids,
+  Graham Hill, Surtees/McLaren, Hawthorn, Westfield, Sheene, Stirlings, Clearways/Clark).
+- Lifecycle: the first upload stores the app's speed map (v1); right after, `afterUpload` builds a
+  geometry map once (`method: "geometry"` in the definition) and recomputes every lap. Afterwards
+  only admins rebuild (Leaderboard → corner map: preview, publish as a new version, rename corners).
+  Identical corners are not republished. Names carry over when the apex moves < 30 m; renaming
+  does not change the fingerprint (names are not in it). A session processed with an older version
+  is recomputed with the latest after upload.
+- The site recomputes corner results itself from the stored traces (`cornerMetrics`, port of
+  `corners.corner_metrics`; the brake zone is rebuilt from the cleaned brake): **change both
+  together**. `web/scripts/check-corners.mjs <bundle.json.gz>` compares them on a real bundle
+  (Brands Hatch: 351 values, 0 different; map fingerprints equal: `mapHashKey` reproduces Python's
+  `json.dumps`, which is what keeps the app's bundles accepted by the site).
+- Laps whose traces were pruned keep their corner results on the old map version; the leaderboard's
+  theoretical best only uses the latest version.
 
 ## Session bundle (bundle.py)
 - Gzipped JSON: metadata (source kind `motec` / `shared_memory`, track, car, session type, file
@@ -233,6 +262,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   fake recorder session into Postgres, rankings, refusals; optional real bundle. Works in the
   `acc_test` schema, recreated on every run, so it can share the development database
   (`DATABASE_URL=postgresql://postgres:dev@localhost:5433/acc_coach`).
+- Corners: `node scripts/check-corners.mjs <bundle.json.gz>` in `web/` (Node 24 runs the
+  TypeScript directly); make the bundle from a real recording with `bundle.build_bundle`.
 - Website: `npm run typecheck`, `npm run lint`, `npm run build` in `web/`; the end-to-end check
   (dev sign-in, tokens, upload.py with a real recording, refusals, corner map download, every
   page) is not in the repo yet: it needs a dedicated test database.
@@ -342,9 +373,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   the site, direct address for `npm run db:migrate`), Discord application with redirects for
   localhost and the site. Settings are trimmed in code: a tab pasted into APP_URL once broke sign-in.
 - More real recordings: other tracks/cars, a multiplayer server session, a session with pit stops.
-- Corner map method: a map from a single lap is fragile (an off or a barrier contact creates fake
-  corners). With car positions, detect corners from the track's geometry (curvature of the line),
-  combine several clean laps, then have the team review and name them once per track on a map.
+- Corner maps: done on the site (geometry). Mount Panorama upgrades at its next upload (or an
+  admin rebuilds it); check its result on the real layout and tune the thresholds if needed.
 - Microsoft Store release of the desktop app (see "Desktop app"): the teammate install failed on
   Smart App Control. Name reserved; first submission (0.1.0) to upload by the user, then the
   Store link goes on the site's download page.
