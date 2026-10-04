@@ -1,4 +1,6 @@
-import { Fingerprint, Flag, Gauge, Shield, Sparkles, TrendingUp, Trophy } from "lucide-react";
+import { Award, Fingerprint, Flag, Gauge, Shield, Sparkles, Swords, TrendingUp, Trophy } from "lucide-react";
+import Achievements, { type EarnedRow } from "@/components/Achievements";
+import { ACHIEVEMENTS } from "@/lib/achievements";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -52,6 +54,8 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
       where s.driver_id = ${id} group by s.id, t.key order by coalesce(s.recorded_at, s.uploaded_at) desc limit 8`,
     drivingStyle(id, d.display_name),
   ]);
+  const earned = await sql<EarnedRow[]>`
+    select code, scope, detail, to_char(earned_at, 'DD Mon YYYY') as date from achievement where driver_id = ${id} order by earned_at`.catch(() => [] as EarnedRow[]);
   // The coach's focus from the latest session with a valid lap
   const [coached] = await sql<{ id: string; track: string; date: string }[]>`
     select s.id, t.key as track, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY') as date
@@ -83,6 +87,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
               Team member since {d.since}
               {d.is_admin && <Chip tone="red" icon={Shield}>admin</Chip>}
             </p>
+            <Link href={`/drivers/compare?b=${d.id}`} className="btn btn-ghost mt-3 px-3 py-1.5 text-xs"><Swords size={14} /> Head to head</Link>
           </div>
           <div className="ml-auto text-right">
             <div className="text-xs uppercase tracking-wider text-zinc-500">Overall Driver Rating</div>
@@ -135,6 +140,13 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
               ))}
             </div>
           )}
+        </section>
+
+        <section className="card rise p-5 lg:col-span-2" style={delay(120)}>
+          <SectionTitle icon={Award} action={<span className="text-zinc-500">{new Set(earned.map((e) => e.code)).size} of {ACHIEVEMENTS.length}</span>}>
+            Achievements
+          </SectionTitle>
+          <Achievements earned={earned} />
         </section>
 
         <section className="card rise p-5" style={delay(140)}>

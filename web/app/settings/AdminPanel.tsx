@@ -24,12 +24,17 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
     router.refresh();
   }
 
+  async function testDiscord() {
+    const res = await fetch("/api/discord/test", { method: "POST" });
+    setMessage(res.ok ? "Test message sent: check the Discord channel." : (await res.json()).error);
+  }
+
   async function rebuild() {
     setBusy(true);
     const res = await fetch("/api/ratings/rebuild", { method: "POST" });
     const data = await res.json();
     setBusy(false);
-    setMessage(res.ok ? `Ratings recomputed: ${data.rated} rated sessions out of ${data.sessions}.` : data.error);
+    setMessage(res.ok ? `Recomputed: ${data.rated} rated sessions out of ${data.sessions}, ${data.achievements} achievements.` : data.error);
     router.refresh();
   }
 
@@ -61,8 +66,9 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
               className="btn btn-ghost mt-4">
         {busy ? "Recomputing…" : "Recompute all ratings"}
       </button>
+      <button onClick={testDiscord} disabled={busy} className="btn btn-ghost ml-2 mt-4">Test the Discord channel</button>
       <p className="mt-1 text-xs text-zinc-500">
-        Replays every session in upload order with today&apos;s targets: for sessions uploaded before ratings existed.
+        Replays every session in upload order with today&apos;s targets: ratings, then achievements (nothing is posted to Discord).
       </p>
       {message && <p className="mt-2 text-sm text-accent">{message}</p>}
     </div>

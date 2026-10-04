@@ -1,4 +1,4 @@
-import { TrendingDown, TrendingUp, Users } from "lucide-react";
+import { Swords, TrendingDown, TrendingUp, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Avatar, Chip, delay, PageTitle, Position } from "@/components/ui";
@@ -29,6 +29,7 @@ export default async function DriversPage() {
       <PageTitle icon={Users} sub="Overall Driver Rating (0-100): pace against the reference lap, consistency, clean driving and smoothness, updated after every session.">
         Drivers
       </PageTitle>
+      <Link href="/drivers/compare" className="btn btn-ghost -mt-2 mb-5"><Swords size={15} /> Head to head</Link>
       <div className="card card-red rise overflow-x-auto">
         <table className="data-table">
           <thead>

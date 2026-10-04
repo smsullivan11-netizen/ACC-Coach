@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Privacy policy" };
 export default function PrivacyPage() {
   return (
     <div className="max-w-3xl">
-      <PageTitle icon={ShieldCheck} sub="Last updated: October 4, 2026">Privacy policy</PageTitle>
+      <PageTitle icon={ShieldCheck} sub="Last updated: October 5, 2026">Privacy policy</PageTitle>
       <div className="card p-6 text-zinc-300 [&_h2]:mt-8 [&_h2]:font-medium [&_h2]:text-white [&_li]:mt-1.5 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5">
       <p>
         ACC Coach (this site and the ACC Coach desktop app) is a private tool run by a sim-racing team for its own
@@ -47,6 +47,13 @@ export default function PrivacyPage() {
         Only signed-in team members. Every member can see everyone&apos;s laps, comparisons, ratings and driver
         profiles: that is the purpose of the tool.
       </p>
+      <ul>
+        <li>Team news (new records, personal bests, achievements, rating changes) is posted in the team&apos;s Discord channel.</li>
+        <li>
+          A lap card (an image with the track, the driver&apos;s name, the car and the lap time) can be opened by anyone who
+          has its link, so it can be shown on Discord or shared. Members choose to share it; nothing else is public.
+        </li>
+      </ul>
 
       <h2>Where it is stored, and for how long</h2>
       <ul>

@@ -1,6 +1,8 @@
 import { gunzipSync } from "node:zlib";
 import { driverFromRequest } from "@/lib/auth";
+import { awardAchievements } from "@/lib/achievements";
 import { afterUpload } from "@/lib/corner-maps";
+import { announceSession } from "@/lib/discord";
 import { sql } from "@/lib/db";
 import { importBundle, pruneTraces, Rejected, type Bundle } from "@/lib/import-bundle";
 import { rateSession } from "@/lib/ratings";
@@ -33,6 +35,9 @@ export async function POST(request: Request) {
   }
   const rating = await rateSession(sql, result.sessionId);
   await afterUpload(result.sessionId);
+  // Achievements and the Discord post must never fail an upload
+  const unlocked = await awardAchievements(result.sessionId).catch((e) => { console.error("achievements", e); return []; });
+  await announceSession(result.sessionId, unlocked);
   await pruneTraces();
   return Response.json({
     ok: true,

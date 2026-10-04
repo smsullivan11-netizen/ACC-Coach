@@ -1,4 +1,4 @@
-import { ArrowUpRight, Flag, Sparkles, Target } from "lucide-react";
+import { ArrowUpRight, Flag, GraduationCap, Play, Sparkles, Target } from "lucide-react";
 import Link from "next/link";
 import type { Coaching, CornerCoaching, Tone } from "@/lib/coaching";
 
@@ -57,6 +57,14 @@ export default function Coach({ c }: { c: Coaching }) {
                     <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-zinc-300">
                       {l.advice.map((a) => <li key={a}>{a}</li>)}
                     </ul>
+                    {l.mentor && c.lap && (
+                      <Link href={`/laps/${c.lap.id}?vs=${l.mentor.lap_id}&corner=${l.number}&replay=1`}
+                            className="mt-2 flex items-center gap-2 rounded-lg border border-race/30 bg-race/[0.06] px-3 py-2 text-sm text-zinc-200 transition hover:border-race/60">
+                        <GraduationCap size={16} className="shrink-0 text-race" />
+                        <span><strong className="text-white">{l.mentor.driver}</strong> is {l.mentor.gain_s.toFixed(2)} s faster than you through T{l.number}: watch their replay</span>
+                        <Play size={14} className="ml-auto shrink-0 text-accent" fill="currentColor" />
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

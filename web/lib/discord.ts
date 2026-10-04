@@ -1,0 +1,82 @@
+import "server-only";
+import type { AchievementDef, Earned } from "./achievements";
+import { appUrl, env } from "./auth";
+import { lapCardUrl } from "./cards";
+import { sql } from "./db";
+import { carShortName, lapTime } from "./format";
+import { trackInfo } from "./tracks";
+
+// Team news on Discord through a webhook (DISCORD_WEBHOOK_URL, created in the channel's settings:
+// Integrations > Webhooks). No bot to host: the site posts after each upload. Never fails an upload.
+
+const YELLOW = 0xffd200, RED = 0xe10600, GREEN = 0x22c55e;
+
+async function post(body: unknown) {
+  const url = env("DISCORD_WEBHOOK_URL");
+  if (!url) return;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "ACC Coach", avatar_url: `${appUrl()}/team-helmet.jpg`, allowed_mentions: { parse: [] }, ...body as object }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) console.error("discord webhook", res.status, await res.text());
+  } catch (e) {
+    console.error("discord webhook failed", e);
+  }
+}
+
+/** After an upload: team record or personal best (with the lap card), achievements, rating change. */
+export async function announceSession(sessionId: string, achievements: (Earned & AchievementDef)[]) {
+  if (!env("DISCORD_WEBHOOK_URL")) return;
+  const [s] = await sql<{ driver: string; driver_id: string; track: string; car: string | null }[]>`
+    select d.display_name as driver, d.id as driver_id, t.key as track, c.key as car
+    from session s join driver d on d.id = s.driver_id join track t on t.id = s.track_id left join car c on c.id = s.car_id
+    where s.id = ${sessionId}`;
+  if (!s) return;
+  const track = trackInfo(s.track)?.name ?? s.track;
+  const embeds: object[] = [];
+
+  // The session's best lap, if it is now the driver's best on the track (it is in the ranking)
+  const [best] = await sql<{ lap_id: string; t: number; position: number; gap_ms: number; drivers: number; prev: number | null; team_prev: number | null }[]>`
+    select r.lap_id, r.lap_time_ms as t, r.position::int, r.gap_ms,
+           (select count(*) from lap_ranking x where x.track_id = r.track_id and x.car_class is not distinct from r.car_class)::int as drivers,
+           (select min(coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms)) from lap l join session ss on ss.id = l.session_id
+            left join car c on c.id = ss.car_id where ss.driver_id = r.driver_id and ss.track_id = r.track_id
+              and c.class is not distinct from r.car_class and l.comparable and ss.id < ${sessionId}) as prev,
+           (select min(coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms)) from lap l join session ss on ss.id = l.session_id
+            left join car c on c.id = ss.car_id where ss.track_id = r.track_id and c.class is not distinct from r.car_class
+              and l.comparable and ss.id < ${sessionId}) as team_prev
+    from lap_ranking r join lap l on l.id = r.lap_id where l.session_id = ${sessionId}`;
+  if (best) {
+    // A record beats every earlier lap of the team in the class; equal to it is a shared record
+    const record = best.team_prev == null || best.t < best.team_prev;
+    const equal = !record && best.t === best.team_prev;
+    const improved = best.prev != null ? ` (${((best.t - best.prev) / 1000).toFixed(3)} s)` : "";
+    embeds.push({
+      color: record ? YELLOW : GREEN,
+      title: record ? `👑 New team record at ${track}` : equal ? `🤝 Team record equalled at ${track}` : `⏱️ New personal best at ${track}`,
+      description: `**${s.driver}** · ${lapTime(best.t)}${improved} · ${s.car ? carShortName(s.car) : ""}\n` +
+        (record ? "Fastest lap of the team." : equal ? "Same time as the team record." : `P${best.position} of ${best.drivers} in the team, +${(best.gap_ms / 1000).toFixed(3)} s to the record.`),
+      url: `${appUrl()}/laps/${best.lap_id}`,
+      image: { url: lapCardUrl(best.lap_id, best.t) },
+    });
+  }
+  if (achievements.length)
+    embeds.push({
+      color: RED,
+      title: `🏅 ${s.driver} unlocked ${achievements.length === 1 ? "an achievement" : `${achievements.length} achievements`}`,
+      description: achievements.map((a) => `**${a.title}**: ${a.detail ?? a.description}`).join("\n"),
+      url: `${appUrl()}/drivers/${s.driver_id}`,
+    });
+  const [r] = await sql<{ rating: number; prev: number | null }[]>`
+    select rating, lag(rating) over (order by id) as prev from driver_rating where driver_id = ${s.driver_id} order by id desc limit 1`;
+  const ratingLine = r?.prev != null && Math.abs(r.rating - r.prev) >= 0.5
+    ? ` · rating ${r.rating.toFixed(1)} (${r.rating > r.prev ? "+" : ""}${(r.rating - r.prev).toFixed(1)})` : "";
+  if (!embeds.length && !ratingLine) return;
+  await post({ content: `**${s.driver}** uploaded a session at ${track}${ratingLine}`, embeds: embeds.slice(0, 10) });
+}
+
+/** Admin test message from Settings. */
+export const testWebhook = () => post({ content: "✅ ACC Coach is connected to this channel." });

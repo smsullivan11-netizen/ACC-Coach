@@ -457,6 +457,25 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   profiles, session page and coach card, lap comparison (lap cards, charts in cards), replay, track
   map, settings, download, upload, linking, privacy. Page titles: "<page> · ACC Coach".
 
+## Team features: Discord, lap cards, achievements, head to head, mentors
+- Discord: a **webhook** (`DISCORD_WEBHOOK_URL`, Vercel setting), not a bot (Vercel cannot host an
+  always-on bot). After each upload (`lib/discord.ts`): team record (beats every earlier lap of the
+  class), record equalled, or personal best, with the lap card as the embed image; achievements
+  unlocked; rating change ≥ 0.5. Never fails an upload. Admin button "Test the Discord channel".
+- Lap cards: `/api/cards/lap/<id>.png` (next/og ImageResponse, 1200 × 630, track photo, Konexy). Open
+  to signed-in members, or with `?s=` = HMAC(CARD_SECRET or DISCORD_CLIENT_SECRET, lap id) so Discord
+  can fetch it. Font and photos read from disk: traced via `outputFileTracingIncludes` in
+  next.config.ts. "Share" button on the lap page (preview, copy link, download). Privacy policy
+  mentions both.
+- Achievements (migration 0006, `lib/achievements.ts`): 14 rules (first session/valid lap, 10 clean
+  laps in a row, metronome 5 laps within 0.3 s, 100/500 laps, 5 tracks, 60 min session, team record
+  and target beaten per track, 3 records held, rating 70/80/90). Checked after each upload; "Recompute
+  all ratings" also replays achievements (no Discord posts). Shown on profiles (locked ones greyed).
+- Head to head: `/drivers/compare?a=&b=`: shared tracks/classes (best laps), tracks won, corners
+  faster (corner_best on the latest map), replay link per track.
+- Mentors: for each of the coach's 3 weak corners, the teammate with the best pass (same map and
+  class, ≥ 0.03 s faster) with a link to the replay of both laps zoomed on the corner.
+
 ## Ratings and profiles (web/lib/ratings.ts, web/lib/style.ts)
 - Overall Driver Rating 0-100, computed by the site after each upload (`rateSession`), never by
   the app. Session score = pace 50 / consistency 25 / clean 15 / smoothness 10 (formulas in the

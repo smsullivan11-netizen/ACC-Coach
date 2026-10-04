@@ -21,6 +21,8 @@ export type CornerCoaching = {
   advice: string[];
   start_m: number;
   end_m: number;
+  // The teammate fastest through this corner (when faster than you): who to learn it from
+  mentor?: { driver: string; gain_s: number; lap_id: string } | null;
 };
 export type Coaching = {
   headline: string;
@@ -159,6 +161,21 @@ export async function coachSession(sessionId: string): Promise<Coaching | null> 
       phases = { entry_s: all.reduce((a, c) => a + c.out.entry_s, 0), exit_s: all.reduce((a, c) => a + c.out.exit_s, 0) };
       losses = all.filter((c) => c.out.loss_s >= MIN_CORNER_LOSS_S).sort((a, b) => b.out.loss_s - a.out.loss_s).slice(0, 3)
         .map(({ y, r, out }) => ({ ...out, advice: cornerAdvice(y, r, refName, out.entry_s, out.exit_s) }));
+      // Mentor: per weak corner, the teammate with the best time through it (same map and class)
+      if (losses.length) {
+        const mentors = await sql<{ corner_number: number; driver: string; lap_id: string; gain: number }[]>`
+          select distinct on (cb.corner_number) cb.corner_number, d.display_name as driver, cb.lap_id, mine.time_s - cb.time_s as gain
+          from corner_best cb join driver d on d.id = cb.driver_id
+          join corner_result mine on mine.lap_id = ${best.id} and mine.corner_number = cb.corner_number and mine.corner_map_id = cb.corner_map_id
+          where cb.corner_map_id = ${mine.map_id} and cb.driver_id <> ${s.driver_id}
+            and cb.car_class is not distinct from ${s.car_class} and cb.corner_number in ${sql(losses.map((l) => l.number))}
+            and cb.time_s < mine.time_s - 0.03
+          order by cb.corner_number, cb.time_s`;
+        for (const l of losses) {
+          const m = mentors.find((x) => x.corner_number === l.number);
+          l.mentor = m ? { driver: m.driver, gain_s: m.gain, lap_id: m.lap_id } : null;
+        }
+      }
       strengths = all.filter((c) => c.out.loss_s <= -MIN_CORNER_LOSS_S).sort((a, b) => a.out.loss_s - b.out.loss_s).slice(0, 2)
         .map((c) => c.out);
 
