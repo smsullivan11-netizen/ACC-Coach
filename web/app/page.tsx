@@ -15,7 +15,7 @@ export default async function Home(props: PageProps<"/">) {
 
   return (
     <div className="mx-auto mt-24 max-w-md text-center">
-      <h1 className="text-3xl font-semibold tracking-tight text-white">ACC Coach</h1>
+      <h1 className="text-3xl font-semibold tracking-tight text-white"><span className="text-accent">ACC</span> Coach</h1>
       <p className="mt-3 text-zinc-400">
         The team&apos;s telemetry: every lap, every corner, every driver, side by side.
       </p>
@@ -23,7 +23,7 @@ export default async function Home(props: PageProps<"/">) {
       {discordConfigured() && (
         <a
           href="/auth/login"
-          className="mt-8 inline-block rounded-md bg-[#5865F2] px-5 py-2.5 font-medium text-white hover:bg-[#4752c4]"
+          className="mt-8 inline-block rounded-md bg-accent px-5 py-2.5 font-semibold text-ink hover:brightness-110"
         >
           Sign in with Discord
         </a>

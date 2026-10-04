@@ -40,7 +40,7 @@ type LapData = {
 type Loaded = LapData & { t: Trace | null };
 type Range = [number, number] | null;
 
-const COLORS = ["#60a5fa", "#f97316"]; // lap A (this lap), lap B (reference)
+const COLORS = ["#ffd200", "#d4d4d8"]; // this lap: team yellow; reference: light grey
 
 async function loadLap(id: string): Promise<Loaded> {
   const res = await fetch(`/api/laps/${id}`);
@@ -171,7 +171,7 @@ function Charts({ laps, onCursor, onRange, zoomRef }: {
       const delta = new Float64Array(n);
       for (let i = 0; i < n; i++) delta[i] = ta[i] - tb[i];
       panels.push({ title: `Time gap (s): above 0 = ${laps[0].driver} behind`, height: 130,
-                    series: [{ data: new Float64Array(n), color: "#ffffff30" }, { data: delta, color: "#e5e7eb" }],
+                    series: [{ data: new Float64Array(n), color: "#ffffff30" }, { data: delta, color: "#ffffff" }],
                     range: (_u, min, max) => [Math.min(min, -0.05), Math.max(max, 0.05)] });
     }
     panels.push(
@@ -293,7 +293,7 @@ function TrackMap({ laps, range, moveRef }: { laps: Loaded[]; range: Range; move
   const size = Math.max(view.w, view.h);
   // ACC: x and z horizontal; seen from above z points down, like SVG's y axis
   return (
-    <svg viewBox={`${view.x} ${view.z} ${view.w} ${view.h}`} className="h-auto max-h-[70vh] w-full rounded-lg border border-white/10 bg-black/20">
+    <svg viewBox={`${view.x} ${view.z} ${view.w} ${view.h}`} className="h-auto max-h-[70vh] w-full rounded-lg border border-white/10 bg-panel">
       {paths.map((p, k) => ({ p, k })).reverse().map(({ p, k }) => p && (
         <polyline key={k} points={p} fill="none" stroke={COLORS[k]} strokeWidth={range ? 2 : 1.5}
                   vectorEffect="non-scaling-stroke" strokeLinejoin="round" opacity={0.9} />

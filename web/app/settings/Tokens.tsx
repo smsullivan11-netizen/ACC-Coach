@@ -33,13 +33,13 @@ export default function Tokens() {
       <div className="flex gap-2">
         <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60}
                className="rounded border border-white/15 bg-transparent px-3 py-1.5 text-sm" />
-        <button onClick={create} className="rounded bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20">
+        <button onClick={create} className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-ink hover:brightness-110">
           Create upload token
         </button>
       </div>
       {created && (
-        <div className="mt-3 rounded border border-amber-400/30 bg-amber-400/10 p-3 text-sm">
-          <div className="text-amber-200">Copy it now: it will not be shown again.</div>
+        <div className="mt-3 rounded border border-accent/40 bg-accent/10 p-3 text-sm">
+          <div className="text-accent">Copy it now: it will not be shown again.</div>
           <code className="mt-1 block break-all text-white">{created}</code>
         </div>
       )}

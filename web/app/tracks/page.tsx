@@ -18,7 +18,7 @@ export default async function TracksPage() {
       {tracks.length === 0 && <p className="mt-6 text-zinc-400">No laps uploaded yet.</p>}
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tracks.map((t) => (
-          <Link key={t.key} href={`/tracks/${t.key}`} className="rounded-lg border border-white/10 p-4 hover:border-white/30">
+          <Link key={t.key} href={`/tracks/${t.key}`} className="rounded-lg border border-white/10 p-4 hover:border-accent/70">
             <div className="font-medium text-white">{prettyKey(t.key)}</div>
             <div className="tabular mt-2 text-sm text-zinc-400">
               Best {lapTime(t.best_ms)} · {t.laps} valid laps · {t.drivers} driver{t.drivers === 1 ? "" : "s"}

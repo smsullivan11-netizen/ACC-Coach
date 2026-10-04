@@ -66,8 +66,8 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
               {rows
                 .filter((r) => (r.car_class ?? "Other") === cls)
                 .map((r, k, list) => (
-                  <tr key={r.driver_id} className={`border-b border-white/5 ${r.driver_id === me.id ? "bg-white/5" : ""}`}>
-                    <td className="py-2 text-zinc-400">{r.position}</td>
+                  <tr key={r.driver_id} className={`border-b border-white/5 ${r.driver_id === me.id ? "bg-accent/10" : ""}`}>
+                    <td className={`py-2 ${r.position === 1 ? "font-bold text-accent" : "text-zinc-400"}`}>{r.position}</td>
                     <td className="text-white">{r.driver}</td>
                     <td className="text-zinc-300">{prettyKey(r.car)}</td>
                     <td className="text-right font-medium text-white">

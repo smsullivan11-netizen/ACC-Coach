@@ -65,7 +65,7 @@ export default async function SessionsPage() {
                 <td className="text-right">
                   {s.laps} <span className="text-zinc-500">({s.valid_laps})</span>
                 </td>
-                <td className="text-right font-medium text-white">{lapTime(s.best_ms)}</td>
+                <td className="text-right font-medium text-accent">{lapTime(s.best_ms)}</td>
               </tr>
             ))}
           </tbody>

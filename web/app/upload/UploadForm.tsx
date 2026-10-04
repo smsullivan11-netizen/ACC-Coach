@@ -31,7 +31,7 @@ export default function UploadForm() {
 
   return (
     <div>
-      <label className="mt-4 flex cursor-pointer flex-col items-center rounded-lg border border-dashed border-white/20 px-6 py-10 text-center hover:border-white/40">
+      <label className="mt-4 flex cursor-pointer flex-col items-center rounded-lg border border-dashed border-white/20 px-6 py-10 text-center hover:border-accent/70">
         <span className="text-white">{busy ? "Uploading…" : "Choose session bundles (.json.gz)"}</span>
         <span className="mt-1 text-sm text-zinc-500">made with acc_telemetry.py --bundle</span>
         <input type="file" accept=".gz,.json" multiple className="hidden" disabled={busy}

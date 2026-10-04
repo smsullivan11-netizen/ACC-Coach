@@ -17,10 +17,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        <header className="border-b border-white/10">
+        <header className="border-b-2 border-accent bg-black">
           <nav className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3 text-sm">
-            <Link href="/" className="font-semibold tracking-tight text-white">
-              ACC Coach
+            <Link href="/" className="flex items-center gap-1.5 font-semibold tracking-tight text-white">
+              <span className="rounded-sm bg-accent px-1.5 py-0.5 font-bold text-ink">ACC</span> Coach
             </Link>
             {driver && (
               <>

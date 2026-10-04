@@ -78,7 +78,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
                 <td className="py-2">
                   <Link href={`/laps/${l.id}`} className="text-zinc-300 underline-offset-2 hover:underline">L{l.number}</Link>
                 </td>
-                <td className={`text-right ${isBest ? "font-semibold text-purple-300" : l.comparable ? "text-white" : "text-zinc-500"}`}>
+                <td className={`text-right ${isBest ? "font-semibold text-accent" : l.comparable ? "text-white" : "text-zinc-500"}`}>
                   {lapTime(time(l))}
                 </td>
                 <td className="text-right text-zinc-400">
