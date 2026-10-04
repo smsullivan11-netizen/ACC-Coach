@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireDriver } from "@/lib/auth";
+import { coachSession } from "@/lib/coaching";
 import { sql } from "@/lib/db";
 import { lapTime, prettyKey, REASONS } from "@/lib/format";
+import Coach from "./Coach";
 
 type Session = {
   id: string;
@@ -46,6 +48,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   // The most official time available: server results, else the game's, else our own measurement
   const time = (l: Lap) => l.official_lap_time_ms ?? l.game_lap_time_ms ?? l.lap_time_ms;
   const best = Math.min(...laps.filter((l) => l.comparable).map(time));
+  const coaching = await coachSession(id);
 
   return (
     <div>
@@ -57,6 +60,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
         <span className="capitalize">{session.session_type ?? "session"}</span> ·{" "}
         {session.source_kind === "shared_memory" ? "recorder" : "MoTeC"} ({session.source_file})
       </p>
+      {coaching && <Coach c={coaching} />}
 
       <table className="tabular mt-6 w-full text-sm">
         <thead className="text-left text-zinc-500">

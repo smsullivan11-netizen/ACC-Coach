@@ -235,6 +235,29 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   (braking red, full throttle green, part throttle yellow, coasting grey). The charts' cursor
   follows the first car (every chart, `setCursor`). Drawing runs outside React (rAF + refs).
 
+## Coaching summary (web/lib/coaching.ts)
+- Shown on every session page ("Coach" card) and, for the latest session with a valid lap, on the
+  driver's profile ("Coach's focus"). Rule-based from the data, no AI service (no budget; the user
+  wants advice on technique **and** on behaviour: breaks, fatigue, discipline). Computed on each
+  page view, nothing stored. Thresholds are first guesses.
+- Technique: the session's best valid lap against the reference = fastest valid lap on the track
+  and class outside this session, on the same corner map (another driver's, or the driver's own).
+  Time gap per corner from the two `time_s` traces, split at the reference's braking point and
+  apex: entry = braking point → apex, exit = apex → corner end; the straight before a braking point
+  counts as the previous corner's exit. Top 3 losses (≥ 0.05 s) with advice from the corner
+  results (braking point, peak brake, apex speed, coasting, throttle pickup, full throttle, exit
+  speed), strongest corners, "recurring" when the same corner was the worst in ≥ 2 of the driver's
+  last 3 sessions there. Links open the comparison zoomed on the corner (`/laps/<id>?vs=…&corner=N`).
+- Session: no valid lap, track limits (≥ 25 % of flying laps), consistency (median gap > 1 %, or
+  very consistent < 0.4 %), laps > 7 % off (mistakes), progress from the first valid lap, pace drop
+  in the last third of long runs, short runs, race sessions.
+- Driver: continuous driving time (this session + earlier ones the same day with < 20 min gaps,
+  from `recorded_at` = recording start, PC local time): tip from 75 min, take-a-break warning from
+  2 h; late-night sessions (0-5 h). Sessions made only of edge laps get no coaching.
+- "Focus for your next session": up to 3 items ranked by estimated gain (entry vs exit when one
+  dominates, track limits, consistency). Postgres `numeric` comes back as text from postgres.js:
+  cast sums to float8 (a 2 h stint was missed because of this).
+
 ## Session bundle (bundle.py)
 - Gzipped JSON: metadata (source kind `motec` / `shared_memory`, track, car, session type, file
   sha256 for deduplication, server .json info if matched), corner map used (`version`, `hash`,
@@ -396,7 +419,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   the site, direct address for `npm run db:migrate`), Discord application with redirects for
   localhost and the site. Settings are trimmed in code: a tab pasted into APP_URL once broke sign-in.
 - More real recordings: other tracks/cars, a multiplayer server session, a session with pit stops.
-- Track edges: drive the two edge laps on the team's tracks (none recorded yet on production).
+- Track edges: the user does not want to drive edge laps on every track. The edge-lap tool stays,
+  but an automatic estimate from the team's laps is the direction to explore.
+- Coaching: tune thresholds with real sessions; maybe the rating change and the top focus in the
+  desktop app's upload notification (needs an app release).
 - Corner maps: done on the site (geometry). Mount Panorama upgrades at its next upload (or an
   admin rebuilds it); check its result on the real layout and tune the thresholds if needed.
 - Microsoft Store release of the desktop app (see "Desktop app"): the teammate install failed on

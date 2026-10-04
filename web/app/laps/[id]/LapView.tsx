@@ -53,7 +53,9 @@ async function loadLap(id: string): Promise<Loaded> {
   return { ...data, t: data.trace ? decodeTrace(data.trace) : null };
 }
 
-export default function LapView({ lapId, vsId, candidates }: { lapId: string; vsId: string | null; candidates: Candidate[] }) {
+export default function LapView({ lapId, vsId, candidates, corner }: {
+  lapId: string; vsId: string | null; candidates: Candidate[]; corner?: number | null;
+}) {
   const router = useRouter();
   const [laps, setLaps] = useState<Loaded[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +80,14 @@ export default function LapView({ lapId, vsId, candidates }: { lapId: string; vs
       cancelled = true;
     };
   }, [lapId, vsId]);
+
+  // Opened from the coaching summary: zoom on that corner (with the braking zone before it)
+  useEffect(() => {
+    const c = corner != null ? laps?.[0].corners.find((x) => x.number === corner) : null;
+    if (!c) return;
+    const timer = setTimeout(() => zoom.current([Math.max(0, c.start_m - 50), c.end_m + 30]), 100);   // after the charts' first draw
+    return () => clearTimeout(timer);
+  }, [laps, corner]);
 
   if (error) return <p className="mt-6 text-red-400">{error}</p>;
   if (!laps) return <p className="mt-6 text-zinc-500">Loading lap…</p>;

@@ -5,6 +5,7 @@ import { sql } from "@/lib/db";
 import { lapTime, prettyKey } from "@/lib/format";
 import { PROVISIONAL_SESSIONS, WEIGHTS } from "@/lib/ratings";
 import { drivingStyle } from "@/lib/style";
+import { coachSession } from "@/lib/coaching";
 
 type Point = { rating: number; session_score: number; date: string };
 type Parts = { pace: number | null; consistency: number | null; clean: number | null; smoothness: number | null };
@@ -42,6 +43,13 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
       where s.driver_id = ${id} group by s.id, t.key order by coalesce(s.recorded_at, s.uploaded_at) desc limit 8`,
     drivingStyle(id, d.display_name),
   ]);
+  // The coach's focus from the latest session with a valid lap
+  const [coached] = await sql<{ id: string; track: string; date: string }[]>`
+    select s.id, t.key as track, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY') as date
+    from session s join track t on t.id = s.track_id
+    where s.driver_id = ${id} and exists (select 1 from lap l where l.session_id = s.id and l.comparable)
+    order by coalesce(s.recorded_at, s.uploaded_at) desc limit 1`;
+  const coaching = coached ? await coachSession(coached.id) : null;
   const rating = history.at(-1)?.rating ?? null;
   const change = history.length >= 2 ? history.at(-1)!.rating - history.at(-2)!.rating : null;
   const avatar = d.avatar_url?.replace("size=64", "size=256");
@@ -71,6 +79,20 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
           </div>
         </div>
       </div>
+
+      {coaching && coaching.focus.length > 0 && (
+        <section className="mt-8 rounded-lg border border-accent/30 bg-panel p-5">
+          <div className="flex flex-wrap items-baseline gap-x-4">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-accent">Coach&apos;s focus</h2>
+            <Link href={`/sessions/${coached.id}`} className="text-xs text-zinc-400 underline hover:text-white">
+              from the last session ({prettyKey(coached.track)}, {coached.date})
+            </Link>
+          </div>
+          <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-zinc-200">
+            {coaching.focus.map((f) => <li key={f}>{f}</li>)}
+          </ol>
+        </section>
+      )}
 
       <section className="mt-8 rounded-lg border border-white/10 bg-panel p-5">
         <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-400">Driving style</h2>
