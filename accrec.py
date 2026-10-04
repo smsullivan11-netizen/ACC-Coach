@@ -35,10 +35,11 @@ LAYOUT = "acc-shm-1.8.12"
 # Fields extracted by default when reading (the full pages stay in the file)
 PHYSICS_DEFAULT = ["packetId", "gas", "brake", "clutch", "gear", "rpm", "steerAngle", "speedKmh", "velocity",
                    "accG", "heading", "pitch", "roll", "localVelocity", "localAngularVel", "tyreContactPoint",
-                   "abs", "absInAction", "tc", "tcInAction", "numberOfTyresOut", "wheelSlip", "fuel"]
+                   "abs", "absInAction", "tc", "tcInAction", "numberOfTyresOut", "wheelSlip", "fuel", "airTemp", "roadTemp"]
 GRAPHICS_DEFAULT = ["packetId", "status", "session", "completedLaps", "position", "iCurrentTime", "iLastTime",
                     "iBestTime", "distanceTraveled", "isInPit", "isInPitLane", "isValidLap", "currentSectorIndex",
-                    "sessionIndex", "normalizedCarPosition", "activeCars", "playerCarID", "flag", "penalty"]
+                    "sessionIndex", "normalizedCarPosition", "activeCars", "playerCarID", "flag", "penalty",
+                    "trackGripStatus", "rainIntensity", "windSpeed", "windDirection", "clock"]
 PLAYER_COORDINATES = "playerCoordinates"   # derived: carCoordinates of the player's car only
 
 

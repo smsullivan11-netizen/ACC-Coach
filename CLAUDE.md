@@ -481,6 +481,15 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Mentors: for each of the coach's 3 weak corners, the teammate with the best pass (same map and
   class, ≥ 0.03 s faster) with a link to the replay of both laps zoomed on the corner.
 
+## Session conditions (app 0.1.2, migration 0008)
+- `recording.session_conditions`: while live (menus read 0 °C): air and track temperature at the
+  start and end (mean of the first/last 2 % of samples), grip (most frequent and worst
+  `trackGripStatus`: green, fast, optimum, greasy, damp, wet, flooded), worst `rainIntensity` (none …
+  thunderstorm), median wind (m/s → km/h, null when 0), in-game `clock` at the start. Sent as
+  `session.conditions` in the bundle, stored in `session.conditions` (jsonb), shown on the session
+  page, the lap cards and the sessions list (`components/Conditions.tsx`). Older sessions: none.
+- Brands Hatch recording: air 16 °C, track 22 °C, optimum grip, dry, 12:00, wind 0.
+
 ## Events and race results (migration 0007, web/lib/events.ts, web/lib/results.ts)
 - `/events`: upcoming (photo cards, local time + countdown via `LocalTime`, sign-ups yes/maybe/no,
   avatars) and past (team's best race position). Admins create/edit/delete (title, track, start in

@@ -1,6 +1,7 @@
 import { ChevronRight, Crown, Flag, MapPin, Medal } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import Conditions from "@/components/Conditions";
 import { Avatar, Chip, delay, PageTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
@@ -48,6 +49,7 @@ export default async function SessionsPage() {
                     <MapPin size={14} className="shrink-0 text-zinc-500" />
                     <span className="truncate">{prettyKey(s.track)}</span>
                     <span className="truncate text-zinc-500">· {s.car ? carShortName(s.car) : "–"}</span>
+                    <Conditions c={s.conditions} compact />
                   </div>
                   <div className="hidden items-center justify-end gap-1.5 md:flex">
                     {s.session_type && <Chip tone={TYPE_TONE[s.session_type] ?? "grey"}>{s.session_type}</Chip>}

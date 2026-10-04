@@ -42,6 +42,7 @@ export type Bundle = {
     type?: string | null;
     recorded_at: string;
     driver_name: string | null;
+    conditions?: Record<string, unknown> | null;
     official: { session_file: string; server_name: string | null; car_id: number; car_model: number | null } | null;
   };
   corner_map: { track: string; version: number; length_m: number; provisional: boolean; hash: string; corners: Corner[] };
@@ -117,9 +118,9 @@ export async function importBundle(b: Bundle, driverId: string): Promise<{ sessi
 
     const [session] = await tx<{ id: string }[]>`
       insert into session (driver_id, track_id, car_id, server_session_id, source_kind, source_file, source_sha256,
-                           recorded_at, session_type, bundle_version, agent_version, acc_driver_name)
+                           recorded_at, session_type, bundle_version, agent_version, acc_driver_name, conditions)
       values (${driverId}, ${track.id}, ${carId}, ${serverSessionId}, ${b.source.kind}, ${b.source.file}, ${b.source.sha256},
-              ${s.recorded_at}::timestamp, ${s.type ?? null}, ${b.version}, ${b.agent?.version ?? null}, ${s.driver_name?.trim() || null})
+              ${s.recorded_at}::timestamp, ${s.type ?? null}, ${b.version}, ${b.agent?.version ?? null}, ${s.driver_name?.trim() || null}, ${s.conditions ? tx.json(s.conditions as never) : null})
       returning id`;
 
     for (const l of b.laps) {

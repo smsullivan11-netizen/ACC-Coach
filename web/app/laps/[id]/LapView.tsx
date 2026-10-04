@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
+import Conditions, { type SessionConditions } from "@/components/Conditions";
 import TrackSurface, { type Edges } from "@/components/TrackSurface";
 import { lapTime, prettyKey, REASONS } from "@/lib/format";
 import { labelPoint } from "@/lib/geometry";
@@ -41,6 +42,7 @@ type LapData = {
   trace: EncodedTrace | null;
   corners: CornerRow[];
   edges: Edges;
+  conditions: SessionConditions;
 };
 type Loaded = LapData & { t: Trace | null };
 type Range = [number, number] | null;
@@ -108,6 +110,7 @@ export default function LapView({ lapId, vsId, candidates, corner, startReplay =
               {prettyKey(l.car)} · {l.date}
               {!l.comparable && ` · ${l.excluded_reasons.map((r) => REASONS[r] ?? r).join(", ")}`}
             </div>
+            {l.conditions && <div className="mt-1.5 text-xs [&_span]:text-xs"><Conditions c={l.conditions} /></div>}
           </div>
         ))}
         <div className={`card flex flex-col justify-center gap-2 p-4 ${b ? "" : "md:col-span-2"}`}>

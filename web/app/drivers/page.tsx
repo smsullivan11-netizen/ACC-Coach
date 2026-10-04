@@ -57,7 +57,7 @@ export default async function DriversPage() {
                     {r.rating != null ? (
                       <div className="flex items-center gap-3">
                         <span className="tabular w-12 text-lg font-bold text-accent">{r.rating.toFixed(1)}</span>
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
+                        <div className="h-1.5 w-40 shrink-0 overflow-hidden rounded-full bg-white/5">
                           <div className="fill h-full rounded-full bg-gradient-to-r from-race to-accent" style={{ width: `${r.rating}%`, ...delay(150 + i * 50) }} />
                         </div>
                         <RankBadge rating={r.rating} />

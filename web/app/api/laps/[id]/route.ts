@@ -16,7 +16,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/laps/[id]">)
     select l.id, l.number, l.session_id, l.comparable, l.excluded_reasons,
            coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms) as time_ms,
            d.display_name as driver, t.id as track_id, t.key as track, t.length_m as track_length_m, c.key as car,
-           s.source_kind, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY') as date,
+           s.source_kind, s.conditions, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY') as date,
            coalesce(l.corner_map_id,
                     (select m.id from corner_map m where m.track_id = t.id order by m.version desc limit 1))
              as corner_map_id,

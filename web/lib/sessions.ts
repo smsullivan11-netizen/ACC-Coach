@@ -17,13 +17,14 @@ export type SessionRow = {
   valid_laps: number;
   best_lap_id: string | null;
   best_ms: number | null;
+  conditions: import("@/components/Conditions").SessionConditions;
   position: number | null;   // position of the best lap on the track's leaderboard, when it is the driver's PB
 };
 
 export async function recentSessions({ driverId, limit }: { driverId?: string; limit: number }) {
   return sql<SessionRow[]>`
     select s.id, coalesce(s.recorded_at, s.uploaded_at) as at, d.id as driver_id, d.display_name as driver, d.avatar_url,
-           t.key as track, c.key as car, s.session_type,
+           t.key as track, c.key as car, s.session_type, s.conditions,
            (select count(*) from lap where session_id = s.id)::int as laps,
            (select count(*) from lap where session_id = s.id and comparable)::int as valid_laps,
            b.lap_id as best_lap_id, b.t as best_ms, r.position::int as position

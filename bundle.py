@@ -124,6 +124,7 @@ def build_bundle(source_path: str, head, laps: list, ref: float, cmap: dict,
             "type": getattr(head, "session_type", None),
             "recorded_at": head.datetime.isoformat(),   # PC local time (MoTeC: ≈ end of the recording)
             "driver_name": head.driver or None,
+            "conditions": getattr(head, "conditions", None),   # recorder only: temperatures, grip, rain, wind, time of day
             "official": official_info(results, car_id) if results and car_id is not None else None,
         },
         "corner_map": {**{k: cmap.get(k) for k in ("track", "version", "length_m", "corners")},

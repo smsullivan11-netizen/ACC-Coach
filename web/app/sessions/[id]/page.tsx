@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Avatar, Chip, delay, SectionTitle } from "@/components/ui";
+import Conditions, { type SessionConditions } from "@/components/Conditions";
 import { requireDriver } from "@/lib/auth";
 import { coachSession } from "@/lib/coaching";
 import { sql } from "@/lib/db";
@@ -16,6 +17,7 @@ type Session = {
   driver: string;
   driver_id: string;
   avatar_url: string | null;
+  conditions: SessionConditions;
   track: string;
   car: string | null;
   car_class: string | null;
@@ -42,7 +44,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   if (!/^\d+$/.test(id)) notFound();
   const [session] = await sql<Session[]>`
     select s.id, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY, HH24:MI') as recorded,
-           d.display_name as driver, d.id as driver_id, d.avatar_url, t.key as track, c.key as car, c.class as car_class,
+           d.display_name as driver, d.id as driver_id, d.avatar_url, s.conditions, t.key as track, c.key as car, c.class as car_class,
            s.session_type, s.source_kind, s.source_file
     from session s join driver d on d.id = s.driver_id join track t on t.id = s.track_id
     left join car c on c.id = s.car_id
@@ -82,6 +84,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
               <span className="inline-flex items-center gap-1 text-zinc-400"><Car size={14} /> {prettyKey(session.car)}{session.car_class && ` (${session.car_class})`}</span>
               {session.session_type && <Chip tone={session.session_type === "race" ? "red" : "grey"}>{session.session_type}</Chip>}
             </p>
+            {session.conditions && <div className="mt-2"><Conditions c={session.conditions} /></div>}
           </div>
           <div className="ml-auto text-right">
             <div className="text-xs uppercase tracking-wider text-zinc-500">Best lap</div>

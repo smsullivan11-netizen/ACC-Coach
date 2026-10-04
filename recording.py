@@ -88,6 +88,36 @@ def _crossings(g: dict, g_tg: np.ndarray) -> list[dict]:
     return out
 
 
+GRIP = ["green", "fast", "optimum", "greasy", "damp", "wet", "flooded"]          # ACC_TRACK_GRIP_STATUS
+RAIN = ["none", "drizzle", "light", "medium", "heavy", "thunderstorm"]           # ACC_RAIN_INTENSITY
+
+
+def session_conditions(p: dict, g: dict, live: np.ndarray, p_tg: np.ndarray, g_tg: np.ndarray) -> dict | None:
+    """Track conditions while driving: temperatures at the start and the end, grip and rain (worst seen),
+    wind, and the in-game time of day at the start. None for recordings without these fields."""
+    if "airTemp" not in p or not live.any():
+        return None
+    t0, t1 = g_tg[live][0], g_tg[live][-1]
+    on = (p_tg >= t0) & (p_tg <= t1) & (p["airTemp"] > 0)          # menus read 0 °C
+    if not on.any():
+        return None
+    first = lambda x: round(float(x[on][: max(1, on.sum() // 50)].mean()), 1)
+    last = lambda x: round(float(x[on][-max(1, on.sum() // 50):].mean()), 1)
+    grip = g["trackGripStatus"][live].astype(int)
+    rain = g["rainIntensity"][live].astype(int)
+    clock = float(g["clock"][live][0])
+    wind = float(np.median(g["windSpeed"][live]))
+    return {
+        "air_c": [first(p["airTemp"]), last(p["airTemp"])],
+        "track_c": [first(p["roadTemp"]), last(p["roadTemp"])],
+        "grip": GRIP[int(np.bincount(grip.clip(0, 6)).argmax())] if len(grip) else None,
+        "grip_worst": GRIP[int(grip.clip(0, 6).max())] if len(grip) else None,
+        "rain": RAIN[int(rain.clip(0, 5).max())] if len(rain) else None,
+        "wind_kmh": round(wind * 3.6, 1) if wind > 0 else None,
+        "time_of_day": f"{int(clock // 3600) % 24:02d}:{int(clock % 3600 // 60):02d}" if clock > 0 else None,
+    }
+
+
 def load_recording(path: str, track_length: float | None = None, tol: float = 0.03):
     """Same contract as acc_telemetry.load_session: (head, laps, reference length)."""
     rec = accrec.read_recording(path)
@@ -106,6 +136,7 @@ def load_recording(path: str, track_length: float | None = None, tol: float = 0.
     f = round(1 / step)
     g_tg = np.interp(g["t_ns"] / 1e9, p["t_ns"] / 1e9, p_tg)
     live = np.isin(g["status"], (shm.STATUS_LIVE, shm.STATUS_PAUSE))
+    head.conditions = session_conditions(p, g, live, p_tg, g_tg)
     pos, _ = _position_source(p, g, p_tg, g_tg)
     npos_u = np.unwrap(g["normalizedCarPosition"].astype(float), period=1.0)
     lock = shm.STEER_LOCK_DEG.get(car)
