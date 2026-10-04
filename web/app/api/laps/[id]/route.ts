@@ -1,9 +1,11 @@
 import { driverFromRequest } from "@/lib/auth";
 import { sql } from "@/lib/db";
+import { trackEdges } from "@/lib/track-edges";
 
-// One lap for the lap page: header, trace (1 m grid, encoded channels) and corner results.
-// Corners come from the lap's corner map, or the track's latest one for laps without corner
-// results; their boundaries are scaled to the track length used for the lap's distance grid.
+// One lap for the lap page: header, trace (1 m grid, encoded channels), corner results and the
+// track's edges (white lines, when set) for the map. Corners come from the lap's corner map, or the
+// track's latest one for laps without corner results; their boundaries are scaled to the track
+// length used for the lap's distance grid.
 export async function GET(request: Request, ctx: RouteContext<"/api/laps/[id]">) {
   if (!(await driverFromRequest(request))) return Response.json({ error: "sign in" }, { status: 401 });
   const { id } = await ctx.params;
@@ -12,7 +14,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/laps/[id]">)
   const [lap] = await sql`
     select l.id, l.number, l.session_id, l.comparable, l.excluded_reasons,
            coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms) as time_ms,
-           d.display_name as driver, t.key as track, t.length_m as track_length_m, c.key as car,
+           d.display_name as driver, t.id as track_id, t.key as track, t.length_m as track_length_m, c.key as car,
            s.source_kind, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY') as date,
            coalesce(l.corner_map_id,
                     (select m.id from corner_map m where m.track_id = t.id order by m.version desc limit 1))
@@ -43,9 +45,10 @@ export async function GET(request: Request, ctx: RouteContext<"/api/laps/[id]">)
         order by k.number`
     : [];
 
-  const { step_m, length, channels, ...header } = lap;
+  const { step_m, length, channels, track_id, ...header } = lap;
+  const edges = await trackEdges(track_id);
   return Response.json(
-    { ...header, trace: channels ? { step_m, length, channels } : null, corners },
-    { headers: { "Cache-Control": "private, max-age=3600" } },
+    { ...header, trace: channels ? { step_m, length, channels } : null, corners, edges },
+    { headers: { "Cache-Control": "private, max-age=60" } },   // short: maps and edges can change
   );
 }

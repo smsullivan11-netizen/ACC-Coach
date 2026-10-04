@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import TrackSurface, { type Edges } from "@/components/TrackSurface";
 import type { MapCorner, Proposal } from "@/lib/corners";
 import { lapTime } from "@/lib/format";
 import { labelPoint } from "@/lib/geometry";
@@ -12,12 +13,13 @@ const DETAILS = [["fewer", "Fewer corners"], ["normal", "Normal"], ["more", "Mor
 
 // The track's corner map: drawing and table; admins rename corners and rebuild the map from the
 // team's laps (preview first, then publish as a new version).
-export default function CornerMapEditor({ track, isAdmin, info, map, line }: {
+export default function CornerMapEditor({ track, isAdmin, info, map, line, edges }: {
   track: string;
   isAdmin: boolean;
   info: string;
   map: { version: number; length_m: number; corners: MapCorner[] };
   line: Line | null;
+  edges: Edges;
 }) {
   const router = useRouter();
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -72,7 +74,7 @@ export default function CornerMapEditor({ track, isAdmin, info, map, line }: {
     <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_460px]">
       <div>
         {shown.line ? (
-          <TrackDrawing line={shown.line} length={shown.length_m} corners={shown.corners} hover={hover} />
+          <TrackDrawing line={shown.line} length={shown.length_m} corners={shown.corners} hover={hover} edges={edges} />
         ) : (
           <p className="text-sm text-zinc-500">No lap with car positions on this track yet (MoTeC imports have none).</p>
         )}
@@ -163,7 +165,7 @@ export default function CornerMapEditor({ track, isAdmin, info, map, line }: {
   );
 }
 
-function TrackDrawing({ line, length, corners, hover }: { line: Line; length: number; corners: MapCorner[]; hover: number | null }) {
+function TrackDrawing({ line, length, corners, hover, edges }: { line: Line; length: number; corners: MapCorner[]; hover: number | null; edges: Edges }) {
   const n = line.x.length;
   const x0 = Math.min(...line.x), x1 = Math.max(...line.x), z0 = Math.min(...line.z), z1 = Math.max(...line.z);
   const size = Math.max(x1 - x0, z1 - z0);
@@ -179,7 +181,9 @@ function TrackDrawing({ line, length, corners, hover }: { line: Line; length: nu
   return (
     <svg viewBox={`${x0 - pad} ${z0 - pad} ${x1 - x0 + 2 * pad} ${z1 - z0 + 2 * pad}`}
          className="h-auto max-h-[75vh] w-full rounded-lg border border-white/10 bg-panel">
-      <polyline points={pts(0, n - 1)} fill="none" stroke="#52525b" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+      <TrackSurface edges={edges} />
+      <polyline points={pts(0, n - 1)} fill="none" stroke={edges ? "#71717a" : "#52525b"} strokeWidth={edges ? 1 : 2}
+                vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
       {h && <polyline points={pts(at(h.start_m), at(h.end_m))} fill="none" stroke="#ffd200" strokeWidth={4}
                       vectorEffect="non-scaling-stroke" strokeLinejoin="round" />}
       {corners.map((c) => {

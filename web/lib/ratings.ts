@@ -55,7 +55,7 @@ export async function rateSession(tx: Sql, sessionId: string) {
     ? clamp(100 * (1 - (median(valid.slice(1).map((t) => (t - best) / best)) - 0.003) / (0.02 - 0.003)))
     : null;
 
-  const flying = laps.filter((l) => !l.excluded_reasons.some((r) => r.startsWith("pit_") || r === "distance"));
+  const flying = laps.filter((l) => !l.excluded_reasons.some((r) => r.startsWith("pit_") || r === "distance" || r === "track_edges"));
   const clean = flying.length ? (100 * valid.length) / flying.length : null;
 
   // Steering activity in °/s when the steering lock is known, else in % of lock per second: only

@@ -43,4 +43,5 @@ export const REASONS: Record<string, string> = {
   game_invalid: "invalid (track limits)",
   pit_out: "out-lap",
   pit_in: "in-lap",
+  track_edges: "edge lap (track map)",
 };

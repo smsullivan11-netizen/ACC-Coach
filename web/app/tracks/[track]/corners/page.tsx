@@ -4,8 +4,10 @@ import { requireDriver } from "@/lib/auth";
 import { latestMap } from "@/lib/corner-maps";
 import { sql } from "@/lib/db";
 import { prettyKey } from "@/lib/format";
+import { trackEdges } from "@/lib/track-edges";
 import { decodeChannel, type EncodedChannel } from "@/lib/trace";
 import CornerMapEditor from "./CornerMapEditor";
+import EdgesPanel, { type EdgeCandidate, type EdgeStatus } from "./EdgesPanel";
 
 const MAX_POINTS = 2500;
 
@@ -30,6 +32,22 @@ export default async function CornersPage(props: PageProps<"/tracks/[track]/corn
     for (let i = 0; i < x.length; i += k) { line.x.push(Math.round(x[i] * 10) / 10); line.z.push(Math.round(z[i] * 10) / 10); }
   }
 
+  // Track edges (table from migration 0004: none before it is applied)
+  const edges = await trackEdges(t.id);
+  const status = await sql<EdgeStatus[]>`
+    select e.side, e.lap_id, d.display_name as driver, l.number, to_char(e.set_at, 'DD Mon YYYY') as date
+    from track_edge e left join lap l on l.id = e.lap_id left join session s on s.id = l.session_id
+    left join driver d on d.id = s.driver_id
+    where e.track_id = ${t.id}`.catch(() => [] as EdgeStatus[]);
+  const candidates = me.is_admin
+    ? await sql<EdgeCandidate[]>`
+        select l.id, d.display_name as driver, l.number, coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms) as time_ms,
+               to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon HH24:MI') as date, l.excluded_reasons
+        from lap l join session s on s.id = l.session_id join driver d on d.id = s.driver_id join lap_trace tr on tr.lap_id = l.id
+        where s.track_id = ${t.id} and tr.channels ? 'pos_x_m'
+        order by s.uploaded_at desc, l.number limit 20`
+    : [];
+
   const d = map?.definition;
   const date = d?.built_at ? new Date(String(d.built_at)).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : null;
   const info = !d
@@ -41,7 +59,7 @@ export default async function CornersPage(props: PageProps<"/tracks/[track]/corn
   return (
     <div>
       <Link href={`/tracks/${track}`} className="text-sm text-zinc-400 hover:text-white">← {prettyKey(track)} leaderboard</Link>
-      <h1 className="mt-2 text-xl font-semibold text-white">{prettyKey(track)} · corners</h1>
+      <h1 className="mt-2 text-xl font-semibold text-white">{prettyKey(track)} · track map</h1>
       <p className="mt-1 max-w-3xl text-sm text-zinc-400">
         Corners come from the shape of the racing line, averaged over the team&apos;s best clean laps. Each corner runs from
         the fastest point before it to the fastest point after it, so corner times add up to the lap time. Every lap of the
@@ -54,10 +72,12 @@ export default async function CornersPage(props: PageProps<"/tracks/[track]/corn
           info={info!}
           map={{ version: map.version, length_m: d.length_m, corners: d.corners }}
           line={line}
+          edges={edges}
         />
       ) : (
         <p className="mt-6 text-zinc-400">No corner map yet: it is made with the first session uploaded on this track.</p>
       )}
+      <EdgesPanel track={track} isAdmin={me.is_admin} status={status} candidates={candidates} />
     </div>
   );
 }

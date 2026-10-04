@@ -59,6 +59,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   is distributed with this file).
 
 ## Validated findings
+- ACC does **not** publish track edges: `numberOfTyresOut` stays 0 even on laps invalidated for
+  track limits (Brands Hatch recording, 187k samples). `kerbVibration` does work (non-zero ~3 % of
+  the time at speed). Tyre contact points are exact: GT3 front track 1.78 m, rear 1.74 m,
+  wheelbase 2.79 m.
 - **Server** sessions: consistent files (.ldx beacons = TIME resets;
   integrated distance per lap ≈ track length, ±0.3 % at Brands Hatch).
 - **Solo Hotlap** sessions: inconsistent files (channels of different durations,
@@ -213,6 +217,24 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Laps whose traces were pruned keep their corner results on the old map version; the leaderboard's
   theoretical best only uses the latest version.
 
+## Track edges and replay (web/lib/track-edges.ts, web/app/laps/[id]/Replay.tsx)
+- Track surface on maps (asphalt between two white lines, `components/TrackSurface.tsx`): ACC has
+  no edges, so they come from two **edge laps** driven slowly with the left / right wheels on the
+  white line (driving direction), uploaded as usual, then picked by an admin on the track map page
+  (Leaderboard → track map & corners). Edge = the lap's line moved outward by 1.0 m (car centre to
+  the outer side of the tyres), one point every 2 m. An edge lap gets the excluded reason
+  `track_edges` (out of rankings, ratings, corner maps; ratings replayed); clearing restores it.
+  Read paths tolerate a database without migration 0004 (no surface drawn).
+- The user's choice: a Racemake/ACC Drive-like track view. Estimating edges from the team's laps
+  was rejected: racing lines only touch the edges at corners and few laps give a narrow band.
+- Replay on the lap page ("Replay both laps"): both cars placed by **elapsed time** (inverse of
+  the `time_s` channel), drawn as 4.6 × 2.0 m cars with a brake light, follow camera (close /
+  medium / wide = 120 / 250 / 500 m view, centred between the cars when close) or whole track,
+  0.25×-4×, timeline, live speed / gear / throttle / brake and gap ("ahead by 0.385 s · 20 m":
+  time since the leader passed the follower's position). Lines in driver colours or by inputs
+  (braking red, full throttle green, part throttle yellow, coasting grey). The charts' cursor
+  follows the first car (every chart, `setCursor`). Drawing runs outside React (rAF + refs).
+
 ## Session bundle (bundle.py)
 - Gzipped JSON: metadata (source kind `motec` / `shared_memory`, track, car, session type, file
   sha256 for deduplication, server .json info if matched), corner map used (`version`, `hash`,
@@ -240,6 +262,7 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   official time (`coalesce(official_lap_time_ms, game_lap_time_ms, lap_time_ms)`).
   0003: ratings (`driver.is_admin`, the first Discord member becomes admin; `track_target` per
   track and class; `driver_rating` = one row per rated session, the history of the rating).
+  0004: `track_edge` (white lines per track and side, from edge laps; see "Track edges").
 - The corner map fingerprint (`corners.map_hash`) formats numbers with one decimal: a map that
   went through JavaScript (3908.0 → 3908) must keep the same fingerprint (bug found in the
   end-to-end test).
@@ -373,6 +396,7 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   the site, direct address for `npm run db:migrate`), Discord application with redirects for
   localhost and the site. Settings are trimmed in code: a tab pasted into APP_URL once broke sign-in.
 - More real recordings: other tracks/cars, a multiplayer server session, a session with pit stops.
+- Track edges: drive the two edge laps on the team's tracks (none recorded yet on production).
 - Corner maps: done on the site (geometry). Mount Panorama upgrades at its next upload (or an
   admin rebuilds it); check its result on the real layout and tune the thresholds if needed.
 - Microsoft Store release of the desktop app (see "Desktop app"): the teammate install failed on

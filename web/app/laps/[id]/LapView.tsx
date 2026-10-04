@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
+import TrackSurface, { type Edges } from "@/components/TrackSurface";
 import { lapTime, prettyKey, REASONS } from "@/lib/format";
 import { labelPoint } from "@/lib/geometry";
 import { decodeTrace, type EncodedTrace, type Trace } from "@/lib/trace";
+import Replay from "./Replay";
 
 export type Candidate = { id: string; label: string };
 
@@ -37,6 +39,7 @@ type LapData = {
   date: string;
   trace: EncodedTrace | null;
   corners: CornerRow[];
+  edges: Edges;
 };
 type Loaded = LapData & { t: Trace | null };
 type Range = [number, number] | null;
@@ -57,6 +60,10 @@ export default function LapView({ lapId, vsId, candidates }: { lapId: string; vs
   const [range, setRange] = useState<Range>(null);
   const moveDots = useRef<(i: number | null) => void>(() => {});
   const zoom = useRef<(r: Range) => void>(() => {});
+  const cursor = useRef<(d: number | null) => void>(() => {});
+  const [replay, setReplay] = useState(false);
+  const followCar = useCallback((d: number | null) => cursor.current(d), []);
+  const closeReplay = useCallback(() => setReplay(false), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +82,7 @@ export default function LapView({ lapId, vsId, candidates }: { lapId: string; vs
   if (error) return <p className="mt-6 text-red-400">{error}</p>;
   if (!laps) return <p className="mt-6 text-zinc-500">Loading lap…</p>;
   const [a, b] = laps;
+  const positions = laps.every((l) => l.t?.channels.pos_x_m && l.t.channels.pos_z_m);
 
   return (
     <div>
@@ -107,18 +115,30 @@ export default function LapView({ lapId, vsId, candidates }: { lapId: string; vs
         </p>
       )}
 
+      {a.t && replay && (
+        <Replay laps={laps.flatMap((l, i) => (l.t ? [{ driver: `${l.driver} L${l.number}`, color: COLORS[i], t: l.t }] : []))}
+                edges={a.edges} corners={a.corners} onDistance={followCar} onClose={closeReplay} />
+      )}
       {!a.t ? (
         <p className="mt-6 text-zinc-400">This lap has no trace (incomplete lap).</p>
       ) : (
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <Charts laps={laps} onCursor={(i) => moveDots.current(i)} onRange={setRange} zoomRef={zoom} />
+          <Charts laps={laps} onCursor={(i) => moveDots.current(i)} onRange={setRange} zoomRef={zoom} cursorRef={cursor} />
           <div className="lg:sticky lg:top-4 lg:self-start">
             <TrackMap laps={laps} range={range} moveRef={moveDots} />
-            {range && (
-              <button onClick={() => zoom.current(null)} className="mt-2 text-sm text-zinc-400 underline hover:text-white">
-                Show the full lap
-              </button>
-            )}
+            <div className="mt-2 flex items-center gap-4">
+              {positions && !replay && (
+                <button onClick={() => setReplay(true)}
+                        className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-ink hover:brightness-110">
+                  {b ? "Replay both laps" : "Replay this lap"}
+                </button>
+              )}
+              {range && (
+                <button onClick={() => zoom.current(null)} className="text-sm text-zinc-400 underline hover:text-white">
+                  Show the full lap
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -137,11 +157,12 @@ type Panel = {
   stepped?: boolean;
 };
 
-function Charts({ laps, onCursor, onRange, zoomRef }: {
+function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
   laps: Loaded[];
   onCursor: (i: number | null) => void;
   onRange: (r: Range) => void;
   zoomRef: React.RefObject<(r: Range) => void>;
+  cursorRef: React.RefObject<(d: number | null) => void>;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const callbacks = useRef({ onCursor, onRange });
@@ -227,6 +248,9 @@ function Charts({ laps, onCursor, onRange, zoomRef }: {
       plots.push(new uPlot(opts, [x, ...p.series.map((s) => s.data)] as uPlot.AlignedData, wrap));
     });
     zoomRef.current = (r) => plots[0]?.setScale("x", r ? { min: r[0], max: r[1] } : { min: x[0], max: x[n - 1] });
+    // The replay moves the cursor (shared by every chart) to a distance
+    cursorRef.current = (d) => plots.forEach((u) =>
+      u.setCursor(d == null ? { left: -10, top: -10 } : { left: u.valToPos(d, "x"), top: 5 }));
 
     const resize = new ResizeObserver(() => plots.forEach((p) => p.setSize({ width: el.clientWidth, height: p.height })));
     resize.observe(el);
@@ -234,7 +258,7 @@ function Charts({ laps, onCursor, onRange, zoomRef }: {
       resize.disconnect();
       plots.forEach((p) => p.destroy());
     };
-  }, [laps, zoomRef]);
+  }, [laps, zoomRef, cursorRef]);
 
   return <div ref={box} className="min-w-0" />;
 }
@@ -295,6 +319,7 @@ function TrackMap({ laps, range, moveRef }: { laps: Loaded[]; range: Range; move
   // ACC: x and z horizontal; seen from above z points down, like SVG's y axis
   return (
     <svg viewBox={`${view.x} ${view.z} ${view.w} ${view.h}`} className="h-auto max-h-[70vh] w-full rounded-lg border border-white/10 bg-panel">
+      <TrackSurface edges={laps[0].edges} />
       {paths.map((p, k) => ({ p, k })).reverse().map(({ p, k }) => p && (
         <polyline key={k} points={p} fill="none" stroke={COLORS[k]} strokeWidth={range ? 2 : 1.5}
                   vectorEffect="non-scaling-stroke" strokeLinejoin="round" opacity={0.9} />
