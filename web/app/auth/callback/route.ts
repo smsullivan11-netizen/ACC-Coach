@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import { appUrl, startSession, stateCookie, upsertDiscordDriver } from "@/lib/auth";
+import { appUrl, startSession, stateCookie, upsertDiscordDriver, env } from "@/lib/auth";
 
 // Step 2 of Discord sign-in: Discord sends the browser back with a one-time code.
 const fail = (error: string) => NextResponse.redirect(`${appUrl()}/?error=${error}`, 303);
@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: process.env.DISCORD_CLIENT_ID!,
-      client_secret: process.env.DISCORD_CLIENT_SECRET!,
+      client_id: env("DISCORD_CLIENT_ID"),
+      client_secret: env("DISCORD_CLIENT_SECRET"),
       grant_type: "authorization_code",
       code,
       redirect_uri: `${appUrl()}/auth/callback`,
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   if (!userRes.ok || !guildsRes.ok) return fail("discord-error");
   const user = (await userRes.json()) as { id: string; username: string; global_name: string | null; avatar: string | null };
   const guilds = (await guildsRes.json()) as { id: string }[];
-  if (!guilds.some((g) => g.id === process.env.DISCORD_GUILD_ID)) return fail("not-in-team");
+  if (!guilds.some((g) => g.id === env("DISCORD_GUILD_ID"))) return fail("not-in-team");
 
   const driverId = await upsertDiscordDriver({
     id: user.id,

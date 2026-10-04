@@ -17,11 +17,14 @@ export type Driver = { id: string; display_name: string; avatar_url: string | nu
 export const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 export const newToken = (prefix = "") => prefix + randomBytes(32).toString("base64url");
 
-export const appUrl = () => (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+/** A setting, without the spaces or tabs that easily come along when pasting it into a dashboard. */
+export const env = (name: string) => (process.env[name] ?? "").trim();
+
+export const appUrl = () => (env("APP_URL") || "http://localhost:3000").replace(/\/$/, "");
 export const discordConfigured = () =>
-  Boolean(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET && process.env.DISCORD_GUILD_ID);
+  Boolean(env("DISCORD_CLIENT_ID") && env("DISCORD_CLIENT_SECRET") && env("DISCORD_GUILD_ID"));
 // Local development only: sign in without Discord (never available in production builds)
-export const devLoginEnabled = () => process.env.NODE_ENV !== "production" && process.env.DEV_LOGIN === "1";
+export const devLoginEnabled = () => process.env.NODE_ENV !== "production" && env("DEV_LOGIN") === "1";
 
 const cookieOptions = (maxAge: number) => ({
   httpOnly: true,

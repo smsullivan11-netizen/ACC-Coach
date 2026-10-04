@@ -3,7 +3,7 @@ import postgres from "postgres";
 
 // One connection pool per server process (reused across hot reloads in development).
 // Note: bigint ids and numeric values come back as strings.
-const url = process.env.DATABASE_URL ?? "";
+const url = (process.env.DATABASE_URL ?? "").trim();
 const globalForDb = globalThis as unknown as { sql?: postgres.Sql };
 
 export const sql =
