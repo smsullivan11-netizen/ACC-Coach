@@ -438,6 +438,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   the public `/credits` page (licence requirement). Flags self-hosted in `public/flags/` (flagcdn,
   Spain simplified); every flag SVG needs a viewBox (without one it does not scale and only its
   corner shows: the "missing flags" the user saw). Names/countries: `lib/tracks.ts`.
+- Telemetry section (top bar, user's request: the replay must not be hidden in sessions):
+  `/telemetry` = pick a track (photo tiles, the driver's tracks first), "your lap" (yellow) and an
+  optional lap to compare with (grey), then "Watch replay" (`/laps/<id>?vs=<id>&replay=1` opens the
+  lap page with the replay shown) or "Open telemetry"; plus a quick "your best vs the team best".
 - Round 3: every page in the same style (shared `.data-table`, `.btn`, `.input`, `PageTitle`,
   `SectionTitle`, `Position`, `Chip`, `Avatar`): track leaderboard with a photo banner, drivers,
   profiles, session page and coach card, lap comparison (lap cards, charts in cards), replay, track

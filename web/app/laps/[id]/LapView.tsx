@@ -54,8 +54,8 @@ async function loadLap(id: string): Promise<Loaded> {
   return { ...data, t: data.trace ? decodeTrace(data.trace) : null };
 }
 
-export default function LapView({ lapId, vsId, candidates, corner }: {
-  lapId: string; vsId: string | null; candidates: Candidate[]; corner?: number | null;
+export default function LapView({ lapId, vsId, candidates, corner, startReplay = false }: {
+  lapId: string; vsId: string | null; candidates: Candidate[]; corner?: number | null; startReplay?: boolean;
 }) {
   const router = useRouter();
   const [laps, setLaps] = useState<Loaded[] | null>(null);
@@ -64,7 +64,7 @@ export default function LapView({ lapId, vsId, candidates, corner }: {
   const moveDots = useRef<(i: number | null) => void>(() => {});
   const zoom = useRef<(r: Range) => void>(() => {});
   const cursor = useRef<(d: number | null) => void>(() => {});
-  const [replay, setReplay] = useState(false);
+  const [replay, setReplay] = useState(startReplay);   // opened from the Telemetry page: replay shown at once
   const followCar = useCallback((d: number | null) => cursor.current(d), []);
   const closeReplay = useCallback(() => setReplay(false), []);
 

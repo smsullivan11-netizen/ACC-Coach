@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Lap analysis" };
 export default async function LapPage(props: PageProps<"/laps/[id]">) {
   await requireDriver();
   const { id } = await props.params;
-  const { vs, corner } = await props.searchParams;
+  const { vs, corner, replay } = await props.searchParams;
   if (!/^\d+$/.test(id)) notFound();
   const [lap] = await sql<{ number: number; session_id: string; track_id: string; track: string; driver: string }[]>`
     select l.number, l.session_id, s.track_id, t.key as track, d.display_name as driver
@@ -49,7 +49,8 @@ export default async function LapPage(props: PageProps<"/laps/[id]">) {
         <Link href={`/tracks/${lap.track}`} className="inline-flex items-center gap-1.5 hover:text-white"><Trophy size={14} className="text-race" /> {prettyKey(lap.track)} leaderboard</Link>
       </p>
       <LapView lapId={id} vsId={vsId} candidates={candidates}
-               corner={typeof corner === "string" && /^\d+$/.test(corner) ? Number(corner) : null} />
+               corner={typeof corner === "string" && /^\d+$/.test(corner) ? Number(corner) : null}
+               startReplay={replay === "1"} />
     </div>
   );
 }

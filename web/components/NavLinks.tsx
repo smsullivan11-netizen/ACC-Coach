@@ -1,11 +1,12 @@
 "use client";
 
-import { Download, Flag, LayoutDashboard, Trophy, Users } from "lucide-react";
+import { Download, Flag, LayoutDashboard, MonitorPlay, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/telemetry", label: "Telemetry", icon: MonitorPlay },
   { href: "/sessions", label: "Sessions", icon: Flag },
   { href: "/tracks", label: "Leaderboards", icon: Trophy },
   { href: "/drivers", label: "Drivers", icon: Users },
