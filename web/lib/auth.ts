@@ -17,7 +17,7 @@ export const safeNext = (next: string | null | undefined) =>
   next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : null;
 const SESSION_DAYS = 30;
 
-export type Driver = { id: string; display_name: string; avatar_url: string | null };
+export type Driver = { id: string; display_name: string; avatar_url: string | null; is_admin: boolean };
 
 export const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 export const newToken = (prefix = "") => prefix + randomBytes(32).toString("base64url");
@@ -58,7 +58,7 @@ export async function currentDriver(): Promise<Driver | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const [driver] = await sql<Driver[]>`
-    select d.id, d.display_name, d.avatar_url
+    select d.id, d.display_name, d.avatar_url, d.is_admin
     from web_session s join driver d on d.id = s.driver_id
     where s.id_hash = ${sha256(token)} and s.expires_at > now()`;
   return driver ?? null;
@@ -79,7 +79,7 @@ export async function driverFromRequest(request: Request): Promise<Driver | null
       update agent_token t set last_used_at = now()
       from driver d
       where t.token_hash = ${sha256(auth.slice(7).trim())} and t.revoked_at is null and d.id = t.driver_id
-      returning d.id, d.display_name, d.avatar_url`;
+      returning d.id, d.display_name, d.avatar_url, d.is_admin`;
     return driver ?? null;
   }
   return currentDriver();

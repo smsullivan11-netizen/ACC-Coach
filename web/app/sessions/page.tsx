@@ -7,6 +7,7 @@ type Row = {
   id: string;
   recorded: string | null;
   driver: string;
+  driver_id: string;
   track: string;
   car: string | null;
   session_type: string | null;
@@ -20,7 +21,7 @@ export default async function SessionsPage() {
   await requireDriver();
   const sessions = await sql<Row[]>`
     select s.id, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY, HH24:MI') as recorded,
-           d.display_name as driver, t.key as track, c.key as car, s.session_type, s.source_kind,
+           d.display_name as driver, d.id as driver_id, t.key as track, c.key as car, s.session_type, s.source_kind,
            count(l.id)::int as laps, count(l.id) filter (where l.comparable)::int as valid_laps,
            min(coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms)) filter (where l.comparable) as best_ms
     from session s
@@ -28,7 +29,7 @@ export default async function SessionsPage() {
     join track t on t.id = s.track_id
     left join car c on c.id = s.car_id
     left join lap l on l.session_id = s.id
-    group by s.id, d.display_name, t.key, c.key
+    group by s.id, d.display_name, d.id, t.key, c.key
     order by coalesce(s.recorded_at, s.uploaded_at) desc
     limit 200`;
 
@@ -58,7 +59,7 @@ export default async function SessionsPage() {
                 <td className="py-2">
                   <Link href={`/sessions/${s.id}`} className="text-white hover:underline">{s.recorded}</Link>
                 </td>
-                <td>{s.driver}</td>
+                <td><Link href={`/drivers/${s.driver_id}`} className="hover:underline">{s.driver}</Link></td>
                 <td>{prettyKey(s.track)}</td>
                 <td className="text-zinc-300">{prettyKey(s.car)}</td>
                 <td className="capitalize text-zinc-400">{s.session_type ?? "–"}</td>

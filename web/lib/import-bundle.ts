@@ -46,6 +46,19 @@ export type Bundle = {
   laps: BundleLap[];
 };
 
+/** Keeps the database small: drops the full traces (speed, inputs, positions every metre) of laps
+ *  older than 60 days, except each driver's best lap per track and class and their last 10 sessions.
+ *  Lap times, metrics and corner results are always kept (leaderboards, profiles). */
+export async function pruneTraces() {
+  await sql`
+    delete from lap_trace t using lap l, session s
+    where t.lap_id = l.id and l.session_id = s.id
+      and s.uploaded_at < now() - interval '60 days'
+      and l.id not in (select lap_id from best_lap)
+      and s.id not in (select id from (select id, row_number() over (partition by driver_id order by uploaded_at desc) as n
+                                       from session) recent where n <= 10)`;
+}
+
 /** Ranking class from the ACC car key (rankings are per class). */
 export function carClass(key: string): string {
   if (/gt4/.test(key)) return "GT4";

@@ -1,11 +1,14 @@
 import { gunzipSync } from "node:zlib";
 import { driverFromRequest } from "@/lib/auth";
-import { importBundle, Rejected, type Bundle } from "@/lib/import-bundle";
+import { sql } from "@/lib/db";
+import { importBundle, pruneTraces, Rejected, type Bundle } from "@/lib/import-bundle";
+import { rateSession } from "@/lib/ratings";
 
-// Upload of a session bundle (.json.gz written by bundle.py), from the upload script / agent
+// Upload of a session bundle (.json.gz written by bundle.py), from the desktop app / upload script
 // (Authorization: Bearer <upload token>) or from the upload page (browser session).
 // Body: the raw .json.gz file. Bundles are small (≈50-200 KB per lap) but Vercel caps request
 // bodies at 4.5 MB, so very long sessions will need per-lap uploads later.
+// After the import: the driver's rating is updated and old traces are pruned.
 export async function POST(request: Request) {
   const driver = await driverFromRequest(request);
   if (!driver) return Response.json({ error: "sign in or use a valid upload token" }, { status: 401 });
@@ -19,11 +22,20 @@ export async function POST(request: Request) {
     return Response.json({ error: "not a session bundle (.json.gz)" }, { status: 400 });
   }
 
+  let result;
   try {
-    const result = await importBundle(bundle, driver.id);
-    return Response.json({ ok: true, session_id: result.sessionId, laps: result.laps, driver: driver.display_name });
+    result = await importBundle(bundle, driver.id);
   } catch (e) {
     if (e instanceof Rejected) return Response.json({ error: e.message }, { status: e.status });
     throw e;
   }
+  const rating = await rateSession(sql, result.sessionId);
+  await pruneTraces();
+  return Response.json({
+    ok: true,
+    session_id: result.sessionId,
+    laps: result.laps,
+    driver: driver.display_name,
+    rating: rating ? Math.round(rating.rating * 10) / 10 : null,
+  });
 }

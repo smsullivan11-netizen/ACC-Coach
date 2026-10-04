@@ -8,6 +8,7 @@ type Session = {
   id: string;
   recorded: string | null;
   driver: string;
+  driver_id: string;
   track: string;
   car: string | null;
   car_class: string | null;
@@ -32,7 +33,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   if (!/^\d+$/.test(id)) notFound();
   const [session] = await sql<Session[]>`
     select s.id, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY, HH24:MI') as recorded,
-           d.display_name as driver, t.key as track, c.key as car, c.class as car_class,
+           d.display_name as driver, d.id as driver_id, t.key as track, c.key as car, c.class as car_class,
            s.session_type, s.source_kind, s.source_file
     from session s join driver d on d.id = s.driver_id join track t on t.id = s.track_id
     left join car c on c.id = s.car_id
@@ -49,7 +50,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   return (
     <div>
       <h1 className="text-xl font-semibold text-white">
-        {prettyKey(session.track)} · {session.driver}
+        {prettyKey(session.track)} · <Link href={`/drivers/${session.driver_id}`} className="hover:underline">{session.driver}</Link>
       </h1>
       <p className="mt-1 text-sm text-zinc-400">
         {session.recorded} · {prettyKey(session.car)} {session.car_class && `(${session.car_class})`} ·{" "}

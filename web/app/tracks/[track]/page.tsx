@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { gap, lapTime, prettyKey } from "@/lib/format";
+import TargetForm from "./TargetForm";
 
 type Row = {
   position: number;
@@ -40,15 +41,38 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
     where r.track_id = ${t.id}
     order by r.car_class nulls last, r.position`;
   const classes = [...new Set(rows.map((r) => r.car_class ?? "Other"))];
+  const targets = new Map(
+    (await sql<{ car_class: string; target_ms: number; set_by: string | null }[]>`
+      select tt.car_class, tt.target_ms, d.display_name as set_by
+      from track_target tt left join driver d on d.id = tt.set_by where tt.track_id = ${t.id}`).map((x) => [x.car_class, x]),
+  );
 
   return (
     <div>
       <h1 className="text-xl font-semibold text-white">{prettyKey(track)}</h1>
       <p className="mt-1 text-sm text-zinc-400">{Math.round(t.length_m)} m · best valid lap of each driver</p>
       {rows.length === 0 && <p className="mt-6 text-zinc-400">No valid lap yet.</p>}
-      {classes.map((cls) => (
+      {classes.map((cls) => {
+        const target = targets.get(cls);
+        const teamBest = rows.find((r) => (r.car_class ?? "Other") === cls)?.lap_time_ms;
+        const beaten = target && teamBest != null && teamBest < target.target_ms;
+        return (
         <section key={cls} className="mt-6">
           <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-400">{cls}</h2>
+          <p className="tabular mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-400">
+            <span>
+              Rating reference:{" "}
+              {target && !beaten ? (
+                <><span className="text-accent">{lapTime(target.target_ms)}</span> target{target.set_by && ` (set by ${target.set_by})`}</>
+              ) : (
+                <>
+                  <span className="text-accent">{lapTime(teamBest)}</span> team best
+                  {beaten ? ` (beats the ${lapTime(target.target_ms)} target)` : " (no target set yet)"}
+                </>
+              )}
+            </span>
+            {me.is_admin && <TargetForm track={track} carClass={cls} current={target ? lapTime(target.target_ms) : ""} />}
+          </p>
           <table className="tabular mt-2 w-full text-sm">
             <thead className="text-left text-zinc-500">
               <tr className="border-b border-white/10">
@@ -68,7 +92,7 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
                 .map((r, k, list) => (
                   <tr key={r.driver_id} className={`border-b border-white/5 ${r.driver_id === me.id ? "bg-accent/10" : ""}`}>
                     <td className={`py-2 ${r.position === 1 ? "font-bold text-accent" : "text-zinc-400"}`}>{r.position}</td>
-                    <td className="text-white">{r.driver}</td>
+                    <td><Link href={`/drivers/${r.driver_id}`} className="text-white hover:underline">{r.driver}</Link></td>
                     <td className="text-zinc-300">{prettyKey(r.car)}</td>
                     <td className="text-right font-medium text-white">
                       <Link href={`/laps/${r.lap_id}`} className="hover:underline">{lapTime(r.lap_time_ms)}</Link>
@@ -88,7 +112,8 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
             </tbody>
           </table>
         </section>
-      ))}
+        );
+      })}
     </div>
   );
 }

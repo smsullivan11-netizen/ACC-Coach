@@ -209,6 +209,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   0002: Discord sign-in (`driver.discord_id`, `web_session`), `session.session_type`,
   `corner_map.definition` (the map as first uploaded, served back verbatim), rankings on the most
   official time (`coalesce(official_lap_time_ms, game_lap_time_ms, lap_time_ms)`).
+  0003: ratings (`driver.is_admin`, the first Discord member becomes admin; `track_target` per
+  track and class; `driver_rating` = one row per rated session, the history of the rating).
 - The corner map fingerprint (`corners.map_hash`) formats numbers with one decimal: a map that
   went through JavaScript (3908.0 → 3908) must keep the same fingerprint (bug found in the
   end-to-end test).
@@ -254,6 +256,12 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   `winget install JRSoftware.InnoSetup --scope user`) → `agent\dist\ACC-Coach-Setup.exe` (~21 MB),
   copied to `web\public\downloads\` and `app-release.ts` updated. Release = bump `version.py`, build,
   commit, push. Unsigned: Windows SmartScreen asks "More info → Run anyway".
+- **Smart App Control blocks the unsigned installer outright** (error 4551 on a teammate's PC, no
+  "Run anyway"). No budget for a code-signing certificate: the plan is the Microsoft Store (free
+  individual developer account; the Store signs the MSIX). Packaged mode needs: a startup task in
+  the manifest instead of the Run key, no own update check (the Store updates), the real path for
+  "Open recordings folder", a privacy policy page on the site. Windows SDK 10.0.26100 (makeappx) is
+  installed. Waiting for the Partner Center identity (Name, Publisher CN=…, PublisherDisplayName).
 - Tested: core end to end (linking through the real page in headless Chrome, automatic upload of a
   waiting session, live recording of the fake game), the frozen exe (upload, single instance), and
   a silent install/uninstall of the installer.
@@ -275,6 +283,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   steering, gear) with shared cursor and zoom, SVG track map (ACC x/z: z points down like SVG's y,
   so no flip needed) with both racing lines and the cursor position, corner table (click = zoom).
   Traces are fetched from `/api/laps/<id>` and decoded in the browser (`web/lib/trace.ts`).
+- Drivers (`/drivers`: ranking by rating, change at the last session) and profiles
+  (`/drivers/<id>`: avatar, rating, driving style, rating breakdown and history, best laps with
+  position, recent sessions). Admin section in Settings (admins, "Recompute all ratings"); admins
+  set target lap times on each leaderboard (`POST /api/targets`, `1:24.500`, empty = remove).
 - Visual checks: headless Chrome through Playwright (Python package installed outside the
   project, `channel="chrome"`), screenshots of the lap page; no browser console errors.
 - Settings: `web/.env.local` from `web/.env.example` (DATABASE_URL, APP_URL, DISCORD_*, DEV_LOGIN).
@@ -285,6 +297,26 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Vercel caps request bodies at 4.5 MB: fine for sessions of a few dozen laps; long sessions will
   need per-lap uploads.
 
+## Ratings and profiles (web/lib/ratings.ts, web/lib/style.ts)
+- Overall Driver Rating 0-100, computed by the site after each upload (`rateSession`), never by
+  the app. Session score = pace 50 / consistency 25 / clean 15 / smoothness 10 (formulas in the
+  header of `ratings.ts`; a part that cannot be measured is left out). The rating moves towards
+  each session score by up to 30 %, less for short sessions; provisional until 3 sessions.
+- Pace reference = the faster of the admin target (`track_target`) and the team's best valid lap:
+  the user chose "a fixed target, updated when someone beats it". Targets are left empty for now;
+  the user will set them after checking their own lap times.
+- Ratings are history (`driver_rating`), not recomputed automatically when targets change; the
+  admin button `rebuildRatings` replays every session in upload order (needed once on production
+  after migration 0003, for sessions uploaded before ratings existed).
+- Driving style: no AI, comparisons only. Corner traits = the driver's per-corner medians vs
+  teammates' on shared corners (braking point, apex speed, throttle pickup, coasting), needs 3
+  shared corners; session traits (consistent, clean, smooth…) need 8 valid laps in the last 5
+  rated sessions. Thresholds are first guesses: tune them on real team data.
+- Trace pruning after each upload (`pruneTraces`): traces older than 60 days are deleted, except
+  each driver's best laps and their last 10 sessions. Lap times, metrics, corner results and
+  ratings are kept forever (the user first suggested deleting session data after rating; we kept
+  the small numbers, only traces are large).
+
 ## Next steps
 - Deployed (2026-10-04): https://acc-coach.vercel.app — GitHub Xhanet/ACC-Coach (private, pushes
   deploy automatically), Vercel root directory `web/`, Neon Postgres (Frankfurt; pooled address for
@@ -294,8 +326,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Corner map method: a map from a single lap is fragile (an off or a barrier contact creates fake
   corners). With car positions, detect corners from the track's geometry (curvature of the line),
   combine several clean laps, then have the team review and name them once per track on a map.
-- First real install of the desktop app on a teammate's PC.
-- Overall Driver Rating (0-100, updated after each session) and driver profiles (rating, avatar,
-  driving-style description); prune old traces (keep each driver's best laps + recent sessions).
+- Microsoft Store release of the desktop app (see "Desktop app"): the teammate install failed on
+  Smart App Control.
+- Production: apply migration 0003 on Neon, then Settings → Admin → "Recompute all ratings".
+- Ideas not requested yet: rating change in the app's upload notification, coaching summary per
+  session, stint view, server results import.
 - Name the corners of the team's tracks; weighted composite ranking to define with the team.
 - Safer .json matching when `head.driver` is empty: carModel ↔ car-from-file-name table.
