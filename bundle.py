@@ -21,10 +21,11 @@ import numpy as np
 
 import acc_telemetry as acc
 import corners as cn
+from version import __version__
 
 FORMAT = "acc-coach/session"
 VERSION = 1
-AGENT = {"name": "acc_telemetry", "version": "0.1.0"}
+AGENT = {"name": "acc-coach", "version": __version__}
 
 TRACE_STEP_M = 1.0
 TRACE_CHANNELS = {   # name in the bundle: (resampled channel, type, scale)

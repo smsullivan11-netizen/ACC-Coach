@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-import ldparser
 
 import corners as cn
 
@@ -164,6 +163,7 @@ def mark_pit_laps(laps: list[Lap]) -> None:
 
 
 def load_session(ld_path: str, track_length: float | None = None, tol: float = 0.03):
+    import ldparser   # MoTeC only, and GPL-3.0: kept out of the desktop app, which never loads .ld files
     ld_path = Path(ld_path)
     head, channels = ldparser.read_ldfile(str(ld_path))
     ch = {c.name: c for c in channels}

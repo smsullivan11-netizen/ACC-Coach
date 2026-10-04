@@ -26,6 +26,7 @@ CONFIG = Path(__file__).resolve().parent / ".acc_coach.json"     # url + token (
 
 
 def request(url: str, token: str, data: bytes | None = None) -> tuple[int, dict]:
+    """(HTTP status, JSON body); status 0 when the site cannot be reached."""
     req = urllib.request.Request(url, data=data, method="POST" if data else "GET",
                                  headers={"Authorization": f"Bearer {token}", "Content-Type": "application/gzip"})
     try:
@@ -36,29 +37,47 @@ def request(url: str, token: str, data: bytes | None = None) -> tuple[int, dict]
             return e.code, json.loads(e.read() or b"{}")
         except ValueError:
             return e.code, {"error": e.reason}
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        return 0, {"error": f"site unreachable ({e})"}
 
 
-def upload(path: Path, url: str, token: str) -> bool:
+def upload_file(path: Path, url: str, token: str) -> dict:
+    """Processes a session and uploads it. Returns {status, message, laps?, session_url?} with
+    status: uploaded, no_laps, duplicate, unauthorized, offline (retry later) or refused."""
     head, laps, ref = acc.load_any(str(path))
     if not laps:
-        print(f"{path.name}: no complete lap, nothing to upload")
-        return False
+        return {"status": "no_laps", "message": "no complete lap"}
     status, team_map = request(f"{url}/api/corner-maps/{head.venue}", token)
+    if status == 0:
+        return {"status": "offline", "message": team_map["error"]}
+    if status in (401, 403):
+        return {"status": "unauthorized", "message": team_map.get("error", "invalid upload token")}
     if status == 200:
-        cn.map_path(head.venue).parent.mkdir(exist_ok=True)
+        cn.map_path(head.venue).parent.mkdir(parents=True, exist_ok=True)
         cn.map_path(head.venue).write_text(json.dumps(team_map, ensure_ascii=False, indent=1), encoding="utf-8")
-    elif status in (401, 403):
-        print(f"Upload refused: {team_map.get('error')}. Check your token (site → Settings).")
-        return False
-    cmap, how = acc.corner_map_for(head.venue, laps, ref, path.name)
+    cmap, _ = acc.corner_map_for(head.venue, laps, ref, path.name)
     data = gzip.compress(json.dumps(bundle.build_bundle(str(path), head, laps, ref, cmap),
                                     ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
     status, res = request(f"{url}/api/upload", token, data)
     if status == 200:
-        print(f"{path.name}: {res['laps']} laps uploaded ({len(data) / 1024:.0f} KB) → {url}/sessions/{res['session_id']}")
-        return True
-    print(f"{path.name}: refused ({status}): {res.get('error')}")
-    return False
+        return {"status": "uploaded", "laps": res["laps"], "kb": len(data) / 1024, "track": head.venue,
+                "session_url": f"{url}/sessions/{res['session_id']}",
+                "message": f"{res['laps']} laps uploaded"}
+    if status == 0:
+        return {"status": "offline", "message": res["error"]}
+    error = res.get("error", f"error {status}")
+    return {"status": "duplicate" if "already uploaded" in error else "refused", "message": error}
+
+
+def upload(path: Path, url: str, token: str) -> bool:
+    r = upload_file(path, url, token)
+    if r["status"] == "uploaded":
+        print(f"{path.name}: {r['message']} ({r['kb']:.0f} KB) → {r['session_url']}")
+    elif r["status"] == "unauthorized":
+        print(f"Upload refused: {r['message']}. Check your token (site → Settings).")
+    else:
+        print(f"{path.name}: {r['message']}")
+    return r["status"] == "uploaded"
 
 
 def main():

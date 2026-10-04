@@ -31,12 +31,15 @@ def _slug(s: str) -> str:
 
 class Recorder:
     def __init__(self, out_dir="recordings", prefix: str = shm.DEFAULT_PREFIX, poll_s: float = 0.0005,
-                 stale_s: float = 5.0, chunk_s: float = 1.0, log=print):
+                 stale_s: float = 5.0, chunk_s: float = 1.0, log=print, on_file=None):
         self.out_dir = Path(out_dir)
         self.prefix, self.poll_s, self.stale_s, self.chunk_s = prefix, poll_s, stale_s, chunk_s
         self.log = log
+        self.on_file = on_file   # called with the summary once a finished file is written
         self.files = []          # summaries of finished recordings
         self.writer = None
+        self.state = "waiting"   # waiting (no ACC), menu, recording
+        self.session = None      # track, car, type of the current recording
         self._closing = []       # threads closing finished files
 
     # --- Session files ------------------------------------------------------------
@@ -59,6 +62,7 @@ class Recorder:
                         "online": bool(st["isOnline"])},
         }
         self.writer = accrec.Writer(path, static_raw, info)
+        self.session = info["session"]
         self.key, self.t0 = key, now_ns
         self.last_physics, self.missed = None, 0
         self.log(f"Recording {path.name}")
@@ -82,6 +86,8 @@ class Recorder:
             self.log(f"Saved {w.path.name}: {seconds / 60:.1f} min, {w.counts['physics']} physics packets "
                      f"({100 * missed / max(total, 1):.2f} % missed), {w.counts['graphics']} graphics frames, "
                      f"{summary['bytes'] / 1e6:.1f} MB")
+            if self.on_file:
+                self.on_file(summary)
 
         thread = threading.Thread(target=close)
         thread.start()
@@ -100,6 +106,7 @@ class Recorder:
         try:
             while not stop.is_set():
                 if not mem.open():
+                    self.state = "waiting"
                     if not waiting_logged:
                         self.log("Waiting for ACC...")
                         waiting_logged = True
@@ -126,8 +133,10 @@ class Recorder:
 
                 if status not in (shm.STATUS_LIVE, shm.STATUS_PAUSE):
                     self._finish()        # menu or replay: nothing to record
+                    self.state = "menu"
                     stop.wait(0.01)
                     continue
+                self.state = "recording"
 
                 if g_raw is not None:
                     # New file when a session starts or changes (practice → qualifying…); the track

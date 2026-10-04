@@ -14,7 +14,7 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - **Main data source: our own recorder reading ACC's shared memory** (like Racemake's recorder app):
   400 Hz inputs, car position for racing lines, the game's own lap times / validity / pit flags.
   MoTeC import stays as a fallback for older sessions.
-- Still to decide: final agent language (the prototype is Python).
+- The desktop app is Python packaged with PyInstaller; a rewrite (Rust/C#) only if needed.
 
 ## Files
 - `acc_shm.py`: ACC shared memory page layouts (official doc v1.8.12) and read-only reader (Windows).
@@ -28,6 +28,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - `upload.py`: downloads the team's corner map, builds the bundle and uploads it (upload token).
 - `db/migrations/*.sql`: Postgres schema, applied in order (`npm run db:migrate` in `web/`).
 - `web/`: the team site (Next.js 16, see "Website" below).
+- `agent/`: the ACC Coach desktop app (`acc_coach_app.py`), its installer (`installer.iss`) and
+  build script (`build.ps1`). `version.py`: app version, also sent in every bundle.
 - `tests/`: `test_synthetic.py` (MoTeC), `test_recorder.py` (live, fake game), `test_recording.py`
   (recorder files), `test_db.py` (reference import `import_bundle` for the site), `fake_acc.py`.
 - `ldparser.py`: third party, GPL-3.0, unmodified.
@@ -234,6 +236,28 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   page) is not in the repo yet: it needs a dedicated test database.
 - Environment: `.venv` (`pip install -r requirements.txt`).
 
+## Desktop app (agent/)
+- Tray app (pystray): runs the recorder in a thread; each finished recording is processed and
+  uploaded (`upload.upload_file`, team corner map downloaded first); Windows notifications.
+  Starts with Windows (HKCU Run key, on by default at first run; menu switch). Single instance
+  (mutex `ACCCoachAgent`, also used by the installer to close it before updating).
+- Linking a PC: the app listens on `127.0.0.1:<random port>` and opens `<site>/link?port&state`;
+  the driver signs in with Discord (`/auth/login?next=…` brings them back) and clicks "Link this PC";
+  `POST /link/confirm` creates an upload token and redirects the browser to the app's callback.
+- Files: `%APPDATA%\ACC Coach\` (config.json: site, token, driver; tracks/), `%LOCALAPPDATA%\ACC Coach\`
+  (recordings/, uploads.json: what happened to each recording, acc-coach.log). `ACC_COACH_HOME`
+  puts everything in one folder (tests). Recordings deleted after 30 days once handled.
+  Pending (offline, not linked) retried every 10 min; the file being recorded is never picked up.
+- Update check at start: `GET /api/app/latest` (version from `web/lib/app-release.ts`).
+- Build: `powershell -File agent\build.ps1` → PyInstaller (windowed, excludes ldparser/GPL,
+  matplotlib, psycopg) + Inno Setup 6 (per-user, no admin; installed with
+  `winget install JRSoftware.InnoSetup --scope user`) → `agent\dist\ACC-Coach-Setup.exe` (~21 MB),
+  copied to `web\public\downloads\` and `app-release.ts` updated. Release = bump `version.py`, build,
+  commit, push. Unsigned: Windows SmartScreen asks "More info → Run anyway".
+- Tested: core end to end (linking through the real page in headless Chrome, automatic upload of a
+  waiting session, live recording of the fake game), the frozen exe (upload, single instance), and
+  a silent install/uninstall of the installer.
+
 ## Website (web/)
 - Next.js 16 (App Router, Turbopack), TypeScript, Tailwind 4, `postgres` (postgres.js, plain SQL).
   **Next.js 16 differs from older versions** (async `params`/`cookies()`, `proxy` instead of
@@ -270,7 +294,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Corner map method: a map from a single lap is fragile (an off or a barrier contact creates fake
   corners). With car positions, detect corners from the track's geometry (curvature of the line),
   combine several clean laps, then have the team review and name them once per track on a map.
-- Desktop app (local agent): the recorder + automatic processing and upload (`upload.py` logic)
-  with the PC's upload token, running in the background.
+- First real install of the desktop app on a teammate's PC.
+- Overall Driver Rating (0-100, updated after each session) and driver profiles (rating, avatar,
+  driving-style description); prune old traces (keep each driver's best laps + recent sessions).
 - Name the corners of the team's tracks; weighted composite ranking to define with the team.
 - Safer .json matching when `head.driver` is empty: carModel ↔ car-from-file-name table.

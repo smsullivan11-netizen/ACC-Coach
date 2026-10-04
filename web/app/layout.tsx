@@ -26,7 +26,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <>
                 <Link href="/sessions" className="text-zinc-300 hover:text-white">Sessions</Link>
                 <Link href="/tracks" className="text-zinc-300 hover:text-white">Leaderboards</Link>
-                <Link href="/upload" className="text-zinc-300 hover:text-white">Upload</Link>
+                <Link href="/download" className="text-accent hover:brightness-110">Get the app</Link>
                 <span className="ml-auto flex items-center gap-4">
                   <Link href="/settings" className="flex items-center gap-2 text-zinc-300 hover:text-white">
                     {driver.avatar_url && (

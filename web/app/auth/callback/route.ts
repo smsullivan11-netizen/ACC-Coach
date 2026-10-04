@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
-import type { NextRequest } from "next/server";
-import { appUrl, startSession, stateCookie, upsertDiscordDriver, env } from "@/lib/auth";
+import { appUrl, env, NEXT_COOKIE, safeNext, startSession, stateCookie, upsertDiscordDriver } from "@/lib/auth";
 
 // Step 2 of Discord sign-in: Discord sends the browser back with a one-time code.
 const fail = (error: string) => NextResponse.redirect(`${appUrl()}/?error=${error}`, 303);
@@ -44,5 +43,7 @@ export async function GET(request: NextRequest) {
     avatar: user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64` : null,
   });
   await startSession(driverId);
-  return NextResponse.redirect(`${appUrl()}/sessions`, 303);
+  const next = safeNext(store.get(NEXT_COOKIE)?.value);
+  store.delete(NEXT_COOKIE);
+  return NextResponse.redirect(`${appUrl()}${next ?? "/sessions"}`, 303);
 }

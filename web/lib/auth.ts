@@ -10,6 +10,11 @@ import { sql } from "./db";
 
 export const SESSION_COOKIE = "acc_session";
 export const STATE_COOKIE = "acc_oauth_state";
+export const NEXT_COOKIE = "acc_next";
+
+/** A path on this site to return to after signing in ("/link?…"), never another site. */
+export const safeNext = (next: string | null | undefined) =>
+  next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : null;
 const SESSION_DAYS = 30;
 
 export type Driver = { id: string; display_name: string; avatar_url: string | null };

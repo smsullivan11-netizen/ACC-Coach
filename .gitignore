@@ -9,6 +9,10 @@ recordings/
 *.json.gz
 .acc_coach.json
 
+# Desktop app build output (the installer is published in web/public/downloads/)
+agent/build/
+agent/dist/
+
 # Website (web/)
 node_modules/
 .next/
