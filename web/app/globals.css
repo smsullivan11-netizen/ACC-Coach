@@ -1,15 +1,18 @@
 @import "tailwindcss";
 
-/* Team colours: yellow on black */
+/* Team colours: black, yellow and red (PCGR livery). Konexy (the team's livery and video font) for
+   headings only: it has no ":" glyph, so lap times always use the regular font. */
 :root {
   --background: #070707;
   --foreground: #e8e8e8;
 }
 
 @theme {
-  --color-accent: #ffd200; /* team yellow: highlights, buttons, this lap */
-  --color-ink: #070707;    /* team black */
-  --color-panel: #111111;  /* cards, tables, charts */
+  --color-accent: #ffd200;  /* team yellow: highlights, primary buttons, this lap */
+  --color-race: #e10600;    /* team red: live / recording, losses, secondary accents */
+  --color-ink: #070707;     /* team black */
+  --color-panel: #101012;   /* cards, tables, charts */
+  --color-raised: #17171b;  /* hovered rows, inputs, nested cards */
 }
 
 @theme inline {
@@ -17,10 +20,15 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-konexy);
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(1200px 500px at 15% -10%, rgb(255 210 0 / 0.05), transparent 60%),
+    radial-gradient(900px 400px at 100% 0%, rgb(225 6 0 / 0.05), transparent 60%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
@@ -33,4 +41,58 @@ body {
 /* Lap times and numbers line up in tables */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Headings in the team font */
+.display {
+  font-family: var(--font-display), var(--font-geist-sans), sans-serif;
+  letter-spacing: 0.02em;
+}
+
+/* Cards: the base block of every page */
+.card {
+  border: 1px solid rgb(255 255 255 / 0.07);
+  border-radius: 0.875rem;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 40%), var(--color-panel);
+}
+.card-hover {
+  transition: border-color 160ms ease, transform 160ms ease, background-color 160ms ease;
+}
+.card-hover:hover {
+  border-color: rgb(255 210 0 / 0.35);
+  transform: translateY(-1px);
+}
+
+/* Livery stripe: yellow into red */
+.stripe {
+  background: linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent) 55%, var(--color-race) 100%);
+}
+
+/* Subtle entrance: cards rise in, bars fill (delay with style={{ "--d": "80ms" }}) */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fill {
+  from { transform: scaleX(0); }
+}
+.rise {
+  animation: rise 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+.fill {
+  transform-origin: left;
+  animation: fill 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--d, 120ms);
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.live-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise, .fill, .live-dot { animation: none; }
+  .card-hover:hover { transform: none; }
 }

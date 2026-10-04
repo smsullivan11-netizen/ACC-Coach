@@ -165,7 +165,9 @@ export async function coachSession(sessionId: string): Promise<Coaching | null> 
       if (gap <= 0) {
         notes.push({ topic: "progress", tone: "good", text: own
           ? `New personal best on this track: ${lapTime(best.t)}, ${s2(gap)} quicker than your previous best.`
-          : `Fastest lap of the team: ${lapTime(best.t)}, ${s2(gap)} ahead of ${ref.driver}. You are the reference now.` });
+          : gap === 0
+            ? `Fastest lap of the team: ${lapTime(best.t)}, equal to ${ref.driver}'s.`
+            : `Fastest lap of the team: ${lapTime(best.t)}, ${s2(gap)} ahead of ${ref.driver}. You are the reference now.` });
       }
       const totalLoss = losses.reduce((a, c) => a + c.loss_s, 0);
       if (phases && gap > 0.1) {

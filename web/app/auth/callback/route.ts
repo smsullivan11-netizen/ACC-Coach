@@ -45,5 +45,5 @@ export async function GET(request: NextRequest) {
   await startSession(driverId);
   const next = safeNext(store.get(NEXT_COOKIE)?.value);
   store.delete(NEXT_COOKIE);
-  return NextResponse.redirect(`${appUrl()}${next ?? "/sessions"}`, 303);
+  return NextResponse.redirect(`${appUrl()}${next ?? "/"}`, 303);
 }

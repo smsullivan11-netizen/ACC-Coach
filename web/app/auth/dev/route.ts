@@ -9,5 +9,5 @@ export async function GET(request: NextRequest) {
   const name = request.nextUrl.searchParams.get("name") || "Dev Driver";
   const driverId = await upsertDiscordDriver({ id: `dev-${name.toLowerCase()}`, name, avatar: null });
   await startSession(driverId);
-  return NextResponse.redirect(`${appUrl()}/sessions`, 303);
+  return NextResponse.redirect(`${appUrl()}/`, 303);
 }

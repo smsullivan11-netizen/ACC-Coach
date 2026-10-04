@@ -409,6 +409,21 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Vercel caps request bodies at 4.5 MB: fine for sessions of a few dozen laps; long sessions will
   need per-lap uploads.
 
+## Visual identity (web/app/globals.css, components/)
+- Team colours: black, yellow `accent` #ffd200, red `race` #e10600 (PCGR livery); panels `panel`
+  #101012 / `raised` #17171b. Classes: `.card` (+ `.card-hover`), `.display` (headings in Konexy),
+  `.stripe` (yellow into red, under the header), `.rise` / `.fill` (entrance animations, staggered
+  with `delay(ms)`, off with prefers-reduced-motion). Icons: lucide-react.
+- Konexy = the team's livery/video font, from the user's PC (`app/fonts/KonexyPersonalUse.otf`,
+  personal-use licence: fine for this private team site, not for commercial use). Headings only:
+  it has **no ":" glyph**, so lap times always use Geist.
+- Logo: the PCGR mascot (`public/team-logo.jpg`); the helmet crop is the favicon / header logo
+  (`app/icon.png`, `app/apple-icon.png`, `public/team-helmet.jpg`).
+- Redesign done page by page with the user's feedback (they like Racemake's dark look and
+  animations, but want simplicity for learning). Round 1: header, sign-in page, dashboard (new
+  home for signed-in drivers), sessions list. Next: lap comparison, leaderboards, profiles, rest.
+- Grid/flex children holding truncated text need `min-w-0`, or the page overflows on phones.
+
 ## Ratings and profiles (web/lib/ratings.ts, web/lib/style.ts)
 - Overall Driver Rating 0-100, computed by the site after each upload (`rateSession`), never by
   the app. Session score = pace 50 / consistency 25 / clean 15 / smoothness 10 (formulas in the
