@@ -249,8 +249,12 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   speed), strongest corners, "recurring" when the same corner was the worst in ≥ 2 of the driver's
   last 3 sessions there. Links open the comparison zoomed on the corner (`/laps/<id>?vs=…&corner=N`).
 - Session: no valid lap, track limits (≥ 25 % of flying laps), consistency (median gap > 1 %, or
-  very consistent < 0.4 %), laps > 7 % off (mistakes), progress from the first valid lap, pace drop
-  in the last third of long runs, short runs, race sessions.
+  very consistent < 0.4 %), laps > 7 % off (mistakes), progress from the first valid lap, gap to the
+  car's target, short runs, race sessions. Break advice for a lasting pace drop only (user's rule):
+  ≥ 3 complete laps in a row after the best lap, each > 2 % slower (one slow lap = a mistake, tyre
+  wear stays under 2 %). Car damage is not in the bundle yet ("if the car was not damaged"):
+  `carDamage` from the physics page would let the app flag damaged laps.
+- Everyone sees everyone's coaching (the team prefers cooperation over privacy).
 - Driver: continuous driving time (this session + earlier ones the same day with < 20 min gaps,
   from `recorded_at` = recording start, PC local time): tip from 75 min, take-a-break warning from
   2 h; late-night sessions (0-5 h). Sessions made only of edge laps get no coaching.
@@ -286,6 +290,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   0003: ratings (`driver.is_admin`, the first Discord member becomes admin; `track_target` per
   track and class; `driver_rating` = one row per rated session, the history of the rating).
   0004: `track_edge` (white lines per track and side, from edge laps; see "Track edges").
+  0005: `car_target` (target lap time per track key and car key, seeded with LFM's 101 % times for
+  the Ford Mustang GT3 and McLaren 720S GT3 Evo); `track_target` (per class) is unused, to drop later.
 - The corner map fingerprint (`corners.map_hash`) formats numbers with one decimal: a map that
   went through JavaScript (3908.0 → 3908) must keep the same fingerprint (bug found in the
   end-to-end test).
@@ -398,9 +404,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   the app. Session score = pace 50 / consistency 25 / clean 15 / smoothness 10 (formulas in the
   header of `ratings.ts`; a part that cannot be measured is left out). The rating moves towards
   each session score by up to 30 %, less for short sessions; provisional until 3 sessions.
-- Pace reference = the faster of the admin target (`track_target`) and the team's best valid lap:
-  the user chose "a fixed target, updated when someone beats it". Targets are left empty for now;
-  the user will set them after checking their own lap times.
+- Pace reference = the faster of the car's target (`car_target`, lib/targets.ts) and the team's best
+  valid lap **in that car**; a car without a target uses the class's team best. The user chose "a fixed
+  target, updated when someone beats it", per car (Ford and McLaren times differ by track), at LFM's
+  101 % times ("more achievable than 100 %"). Admins edit them on each leaderboard.
 - Ratings are history (`driver_rating`), not recomputed automatically when targets change; the
   admin button `rebuildRatings` replays every session in upload order (needed once on production
   after migration 0003, for sessions uploaded before ratings existed).

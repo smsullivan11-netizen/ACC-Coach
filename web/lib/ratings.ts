@@ -1,12 +1,13 @@
 import "server-only";
 import type postgres from "postgres";
+import { paceReference } from "./targets";
 
 // Overall Driver Rating (0-100), updated after each uploaded session.
 //
 // Session score = weighted average of four parts (0-100 each; a part that cannot be measured is
 // left out and the weights of the others are scaled up):
-//  - pace (50 %): session best vs the reference = the faster of the track/class target and the
-//    team's best valid lap: 0 % slower → 100, 3 % → 50, 6 % or more → 0;
+//  - pace (50 %): session best vs the reference = the faster of the car's target on the track and
+//    the team's best valid lap in that car (lib/targets.ts): 0 % slower → 100, 3 % → 50, 6 % or more → 0;
 //  - consistency (25 %, needs 3 valid laps): median gap of the other valid laps to the session best:
 //    0.3 % or less → 100, 2 % or more → 0;
 //  - clean driving (15 %): share of flying laps not invalidated (track limits, server);
@@ -41,13 +42,7 @@ export async function rateSession(tx: Sql, sessionId: string) {
   const valid = laps.filter((l) => l.comparable).map((l) => l.t).sort((a, b) => a - b);
   if (!valid.length) return null;                        // nothing to judge: no valid flying lap
 
-  const [ref] = await tx<{ target: number | null; team_best: number | null }[]>`
-    select (select target_ms from track_target
-            where track_id = ${s.track_id} and car_class is not distinct from ${s.car_class}) as target,
-           (select min(coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms))
-            from lap l join session ss on ss.id = l.session_id left join car c on c.id = ss.car_id
-            where ss.track_id = ${s.track_id} and c.class is not distinct from ${s.car_class} and l.comparable) as team_best`;
-  const reference = Math.min(...[ref.target, ref.team_best].filter((x): x is number => x != null));
+  const reference = (await paceReference(tx, sessionId)).reference_ms!;   // this session's valid laps count: never null here
   const best = valid[0];
   const pace = clamp(100 * (1 - (best - reference) / reference / 0.06));
 

@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "./db";
-import { lapTime } from "./format";
+import { lapTime, prettyKey } from "./format";
+import { paceReference } from "./targets";
 import { decodeChannel, type EncodedChannel } from "./trace";
 
 // Coaching summary of a session, from data only (no AI service): where the driver loses time
@@ -223,13 +224,26 @@ export async function coachSession(sessionId: string): Promise<Coaching | null> 
     const firstValid = valid[0];
     if (firstValid.id !== best.id && (firstValid.t - best.t) / 1000 > 0.5)
       notes.push({ topic: "progress", tone: "good", text: `You improved by ${s2((firstValid.t - best.t) / 1000)} from your first valid lap to your best.` });
-    // Pace at the end of a long run
-    if (valid.length >= 9) {
-      const third = Math.floor(valid.length / 3);
-      const mid = Math.min(...valid.slice(third, 2 * third).map((l) => l.t)), end = Math.min(...valid.slice(2 * third).map((l) => l.t));
-      if (end > mid * 1.004)
-        notes.push({ topic: "wellbeing", tone: "warning", text: `Your pace dropped in the last part of the session (best ${s2((end - mid) / 1000)} slower than in the middle). When the lap times stop improving, stop the run: tired laps build bad habits.` });
+  }
+  // Lasting pace drop: 3 or more complete laps in a row, after the best lap, each over 2 % slower
+  // than it (one slow lap is a mistake; tyre wear alone stays well under 2 %). Car damage is not
+  // recorded yet, hence the "if the car was not damaged".
+  if (best) {
+    let run = 0, longest = 0, from = 0;
+    for (const l of flying.filter((x) => x.number > best.number && !x.excluded_reasons.includes("distance"))) {
+      run = l.t > best.t * 1.02 ? run + 1 : 0;
+      if (run > longest) { longest = run; from = l.number - run + 1; }
     }
+    if (longest >= 3)
+      notes.push({ topic: "wellbeing", tone: "warning", text: `From lap ${from}, ${longest} laps in a row were more than 2 % off your best. If the car was not damaged, that is fatigue or lost focus talking: take a break instead of piling up laps, tired laps build bad habits.` });
+  }
+  // Target lap time of this car on this track (LFM 101 % for the team's cars)
+  const target = best ? await paceReference(sql, sessionId) : null;
+  if (best && target?.target_ms) {
+    const off = (best.t - target.target_ms) / 1000;
+    notes.push(off <= 0
+      ? { topic: "progress", tone: "good", text: `Target beaten: ${lapTime(best.t)} against ${lapTime(target.target_ms)} for the ${prettyKey(target.car)} here (${target.source ?? "team target"}).` }
+      : { topic: "progress", tone: "tip", text: `Target for the ${prettyKey(target.car)} here: ${lapTime(target.target_ms)} (${target.source ?? "team target"}). You are ${s2(off)} away (${((off * 100000) / target.target_ms).toFixed(1)} %).` });
   }
   if (flying.length > 0 && flying.length < 5)
     notes.push({ topic: "progress", tone: "tip", text: `Short run (${flying.length} flying lap${flying.length > 1 ? "s" : ""}). Runs of 8 to 10 laps are where consistency is built.` });

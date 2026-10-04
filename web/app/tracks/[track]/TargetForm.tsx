@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-// Admins: set or clear the target lap time of a track and car class.
-export default function TargetForm({ track, carClass, current }: { track: string; carClass: string; current: string }) {
+// Admins: set or clear the target lap time of a track and car.
+export default function TargetForm({ track, car, current }: { track: string; car: string; current: string }) {
   const router = useRouter();
   const [time, setTime] = useState(current);
   const [error, setError] = useState<string | null>(null);
@@ -13,7 +13,7 @@ export default function TargetForm({ track, carClass, current }: { track: string
     setError(null);
     const res = await fetch("/api/targets", {
       method: "POST",
-      body: JSON.stringify({ track, car_class: carClass, time: value }),
+      body: JSON.stringify({ track, car, time: value }),
     });
     if (!res.ok) setError((await res.json()).error ?? "error");
     else {

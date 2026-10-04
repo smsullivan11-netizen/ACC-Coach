@@ -19,6 +19,9 @@ const SPECIAL: Record<string, string> = {
   red_bull_ring: "Red Bull Ring",
   cota: "Circuit of the Americas",
   mount_panorama: "Mount Panorama",
+  ford_mustang_gt3: "Ford Mustang GT3",
+  mclaren_720s_gt3: "McLaren 720S GT3",
+  mclaren_720s_gt3_evo: "McLaren 720S GT3 Evo",
 };
 
 /** "brands_hatch" → "Brands Hatch", "ford_mustang_gt3" → "Ford Mustang GT3". */

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { gap, lapTime, prettyKey } from "@/lib/format";
+import { carClass } from "@/lib/import-bundle";
 import TargetForm from "./TargetForm";
 
 type Row = {
@@ -40,12 +41,19 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
                                   and tb.corner_map_id = (select id from map)
     where r.track_id = ${t.id}
     order by r.car_class nulls last, r.position`;
-  const classes = [...new Set(rows.map((r) => r.car_class ?? "Other"))];
-  const targets = new Map(
-    (await sql<{ car_class: string; target_ms: number; set_by: string | null }[]>`
-      select tt.car_class, tt.target_ms, d.display_name as set_by
-      from track_target tt left join driver d on d.id = tt.set_by where tt.track_id = ${t.id}`).map((x) => [x.car_class, x]),
-  );
+  // Rating references per car: the car's target (LFM 101 % for the team's cars) or the team's best
+  // in that car when faster; cars without a target use the class's team best (lib/targets.ts)
+  const targets = await sql<{ car: string; target_ms: number; source: string | null }[]>`
+    select car_key as car, target_ms, source from car_target where track_key = ${track} order by car_key`;
+  const cars = new Map<string, { cls: string; target: (typeof targets)[number] | null; best: number | null }>();
+  for (const x of targets) cars.set(x.car, { cls: carClass(x.car), target: x, best: null });
+  for (const r of rows) {
+    if (!r.car) continue;
+    const e = cars.get(r.car) ?? { cls: r.car_class ?? "Other", target: null, best: null };
+    e.best = e.best == null ? r.lap_time_ms : Math.min(e.best, r.lap_time_ms);
+    cars.set(r.car, e);
+  }
+  const classes = [...new Set([...rows.map((r) => r.car_class ?? "Other"), ...[...cars.values()].map((e) => e.cls)])];
 
   return (
     <div>
@@ -56,26 +64,32 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
       </p>
       {rows.length === 0 && <p className="mt-6 text-zinc-400">No valid lap yet.</p>}
       {classes.map((cls) => {
-        const target = targets.get(cls);
-        const teamBest = rows.find((r) => (r.car_class ?? "Other") === cls)?.lap_time_ms;
-        const beaten = target && teamBest != null && teamBest < target.target_ms;
+        const classBest = rows.find((r) => (r.car_class ?? "Other") === cls)?.lap_time_ms ?? null;
         return (
         <section key={cls} className="mt-6">
           <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-400">{cls}</h2>
-          <p className="tabular mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-400">
-            <span>
-              Rating reference:{" "}
-              {target && !beaten ? (
-                <><span className="text-accent">{lapTime(target.target_ms)}</span> target{target.set_by && ` (set by ${target.set_by})`}</>
-              ) : (
-                <>
-                  <span className="text-accent">{lapTime(teamBest)}</span> team best
-                  {beaten ? ` (beats the ${lapTime(target.target_ms)} target)` : " (no target set yet)"}
-                </>
-              )}
-            </span>
-            {me.is_admin && <TargetForm track={track} carClass={cls} current={target ? lapTime(target.target_ms) : ""} />}
-          </p>
+          <div className="tabular mt-1 space-y-1 text-sm text-zinc-400">
+            <div className="text-xs text-zinc-500">Rating reference per car:</div>
+            {[...cars.entries()].filter(([, e]) => e.cls === cls).map(([car, e]) => {
+              const beaten = e.target && e.best != null && e.best < e.target.target_ms;
+              return (
+                <div key={car} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="w-44 text-zinc-300">{prettyKey(car)}</span>
+                  <span>
+                    {e.target && !beaten ? (
+                      <><span className="text-accent">{lapTime(e.target.target_ms)}</span> target{e.target.source && ` (${e.target.source})`}</>
+                    ) : e.target ? (
+                      <><span className="text-accent">{lapTime(e.best)}</span> team best (beats the {lapTime(e.target.target_ms)} target)</>
+                    ) : (
+                      <><span className="text-accent">{lapTime(classBest)}</span> {cls} team best (no target for this car)</>
+                    )}
+                    {e.target && e.best != null && !beaten && <span className="text-zinc-500"> · team best {lapTime(e.best)}</span>}
+                  </span>
+                  {me.is_admin && <TargetForm track={track} car={car} current={e.target ? lapTime(e.target.target_ms) : ""} />}
+                </div>
+              );
+            })}
+          </div>
           <table className="tabular mt-2 w-full text-sm">
             <thead className="text-left text-zinc-500">
               <tr className="border-b border-white/10">
