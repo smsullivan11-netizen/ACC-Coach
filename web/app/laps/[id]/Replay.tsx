@@ -253,14 +253,14 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
   }, [toggle]);
 
   if (!cars.length) return <p className="text-sm text-zinc-500">No car positions in this lap (MoTeC import): the replay needs the recorder.</p>;
-  const select = "rounded border border-white/15 bg-zinc-900 px-2 py-1 text-sm";
+  const select = "input py-1";
 
   return (
-    <section className="mt-4 rounded-lg border border-white/10 bg-panel p-3">
+    <section className="card card-red rise mt-4 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => { elapsed.current = 0; dirty.current = true; }} title="Back to the start"
-                className="rounded border border-white/15 px-2.5 py-1 text-sm hover:bg-white/5">⏮</button>
-        <button onClick={toggle} className="w-20 rounded bg-accent px-3 py-1 text-sm font-semibold text-ink hover:brightness-110">
+                className="btn btn-ghost px-2.5 py-1">⏮</button>
+        <button onClick={toggle} className="btn btn-primary w-24 justify-center py-1">
           {playing ? "Pause" : "Play"}
         </button>
         <input ref={slider} type="range" min={0} max={maxT} step={0.01} defaultValue={0} aria-label="Timeline"
@@ -308,7 +308,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
 
       <div className={`mt-3 grid gap-3 ${cars.length === 2 ? "sm:grid-cols-2" : ""}`}>
         {cars.map((c, k) => (
-          <div key={k} className="rounded-md border border-white/10 px-3 py-2">
+          <div key={k} className="rounded-lg border border-white/10 bg-raised/50 px-3 py-2">
             <div className="flex items-baseline gap-3 text-sm">
               <span className="font-semibold" style={{ color: c.color }}>{c.driver}</span>
               <span ref={(el) => { hud.current[`speed${k}`] = el; }} className="tabular text-white" />

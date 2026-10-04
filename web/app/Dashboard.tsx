@@ -1,6 +1,6 @@
 import { Activity, ArrowUpRight, Crown, Gauge, Medal, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Link from "next/link";
-import { Avatar, Chip, delay, SectionTitle } from "@/components/ui";
+import { Avatar, Chip, delay, Position, SectionTitle } from "@/components/ui";
 import type { Driver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
@@ -184,11 +184,6 @@ function Trend({ value }: { value: number }) {
       <Icon size={13} /> {signed(value)} last session
     </span>
   );
-}
-
-function Position({ n }: { n: number }) {
-  const style = n === 1 ? "bg-accent text-ink" : n === 2 ? "bg-zinc-300 text-ink" : n === 3 ? "bg-race text-white" : "bg-white/5 text-zinc-400";
-  return <span className={`tabular grid h-6 w-6 shrink-0 place-items-center rounded-md text-xs font-bold ${style}`}>{n}</span>;
 }
 
 function SessionList({ rows }: { rows: SessionRow[] }) {

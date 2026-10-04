@@ -431,9 +431,17 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Leaderboards: cards like LFM's track records page for the tracks the team has driven (photo
   `public/tracks/<key>.jpg` if present, read at build time in next.config.ts, else the track
   outline glowing yellow/red from the best lap with positions; flag + name pill; team best per
-  class; Ford/McLaren targets), the other ACC tracks in a compact list. No photos copied from LFM
-  (theirs); flags self-hosted in `public/flags/` (flagcdn, Spain simplified). Names/countries:
-  `lib/tracks.ts`.
+  class; Ford/McLaren targets), the other ACC tracks in a compact list with thumbnails. Photos:
+  the user did not like the outlines, so real photos from Wikimedia Commons (free licences only,
+  CC BY / BY-SA / CC0, picked by eye among 6+ candidates per track, cropped 2:1 to 1200 × 600):
+  `public/tracks/<key>.jpg`, credits in `lib/track-photo-credits.json`, shown on each photo and on
+  the public `/credits` page (licence requirement). Flags self-hosted in `public/flags/` (flagcdn,
+  Spain simplified); every flag SVG needs a viewBox (without one it does not scale and only its
+  corner shows: the "missing flags" the user saw). Names/countries: `lib/tracks.ts`.
+- Round 3: every page in the same style (shared `.data-table`, `.btn`, `.input`, `PageTitle`,
+  `SectionTitle`, `Position`, `Chip`, `Avatar`): track leaderboard with a photo banner, drivers,
+  profiles, session page and coach card, lap comparison (lap cards, charts in cards), replay, track
+  map, settings, download, upload, linking, privacy. Page titles: "<page> · ACC Coach".
 
 ## Ratings and profiles (web/lib/ratings.ts, web/lib/style.ts)
 - Overall Driver Rating 0-100, computed by the site after each upload (`rateSession`), never by

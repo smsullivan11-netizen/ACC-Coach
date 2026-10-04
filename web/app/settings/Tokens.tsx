@@ -32,34 +32,34 @@ export default function Tokens() {
     <div className="mt-4">
       <div className="flex gap-2">
         <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60}
-               className="rounded border border-white/15 bg-transparent px-3 py-1.5 text-sm" />
-        <button onClick={create} className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-ink hover:brightness-110">
+               className="input" />
+        <button onClick={create} className="btn btn-primary">
           Create upload token
         </button>
       </div>
       {created && (
-        <div className="mt-3 rounded border border-accent/40 bg-accent/10 p-3 text-sm">
+        <div className="mt-3 rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm">
           <div className="text-accent">Copy it now: it will not be shown again.</div>
           <code className="mt-1 block break-all text-white">{created}</code>
         </div>
       )}
-      <table className="mt-4 w-full text-sm">
-        <thead className="text-left text-zinc-500">
-          <tr className="border-b border-white/10">
-            <th className="py-2 font-normal">Label</th>
-            <th className="font-normal">Created</th>
-            <th className="font-normal">Last used</th>
+      <table className="data-table mt-4">
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Created</th>
+            <th>Last used</th>
             <th />
           </tr>
         </thead>
         <tbody>
           {tokens.map((t) => (
-            <tr key={t.id} className="border-b border-white/5">
-              <td className="py-2">{t.label}</td>
+            <tr key={t.id}>
+              <td className="text-white">{t.label}</td>
               <td className="text-zinc-400">{day(t.created_at)}</td>
               <td className="text-zinc-400">{day(t.last_used_at)}</td>
               <td className="text-right">
-                <button onClick={() => revoke(t.id)} className="text-zinc-500 hover:text-red-400">Revoke</button>
+                <button onClick={() => revoke(t.id)} className="btn btn-danger px-2.5 py-1 text-xs">Revoke</button>
               </td>
             </tr>
           ))}

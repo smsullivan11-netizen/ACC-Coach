@@ -1,4 +1,7 @@
+import { ArrowLeft, Map as MapIcon } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { PageTitle } from "@/components/ui";
 import { notFound } from "next/navigation";
 import { requireDriver } from "@/lib/auth";
 import { latestMap } from "@/lib/corner-maps";
@@ -10,6 +13,8 @@ import CornerMapEditor from "./CornerMapEditor";
 import EdgesPanel, { type EdgeCandidate, type EdgeStatus } from "./EdgesPanel";
 
 const MAX_POINTS = 2500;
+
+export const metadata: Metadata = { title: "Track map" };
 
 export default async function CornersPage(props: PageProps<"/tracks/[track]/corners">) {
   const me = await requireDriver();
@@ -58,9 +63,11 @@ export default async function CornersPage(props: PageProps<"/tracks/[track]/corn
 
   return (
     <div>
-      <Link href={`/tracks/${track}`} className="text-sm text-zinc-400 hover:text-white">← {prettyKey(track)} leaderboard</Link>
-      <h1 className="mt-2 text-xl font-semibold text-white">{prettyKey(track)} · track map</h1>
-      <p className="mt-1 max-w-3xl text-sm text-zinc-400">
+      <Link href={`/tracks/${track}`} className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white">
+        <ArrowLeft size={15} /> {prettyKey(track)} leaderboard
+      </Link>
+      <PageTitle icon={MapIcon}>{prettyKey(track)} · track map</PageTitle>
+      <p className="-mt-3 max-w-3xl text-sm text-zinc-400">
         Corners come from the shape of the racing line, averaged over the team&apos;s best clean laps. Each corner runs from
         the fastest point before it to the fastest point after it, so corner times add up to the lap time. Every lap of the
         track is compared on the same corners.

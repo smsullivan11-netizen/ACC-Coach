@@ -1,9 +1,13 @@
+import { ArrowLeft, Trophy } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { lapTime, prettyKey } from "@/lib/format";
 import LapView, { type Candidate } from "./LapView";
+
+export const metadata: Metadata = { title: "Lap analysis" };
 
 export default async function LapPage(props: PageProps<"/laps/[id]">) {
   await requireDriver();
@@ -40,10 +44,9 @@ export default async function LapPage(props: PageProps<"/laps/[id]">) {
 
   return (
     <div>
-      <p className="text-sm text-zinc-500">
-        <Link href={`/sessions/${lap.session_id}`} className="hover:underline">← {lap.driver}&apos;s session</Link>
-        {" · "}
-        <Link href={`/tracks/${lap.track}`} className="hover:underline">{prettyKey(lap.track)} leaderboard</Link>
+      <p className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-400">
+        <Link href={`/sessions/${lap.session_id}`} className="inline-flex items-center gap-1.5 hover:text-white"><ArrowLeft size={15} /> {lap.driver}&apos;s session</Link>
+        <Link href={`/tracks/${lap.track}`} className="inline-flex items-center gap-1.5 hover:text-white"><Trophy size={14} className="text-race" /> {prettyKey(lap.track)} leaderboard</Link>
       </p>
       <LapView lapId={id} vsId={vsId} candidates={candidates}
                corner={typeof corner === "string" && /^\d+$/.test(corner) ? Number(corner) : null} />

@@ -100,3 +100,67 @@ body {
   .rise, .fill, .live-dot { animation: none; }
   .card-hover:hover { transform: none; }
 }
+
+/* Tables: inside a .card, with uppercase headers and soft row lines */
+.data-table {
+  width: 100%;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+.data-table thead th {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+  color: rgb(113 113 122);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.data-table tbody td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.04);
+}
+.data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.data-table tbody tr {
+  transition: background-color 120ms ease;
+}
+.data-table tbody tr:hover {
+  background: rgb(255 255 255 / 0.025);
+}
+.data-table th.text-right, .data-table td.text-right {
+  text-align: right;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: filter 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+.btn:disabled { opacity: 0.5; }
+.btn-primary { background: var(--color-accent); color: var(--color-ink); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { border: 1px solid rgb(255 255 255 / 0.12); color: rgb(228 228 231); }
+.btn-ghost:hover { background: rgb(255 255 255 / 0.05); }
+.btn-danger { border: 1px solid rgb(225 6 0 / 0.5); color: rgb(252 165 165); }
+.btn-danger:hover { background: rgb(225 6 0 / 0.12); }
+
+/* Inputs */
+.input {
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 0.5rem;
+  background: var(--color-raised);
+  padding: 0.4rem 0.7rem;
+  font-size: 0.875rem;
+  color: rgb(228 228 231);
+}
+.input:focus { outline: none; border-color: rgb(255 210 0 / 0.6); }

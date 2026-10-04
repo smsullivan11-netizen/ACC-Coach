@@ -1,3 +1,4 @@
+import { ArrowUpRight, Flag, Sparkles, Target } from "lucide-react";
 import Link from "next/link";
 import type { Coaching, CornerCoaching, Tone } from "@/lib/coaching";
 
@@ -14,12 +15,18 @@ export default function Coach({ c }: { c: Coaching }) {
   const compare = (corner?: CornerCoaching) =>
     c.lap && c.reference ? `/laps/${c.lap.id}?vs=${c.reference.id}${corner ? `&corner=${corner.number}` : ""}` : null;
   return (
-    <section className="mt-6 rounded-lg border border-accent/30 bg-panel p-5">
-      <div className="flex flex-wrap items-baseline gap-x-4">
-        <span className="text-xs font-semibold uppercase tracking-wide text-accent">Coach</span>
-        {compare() && <Link href={compare()!} className="text-xs text-zinc-400 underline hover:text-white">compare your best lap with the reference</Link>}
+    <section className="card card-red rise relative mt-5 overflow-hidden p-5" style={{ "--d": "60ms" } as React.CSSProperties}>
+      <div className="absolute -left-20 -top-20 h-56 w-56 rounded-full bg-accent/5 blur-3xl" />
+      <div className="relative flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Sparkles size={18} className="text-race" />
+        <span className="display text-sm uppercase tracking-wider text-white">Coach</span>
+        {compare() && (
+          <Link href={compare()!} className="btn btn-ghost ml-auto px-2.5 py-1 text-xs font-medium">
+            Compare with the reference <ArrowUpRight size={13} />
+          </Link>
+        )}
       </div>
-      <p className="mt-1 text-lg text-white">{c.headline}</p>
+      <p className="relative mt-3 text-lg text-white">{c.headline}</p>
       {c.phases && c.gap_s != null && c.gap_s > 0 && (
         <p className="tabular mt-1 text-sm text-zinc-400">
           Where the gap is made: braking and corner entry <span className="text-white">{sec(c.phases.entry_s)}</span> · exits and
@@ -31,14 +38,14 @@ export default function Coach({ c }: { c: Coaching }) {
         <div>
           {c.losses.length > 0 && (
             <>
-              <h3 className="text-sm font-medium text-white">Where you lose time</h3>
+              <h3 className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-zinc-400"><Flag size={14} className="text-race" /> Where you lose time</h3>
               <ul className="mt-2 space-y-4">
                 {c.losses.map((l) => (
                   <li key={l.number}>
                     <div className="flex items-baseline gap-3">
                       <span className="font-medium text-white">T{l.number}{l.name && <span className="ml-1.5 font-normal text-zinc-400">{l.name}</span>}</span>
                       <span className="tabular text-sm text-red-400">{sec(l.loss_s)}</span>
-                      {compare(l) && <Link href={compare(l)!} className="ml-auto text-xs text-zinc-400 underline hover:text-white">see it</Link>}
+                      {compare(l) && <Link href={compare(l)!} className="ml-auto inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-accent">see it <ArrowUpRight size={12} /></Link>}
                     </div>
                     <div className="mt-1 flex h-1.5 overflow-hidden rounded bg-white/5" title="Entry / exit">
                       <div className="bg-orange-400" style={{ width: `${(Math.max(0, l.entry_s) / max) * 100}%` }} />
@@ -58,10 +65,15 @@ export default function Coach({ c }: { c: Coaching }) {
         </div>
         <div>
           {c.focus.length > 0 && (
-            <div className="rounded-md border border-accent/40 bg-accent/5 p-3">
-              <h3 className="text-sm font-medium text-accent">Focus for your next session</h3>
-              <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-zinc-200">
-                {c.focus.map((f) => <li key={f}>{f}</li>)}
+            <div className="rounded-lg border border-accent/30 bg-accent/[0.04] p-4">
+              <h3 className="flex items-center gap-2 text-sm font-medium text-accent"><Target size={15} /> Focus for your next session</h3>
+              <ol className="mt-3 space-y-2">
+                {c.focus.map((f, i) => (
+                  <li key={f} className="flex gap-3 text-sm text-zinc-200">
+                    <span className="display grid h-6 w-6 shrink-0 place-items-center rounded-md bg-accent/15 text-xs text-accent">{i + 1}</span>
+                    <span>{f}</span>
+                  </li>
+                ))}
               </ol>
             </div>
           )}

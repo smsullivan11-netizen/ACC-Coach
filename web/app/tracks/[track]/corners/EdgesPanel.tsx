@@ -30,8 +30,8 @@ export default function EdgesPanel({ track, isAdmin, status, candidates }: {
   }
 
   return (
-    <section className="mt-10 max-w-4xl">
-      <h2 className="font-medium text-white">Track edges</h2>
+    <section className="card mt-8 max-w-4xl p-5">
+      <h2 className="display text-sm uppercase tracking-wider text-white">Track edges</h2>
       <p className="mt-1 text-sm text-zinc-400">
         ACC does not share where the track ends, so the track surface on the maps comes from two laps driven slowly along the
         white lines: one with the <strong className="text-zinc-200">left</strong> wheels on the line, one with the{" "}
@@ -43,7 +43,7 @@ export default function EdgesPanel({ track, isAdmin, status, candidates }: {
         {(["left", "right"] as const).map((side) => {
           const s = bySide(side);
           return (
-            <div key={side} className="rounded-md border border-white/10 px-3 py-2">
+            <div key={side} className="rounded-lg border border-white/10 bg-raised/50 px-3 py-2">
               <span className="text-zinc-400">{side === "left" ? "Left" : "Right"} edge: </span>
               {s ? (
                 <>
@@ -65,13 +65,13 @@ export default function EdgesPanel({ track, isAdmin, status, candidates }: {
       {isAdmin && (
         <>
           <p className="mt-5 text-sm text-zinc-400">Recent laps on this track (with car positions):</p>
-          <table className="tabular mt-1 w-full text-sm">
+          <div className="overflow-x-auto"><table className="data-table mt-1">
             <tbody>
               {candidates.map((c) => {
                 const used = status.find((s) => s.lap_id === c.id);
                 return (
-                  <tr key={c.id} className="border-b border-white/5">
-                    <td className="py-1.5 text-zinc-500">{c.date}</td>
+                  <tr key={c.id}>
+                    <td className="text-zinc-500">{c.date}</td>
                     <td className="text-white">{c.driver}</td>
                     <td className="text-zinc-300">L{c.number}</td>
                     <td className="text-zinc-300">{lapTime(c.time_ms)}</td>
@@ -92,7 +92,7 @@ export default function EdgesPanel({ track, isAdmin, status, candidates }: {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
           {!candidates.length && <p className="mt-1 text-sm text-zinc-500">No lap with car positions yet.</p>}
         </>
       )}

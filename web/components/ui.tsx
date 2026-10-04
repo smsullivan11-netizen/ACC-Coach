@@ -62,3 +62,9 @@ export function PageTitle({ children, sub, icon: Icon }: { children: ReactNode; 
 
 /** Animation delay for staggered entrances (.rise / .fill). */
 export const delay = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
+
+/** Leaderboard position: yellow, silver and red badges for the podium. */
+export function Position({ n }: { n: number }) {
+  const style = n === 1 ? "bg-accent text-ink" : n === 2 ? "bg-zinc-300 text-ink" : n === 3 ? "bg-race text-white" : "bg-white/5 text-zinc-400";
+  return <span className={`tabular grid h-6 w-6 shrink-0 place-items-center rounded-md text-xs font-bold ${style}`}>{n}</span>;
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { GitCompareArrows, Maximize2, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
@@ -96,56 +97,66 @@ export default function LapView({ lapId, vsId, candidates, corner }: {
 
   return (
     <div>
-      <div className="mt-2 flex flex-wrap items-baseline gap-x-6 gap-y-2">
+      <div className="rise grid gap-3 md:grid-cols-[1fr_1fr_auto]">
         {laps.map((l, i) => (
-          <h1 key={l.id} className="text-lg font-semibold" style={{ color: COLORS[i] }}>
-            {l.driver} · L{l.number} · <span className="tabular">{lapTime(l.time_ms)}</span>
-            <span className="ml-2 text-sm font-normal text-zinc-500">
+          <div key={l.id} className="card p-4" style={{ boxShadow: `inset 3px 0 0 0 ${COLORS[i]}` }}>
+            <div className="text-xs uppercase tracking-wider text-zinc-500">{i === 0 ? "This lap" : "Reference"}</div>
+            <h1 className="mt-1 flex flex-wrap items-baseline gap-x-2 text-lg font-semibold" style={{ color: COLORS[i] }}>
+              {l.driver} · L{l.number} <span className="tabular text-2xl">{lapTime(l.time_ms)}</span>
+            </h1>
+            <div className="mt-0.5 text-xs text-zinc-500">
               {prettyKey(l.car)} · {l.date}
               {!l.comparable && ` · ${l.excluded_reasons.map((r) => REASONS[r] ?? r).join(", ")}`}
-            </span>
-          </h1>
+            </div>
+          </div>
         ))}
-        <select
-          value={vsId ?? ""}
-          onChange={(e) => router.push(e.target.value ? `/laps/${lapId}?vs=${e.target.value}` : `/laps/${lapId}`)}
-          className="ml-auto rounded border border-white/15 bg-zinc-900 px-2 py-1 text-sm"
-        >
-          <option value="">Compare with…</option>
-          {candidates.map((c) => (
-            <option key={c.id} value={c.id}>{c.label}</option>
-          ))}
-        </select>
+        <div className={`card flex flex-col justify-center gap-2 p-4 ${b ? "" : "md:col-span-2"}`}>
+          {b && (
+            <div className="tabular text-sm text-zinc-400">
+              Gap <span className={`text-xl font-bold ${a.time_ms <= b.time_ms ? "text-emerald-400" : "text-red-400"}`}>
+                {a.time_ms > b.time_ms ? "+" : ""}{((a.time_ms - b.time_ms) / 1000).toFixed(3)} s
+              </span>
+            </div>
+          )}
+          <label className="flex items-center gap-2 text-xs text-zinc-500">
+            <GitCompareArrows size={14} className="text-race" />
+            <select
+              value={vsId ?? ""}
+              onChange={(e) => router.push(e.target.value ? `/laps/${lapId}?vs=${e.target.value}` : `/laps/${lapId}`)}
+              className="input min-w-0 flex-1 py-1"
+            >
+              <option value="">Compare with…</option>
+              {candidates.map((c) => (
+                <option key={c.id} value={c.id}>{c.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
-      {b && (
-        <p className="tabular mt-1 text-sm text-zinc-400">
-          Gap: {a.time_ms > b.time_ms ? "+" : ""}{((a.time_ms - b.time_ms) / 1000).toFixed(3)} s for{" "}
-          <span style={{ color: COLORS[0] }}>{a.driver}</span>. Drag on a chart to zoom, double-click to reset;
-          click a corner below to zoom on it.
-        </p>
-      )}
+      <p className="mt-2 text-xs text-zinc-500">Drag on a chart to zoom, double-click to reset; click a corner below to zoom on it.</p>
 
       {a.t && replay && (
         <Replay laps={laps.flatMap((l, i) => (l.t ? [{ driver: `${l.driver} L${l.number}`, color: COLORS[i], t: l.t }] : []))}
                 edges={a.edges} corners={a.corners} onDistance={followCar} onClose={closeReplay} />
       )}
       {!a.t ? (
-        <p className="mt-6 text-zinc-400">This lap has no trace (incomplete lap).</p>
+        <p className="card mt-6 p-6 text-zinc-400">This lap has no trace (incomplete lap).</p>
       ) : (
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <Charts laps={laps} onCursor={(i) => moveDots.current(i)} onRange={setRange} zoomRef={zoom} cursorRef={cursor} />
+          <div className="card min-w-0 px-3 pb-3 pt-1">
+            <Charts laps={laps} onCursor={(i) => moveDots.current(i)} onRange={setRange} zoomRef={zoom} cursorRef={cursor} />
+          </div>
           <div className="lg:sticky lg:top-4 lg:self-start">
             <TrackMap laps={laps} range={range} moveRef={moveDots} />
             <div className="mt-2 flex items-center gap-4">
               {positions && !replay && (
-                <button onClick={() => setReplay(true)}
-                        className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-ink hover:brightness-110">
-                  {b ? "Replay both laps" : "Replay this lap"}
+                <button onClick={() => setReplay(true)} className="btn btn-primary">
+                  <Play size={15} fill="currentColor" /> {b ? "Replay both laps" : "Replay this lap"}
                 </button>
               )}
               {range && (
-                <button onClick={() => zoom.current(null)} className="text-sm text-zinc-400 underline hover:text-white">
-                  Show the full lap
+                <button onClick={() => zoom.current(null)} className="btn btn-ghost">
+                  <Maximize2 size={14} /> Full lap
                 </button>
               )}
             </div>
@@ -360,7 +371,7 @@ function TrackMap({ laps, range, moveRef }: { laps: Loaded[]; range: Range; move
   const size = Math.max(view.w, view.h);
   // ACC: x and z horizontal; seen from above z points down, like SVG's y axis
   return (
-    <svg viewBox={`${view.x} ${view.z} ${view.w} ${view.h}`} className="h-auto max-h-[70vh] w-full rounded-lg border border-white/10 bg-panel">
+    <svg viewBox={`${view.x} ${view.z} ${view.w} ${view.h}`} className="card h-auto max-h-[70vh] w-full">
       <TrackSurface edges={laps[0].edges} />
       {paths.map((p, k) => ({ p, k })).reverse().map(({ p, k }) => p && (
         <polyline key={k} points={p} fill="none" stroke={COLORS[k]} strokeWidth={range ? 2 : 1.5}
@@ -395,36 +406,39 @@ function CornerTable({ laps, onSelect }: { laps: Loaded[]; onSelect: (r: Range) 
   const bc = new Map((b?.corners ?? []).map((c) => [c.number, c]));
   const compare = Boolean(b && b.corners.some((c) => c.time_s != null));
   return (
-    <div className="mt-8">
-      <h2 className="font-medium text-white">Corners</h2>
-      <p className="text-sm text-zinc-500">
+    <div className="card rise mt-5 overflow-hidden">
+      <div className="px-5 pt-4">
+      <h2 className="display text-sm uppercase tracking-wider text-white">Corners</h2>
+      <p className="mt-1 text-sm text-zinc-500">
         {compare
           ? "Differences are this lap minus the reference. Distances: + = later on track."
           : "Distances are metres from the start/finish line."}{" "}
         Click a row to zoom on the corner.
       </p>
-      <table className="tabular mt-2 w-full text-sm">
-        <thead className="text-left text-zinc-500">
-          <tr className="border-b border-white/10">
-            <th className="py-2 font-normal">Corner</th>
+      </div>
+      <div className="overflow-x-auto">
+      <table className="data-table mt-2">
+        <thead>
+          <tr>
+            <th>Corner</th>
             {compare ? (
               <>
-                <th className="text-right font-normal">Time</th>
-                <th className="text-right font-normal">Gap</th>
-                <th className="text-right font-normal">Min speed</th>
-                <th className="text-right font-normal">Braking point</th>
-                <th className="text-right font-normal">Throttle pickup</th>
-                <th className="text-right font-normal">Full throttle</th>
+                <th className="text-right">Time</th>
+                <th className="text-right">Gap</th>
+                <th className="text-right">Min speed</th>
+                <th className="text-right">Braking point</th>
+                <th className="text-right">Throttle pickup</th>
+                <th className="text-right">Full throttle</th>
               </>
             ) : (
               <>
-                <th className="text-right font-normal">Time</th>
-                <th className="text-right font-normal">Entry speed</th>
-                <th className="text-right font-normal">Braking at</th>
-                <th className="text-right font-normal">Min speed</th>
-                <th className="text-right font-normal">Throttle at</th>
-                <th className="text-right font-normal">Full throttle at</th>
-                <th className="text-right font-normal">Coasting</th>
+                <th className="text-right">Time</th>
+                <th className="text-right">Entry speed</th>
+                <th className="text-right">Braking at</th>
+                <th className="text-right">Min speed</th>
+                <th className="text-right">Throttle at</th>
+                <th className="text-right">Full throttle at</th>
+                <th className="text-right">Coasting</th>
               </>
             )}
           </tr>
@@ -435,8 +449,8 @@ function CornerTable({ laps, onSelect }: { laps: Loaded[]; onSelect: (r: Range) 
             const gap = c.time_s != null && r?.time_s != null ? c.time_s - r.time_s : null;
             return (
               <tr key={c.number} onClick={() => onSelect([c.start_m, c.end_m])}
-                  className="cursor-pointer border-b border-white/5 hover:bg-white/5">
-                <td className="py-2 text-white">T{c.number}{c.name && <span className="ml-2 text-zinc-400">{c.name}</span>}</td>
+                  className="cursor-pointer">
+                <td className="text-white">T{c.number}{c.name && <span className="ml-2 text-zinc-400">{c.name}</span>}</td>
                 {compare ? (
                   <>
                     <td className="text-right">{num(c.time_s, 2, " s")}</td>
@@ -466,6 +480,7 @@ function CornerTable({ laps, onSelect }: { laps: Loaded[]; onSelect: (r: Range) 
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

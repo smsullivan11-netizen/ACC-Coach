@@ -35,11 +35,11 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
 
   return (
     <div className="mt-4">
-      <table className="w-full text-sm">
+      <table className="data-table">
         <tbody>
           {members.map((m) => (
-            <tr key={m.id} className="border-b border-white/5">
-              <td className="py-2">{m.display_name}</td>
+            <tr key={m.id}>
+              <td className="text-white">{m.display_name}</td>
               <td className="text-right">
                 <label className="inline-flex items-center gap-2 text-zinc-400">
                   <input type="checkbox" checked={m.is_admin} onChange={(e) => setAdmin(m.id, e.target.checked)}
@@ -58,7 +58,7 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
         </tbody>
       </table>
       <button onClick={rebuild} disabled={busy}
-              className="mt-4 rounded border border-accent/60 px-3 py-1.5 text-sm text-accent hover:bg-accent/10 disabled:opacity-50">
+              className="btn btn-ghost mt-4">
         {busy ? "Recomputing…" : "Recompute all ratings"}
       </button>
       <p className="mt-1 text-xs text-zinc-500">

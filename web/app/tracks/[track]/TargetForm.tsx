@@ -25,8 +25,8 @@ export default function TargetForm({ track, car, current }: { track: string; car
   return (
     <span className="inline-flex items-center gap-2">
       <input value={time} onChange={(e) => setTime(e.target.value)} placeholder="1:24.500"
-             className="w-24 rounded border border-white/15 bg-transparent px-2 py-0.5 text-sm" />
-      <button onClick={() => save(time.trim() || null)} className="rounded bg-accent px-2 py-0.5 text-xs font-semibold text-ink">
+             className="input w-28 py-1" />
+      <button onClick={() => save(time.trim() || null)} className="btn btn-primary px-2.5 py-1 text-xs">
         Set target
       </button>
       {current && <button onClick={() => save(null)} className="text-xs text-zinc-500 hover:text-white">clear</button>}

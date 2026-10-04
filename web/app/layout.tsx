@@ -56,7 +56,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <footer className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-6 text-xs text-zinc-600">
           <span className="display tracking-wider">PCGR</span>
           <span>ACC Coach</span>
-          <Link href="/privacy" className="ml-auto hover:text-zinc-400">Privacy</Link>
+          <Link href="/credits" className="ml-auto hover:text-zinc-400">Credits</Link>
+          <Link href="/privacy" className="hover:text-zinc-400">Privacy</Link>
         </footer>
       </body>
     </html>

@@ -5,6 +5,7 @@ import { Avatar, delay, PageTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
+import CREDITS from "@/lib/track-photo-credits.json";
 import { trackOutlines, TRACKS } from "@/lib/tracks";
 
 export const metadata: Metadata = { title: "Leaderboards" };
@@ -115,13 +116,19 @@ export default async function TracksPage() {
               const info = TRACKS[key] ?? { name: prettyKey(key), country: "" };
               const goals = targets.filter((t) => t.track === key);
               return (
-                <div key={key} className="card flex min-w-0 items-center gap-3 px-3 py-2.5">
-                  {info.country && (
+                <div key={key} className="card flex min-w-0 items-center gap-3 overflow-hidden p-0 pr-3">
+                  {PHOTOS.has(key) ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={`/flags/${info.country}.svg`} alt="" width={22} height={15} className="h-[15px] w-[22px] shrink-0 rounded-[2px] object-cover" />
-                  )}
+                    <img src={`/tracks/${key}.jpg`} alt="" loading="lazy" className="h-14 w-24 shrink-0 object-cover opacity-80" />
+                  ) : <div className="h-14 w-24 shrink-0 bg-white/5" />}
                   <div className="min-w-0">
-                    <div className="truncate text-sm text-zinc-200">{info.name}</div>
+                    <div className="flex items-center gap-2 truncate text-sm text-zinc-200">
+                      {info.country && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={`/flags/${info.country}.svg`} alt="" width={18} height={12} className="h-3 w-[18px] shrink-0 rounded-[2px] object-cover" />
+                      )}
+                      <span className="truncate">{info.name}</span>
+                    </div>
                     <div className="tabular truncate text-[11px] text-zinc-500">
                       {goals.length ? goals.map((g) => `${carShortName(g.car)} ${lapTime(g.target_ms)}`).join(" · ") : "no target"}
                     </div>
@@ -136,18 +143,26 @@ export default async function TracksPage() {
   );
 }
 
-/** The track's photo when there is one, else its outline glowing on a dark background. */
+/** The track's photo (credit in the corner; all credits on /credits), or for a track without one,
+ *  its outline on a dark background. */
 function TrackImage({ trackKey, outline }: { trackKey: string; outline?: string }) {
+  const credit = (CREDITS as Record<string, { author: string; license: string }>)[trackKey];
   if (PHOTOS.has(trackKey))
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={`/tracks/${trackKey}.jpg`} alt="" className="aspect-[2/1] w-full object-cover" />;
+    return (
+      <div className="relative aspect-[2/1] w-full overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`/tracks/${trackKey}.jpg`} alt="" loading="lazy"
+             className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+        <div className="stripe absolute inset-x-0 bottom-0 h-[2px]" />
+        {credit && <span className="absolute bottom-1.5 right-2 text-[9px] text-white/50">Photo: {credit.author} · {credit.license}</span>}
+      </div>
+    );
   return (
     <div className="relative aspect-[2/1] w-full overflow-hidden bg-[radial-gradient(120%_90%_at_50%_0%,#26262b_0%,#0d0d10_70%)]">
-      <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgb(255_255_255/0.04)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255/0.04)_1px,transparent_1px)] [background-size:22px_22px]" />
       <div className="stripe absolute inset-x-0 bottom-0 h-[2px] opacity-70" />
       {outline ? (
         <svg viewBox="0 0 100 60" className="absolute inset-0 h-full w-full p-3">
-          <path d={outline} fill="none" stroke="#e10600" strokeOpacity={0.55} strokeWidth={3.2} strokeLinejoin="round" style={{ filter: "blur(2px)" }} />
           <path d={outline} fill="none" stroke="#ffd200" strokeWidth={1.1} strokeLinejoin="round" />
         </svg>
       ) : (

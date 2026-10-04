@@ -1,15 +1,17 @@
+import { ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
+import { PageTitle } from "@/components/ui";
 
-export const metadata: Metadata = { title: "Privacy policy · ACC Coach" };
+export const metadata: Metadata = { title: "Privacy policy" };
 
 // Public (no sign-in): the Microsoft Store listing links here. Keep it in line with what the app and
 // the site actually do when either changes.
 export default function PrivacyPage() {
   return (
-    <div className="max-w-2xl text-zinc-300 [&_h2]:mt-8 [&_h2]:font-medium [&_h2]:text-white [&_li]:mt-1.5 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5">
-      <h1 className="text-xl font-semibold text-white">Privacy policy</h1>
-      <p className="mt-1 text-sm text-zinc-500">Last updated: October 4, 2026</p>
-      <p className="mt-4">
+    <div className="max-w-3xl">
+      <PageTitle icon={ShieldCheck} sub="Last updated: October 4, 2026">Privacy policy</PageTitle>
+      <div className="card p-6 text-zinc-300 [&_h2]:mt-8 [&_h2]:font-medium [&_h2]:text-white [&_li]:mt-1.5 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5">
+      <p>
         ACC Coach (this site and the ACC Coach desktop app) is a private tool run by a sim-racing team for its own
         members. It is not a commercial service: there are no ads, no trackers, and no data is sold or shared with
         anyone outside the team.
@@ -63,6 +65,7 @@ export default function PrivacyPage() {
 
       <h2>Contact</h2>
       <p className="mt-2">Questions or requests: contact a team admin on the team&apos;s Discord server.</p>
+      </div>
     </div>
   );
 }
