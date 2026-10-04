@@ -40,7 +40,7 @@ export function Chip({ tone = "grey", icon: Icon, children, title }: { tone?: ke
 export function SectionTitle({ icon: Icon, children, action }: { icon?: LucideIcon; children: ReactNode; action?: ReactNode }) {
   return (
     <div className="mb-3 flex items-center gap-2">
-      {Icon && <Icon size={16} className="text-accent" />}
+      {Icon && <Icon size={16} className="text-race" />}
       <h2 className="display text-sm uppercase tracking-wider text-white">{children}</h2>
       {action && <div className="ml-auto text-xs">{action}</div>}
     </div>
@@ -52,7 +52,7 @@ export function PageTitle({ children, sub, icon: Icon }: { children: ReactNode; 
   return (
     <div className="rise mb-6">
       <h1 className="display flex items-center gap-3 text-2xl text-white">
-        {Icon && <Icon size={24} className="text-accent" />}
+        {Icon && <Icon size={24} className="text-race" />}
         {children}
       </h1>
       {sub && <p className="mt-1.5 text-sm text-zinc-400">{sub}</p>}

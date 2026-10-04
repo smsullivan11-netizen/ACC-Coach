@@ -23,7 +23,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${konexy.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        <header className="sticky top-0 z-30 border-b border-white/5 bg-black/85 backdrop-blur">
+        <header className="sticky top-0 z-30 bg-black/55 shadow-[0_12px_32px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl backdrop-saturate-150">
           <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2">
             <Link href="/" className="flex shrink-0 items-center gap-2.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -50,7 +50,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               </>
             )}
           </nav>
-          <div className="stripe h-[2px] opacity-90" />
+          <div className="stripe h-px" />
         </header>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
         <footer className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-6 text-xs text-zinc-600">

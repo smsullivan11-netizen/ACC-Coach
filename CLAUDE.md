@@ -423,6 +423,17 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   animations, but want simplicity for learning). Round 1: header, sign-in page, dashboard (new
   home for signed-in drivers), sessions list. Next: lap comparison, leaderboards, profiles, rest.
 - Grid/flex children holding truncated text need `min-w-0`, or the page overflows on phones.
+- Round 2 (user feedback): more red (section/page icons, red top edge `.card-red`, card hover,
+  active nav bar, stripe); dashboard reduced to **4 blocks** (your rating with its breakdown, your
+  progression: rating curve + PBs, team ranking by rating, team activity) because it had lost its
+  simplicity; top bar translucent with blur and shadow, no scrolling (the active bar used to hang
+  below the nav and made it scroll).
+- Leaderboards: cards like LFM's track records page for the tracks the team has driven (photo
+  `public/tracks/<key>.jpg` if present, read at build time in next.config.ts, else the track
+  outline glowing yellow/red from the best lap with positions; flag + name pill; team best per
+  class; Ford/McLaren targets), the other ACC tracks in a compact list. No photos copied from LFM
+  (theirs); flags self-hosted in `public/flags/` (flagcdn, Spain simplified). Names/countries:
+  `lib/tracks.ts`.
 
 ## Ratings and profiles (web/lib/ratings.ts, web/lib/style.ts)
 - Overall Driver Rating 0-100, computed by the site after each upload (`rateSession`), never by
