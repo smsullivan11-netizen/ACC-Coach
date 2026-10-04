@@ -117,9 +117,9 @@ export async function importBundle(b: Bundle, driverId: string): Promise<{ sessi
 
     const [session] = await tx<{ id: string }[]>`
       insert into session (driver_id, track_id, car_id, server_session_id, source_kind, source_file, source_sha256,
-                           recorded_at, session_type, bundle_version, agent_version)
+                           recorded_at, session_type, bundle_version, agent_version, acc_driver_name)
       values (${driverId}, ${track.id}, ${carId}, ${serverSessionId}, ${b.source.kind}, ${b.source.file}, ${b.source.sha256},
-              ${s.recorded_at}::timestamp, ${s.type ?? null}, ${b.version}, ${b.agent?.version ?? null})
+              ${s.recorded_at}::timestamp, ${s.type ?? null}, ${b.version}, ${b.agent?.version ?? null}, ${s.driver_name?.trim() || null})
       returning id`;
 
     for (const l of b.laps) {

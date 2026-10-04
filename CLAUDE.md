@@ -481,6 +481,26 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Mentors: for each of the coach's 3 weak corners, the teammate with the best pass (same map and
   class, ≥ 0.03 s faster) with a link to the replay of both laps zoomed on the corner.
 
+## Events and race results (migration 0007, web/lib/events.ts, web/lib/results.ts)
+- `/events`: upcoming (photo cards, local time + countdown via `LocalTime`, sign-ups yes/maybe/no,
+  avatars) and past (team's best race position). Admins create/edit/delete (title, track, start in
+  their own time zone → stored UTC, length, sprint/endurance, league, server, notes, mandatory pit
+  stops, max stint).
+- Event page: sign-up + planned car; readiness per driver on the event's track and class (valid laps
+  in 30 days, best lap, race pace = mean of 5 best laps in 60 days, % vs car target; Ready = ≥ 20 laps
+  and within 2 % of the target, Building up, Not practised); endurance line-up (`suggestLineup`:
+  stints = max(stops + 1, length / max stint, drivers), drivers by race pace, fastest starts and,
+  with a spare stint, finishes; editable, saved in `event_stint`; clock time per stint, laps per
+  stint from race pace minus ~60 s per stop).
+- Results: ACC server `.json` (UTF-16 LE with BOM, or UTF-8), uploaded on the event page →
+  `server_session` (+ event_id, raw kept), `server_result` (per car), `official_lap` (every lap,
+  with the driver). Team drivers recognised by Steam ID (`driver.steam_id`), else by in-game name
+  (`session.acc_driver_name`, stored from each upload since 0007; older sessions have none, so the
+  first time an admin links them in one click: "A team driver was not recognised?"); a name match
+  stores the Steam ID. Same file twice refused. Race pace per team driver on racing laps only (valid,
+  within 5 % of their best: pit/incident laps out). `CAR_MODELS` maps ACC car model ids to names.
+- Discord: no event posts (the user limited posts to records, PBs and promotions).
+
 ## Storage (web/lib/storage.ts, web/lib/trace-store.ts)
 - Neon free plan: 0.5 GB. Lap traces are ~99 % of the data (a lap's times/metrics/corners ≈ 1 KB).
 - Traces stored compressed: per channel, wrapping differences between consecutive integers, deflated,
