@@ -145,11 +145,12 @@ export default function LapView({ lapId, vsId, candidates, corner, startReplay =
       {!a.t ? (
         <p className="card mt-6 p-6 text-zinc-400">This lap has no trace (incomplete lap).</p>
       ) : (
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        // With the replay open, the charts take the whole width under it (the small map would repeat it)
+        <div className={`mt-4 grid gap-4 ${replay ? "" : "lg:grid-cols-[minmax(0,1fr)_380px]"}`}>
           <div className="card min-w-0 px-3 pb-3 pt-1">
             <Charts laps={laps} onCursor={(i) => moveDots.current(i)} onRange={setRange} zoomRef={zoom} cursorRef={cursor} />
           </div>
-          <div className="lg:sticky lg:top-4 lg:self-start">
+          <div className={`lg:sticky lg:top-20 lg:self-start ${replay ? "hidden" : ""}`}>
             <TrackMap laps={laps} range={range} moveRef={moveDots} />
             <div className="mt-2 flex items-center gap-4">
               {positions && !replay && (

@@ -7,7 +7,9 @@ import { labelPoint } from "@/lib/geometry";
 import { smoothGear, type Trace } from "@/lib/trace";
 
 // Replay of one or two laps on the track map, by elapsed time (like watching both cars on track at
-// once): play/pause, speed, timeline, camera following a car, live speed / gear / inputs and gap.
+// once): play/pause, speed, timeline, camera following a car, gap, and a Racemake-like HUD per car in
+// the map's bottom corners (speed gauge and gear, steering wheel turning with the driver's hands,
+// throttle and brake).
 // ABS (sessions recorded with app 0.1.1 or later): a flashing blue light at the front of the car,
 // blue braking on the lines and the brake bar.
 // Drawing happens outside React on every animation frame (refs and setAttribute).
@@ -18,32 +20,16 @@ type Car = {
   driver: string; color: string; n: number; step: number; end: number;
   time: Float64Array; x: Float64Array; z: Float64Array; v: Float64Array;
   thr: Float64Array | null; brk: Float64Array | null; gear: Float64Array | null; abs: Float64Array | null;
+  steer: Float64Array | null;   // steering wheel angle (°, positive = right)
 };
 
 const RATES = [0.25, 0.5, 1, 2, 4];
 const MIN_VIEW_M = 70;   // view width at 100 % zoom: about one corner
 const CAR_L = 4.6, CAR_W = 2.0;                                    // GT3 footprint (m)
-const ASPECT = 9 / 16;
 const INPUT_COLORS = { brake: "#ef4444", abs: "#2563eb", full: "#22c55e", coast: "#71717a" };
 const ABS_ON = 5;   // % of the time with ABS working, per metre
-const GRAPH_S = 4, GRAPH_N = 80;   // input graphs: the last 4 s, 80 points
-
-/** Throttle / brake / ABS-braking paths of the last GRAPH_S seconds (viewBox 0 0 400 100). */
-function inputPaths(car: Car, t: number) {
-  let thr = "", brk = "", abs = "", penUp = true;
-  for (let k = 0; k < GRAPH_N; k++) {
-    const ts = t - GRAPH_S + (k * GRAPH_S) / (GRAPH_N - 1);
-    const x = ((k * 400) / (GRAPH_N - 1)).toFixed(1);
-    if (ts < 0) { penUp = true; continue; }
-    const { i } = locate(car, ts);
-    const y = (v: number) => (100 - Math.max(0, Math.min(100, v))).toFixed(1);
-    thr += `${thr ? "L" : "M"}${x},${y(car.thr ? car.thr[i] : 0)}`;
-    const b = car.brk ? car.brk[i] : 0;
-    brk += `${brk ? "L" : "M"}${x},${y(b)}`;
-    if (car.abs && car.abs[i] >= ABS_ON && b > 5) { abs += `${penUp ? "M" : "L"}${x},${y(b)}`; penUp = false; } else penUp = true;
-  }
-  return { thr, brk, abs };
-}
+const DEFAULT_HALF_LOCK = 240;   // cars without a known steering lock (steering_deg missing): 480° lock to lock
+const GAUGE_R = 27, GAUGE_C = 2 * Math.PI * GAUGE_R, GAUGE_ARC = 0.75 * GAUGE_C, GAUGE_MAX_KMH = 300;
 
 function prepare(l: ReplayLap): Car | null {
   const c = l.t.channels;
@@ -53,6 +39,7 @@ function prepare(l: ReplayLap): Car | null {
     driver: l.driver, color: l.color, n, step: l.t.dist[1] - l.t.dist[0] || 1, end: c.time_s[n - 1],
     time: c.time_s, x: c.pos_x_m, z: c.pos_z_m, v: c.speed_ms,
     thr: c.throttle_clean_pct ?? null, brk: c.brake_clean_pct ?? null, gear: c.gear ? smoothGear(c.gear) : null, abs: c.abs_pct ?? null,
+    steer: c.steering_deg ?? (c.steering_norm ? c.steering_norm.map((v) => v * DEFAULT_HALF_LOCK) : null),
   };
 }
 
@@ -141,17 +128,25 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
   const svg = useRef<SVGSVGElement>(null);
   const carEls = useRef<(SVGGElement | null)[]>([]);
   const absEls = useRef<(SVGRectElement | null)[]>([]);
-  const graphEls = useRef<{ thr?: SVGPathElement | null; brk?: SVGPathElement | null; abs?: SVGPathElement | null }[]>([]);
-  const hud = useRef<Record<string, HTMLElement | null>>({});
+  const hud = useRef<Record<string, HTMLElement | SVGElement | null>>({});
   const slider = useRef<HTMLInputElement>(null);
   const turnEls = useRef<(HTMLButtonElement | null)[]>([]);
   const activeTurn = useRef(-2);
   const lastSync = useRef(0);
   useEffect(() => { playingRef.current = playing; rateRef.current = rate; }, [playing, rate]);
   useEffect(() => { dirty.current = true; }, [camera, zoom, byInputs]);
+  // The map fills its box (wide screens: wider than 16:9); the view keeps the box's proportions
+  const [aspect, setAspect] = useState(9 / 16);
+  const stage = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => { if (el.clientWidth) setAspect(el.clientHeight / el.clientWidth); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // Mouse wheel zoom on the map (a native listener: React's wheel events cannot prevent page scrolling)
   // over the whole map, checkpoints included, except a checkpoint list that has to scroll (long tracks)
-  const stage = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = stage.current;
     if (!el) return;
@@ -176,9 +171,9 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
     }
     const pad = Math.max(x1 - x0, z1 - z0) * 0.05 + 10;
     let w = x1 - x0 + 2 * pad, h = z1 - z0 + 2 * pad;
-    if (h / w > ASPECT) w = h / ASPECT; else h = w * ASPECT;   // fill the 16:9 view
+    if (h / w > aspect) w = h / aspect; else h = w * aspect;   // fill the view
     return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, w, h };
-  }, [cars]);
+  }, [cars, aspect]);
 
   // View width: from the whole track (0 %) to about one corner (100 %), on a log scale so each wheel
   // step zooms by the same factor; the camera moves from the track's centre to the followed car
@@ -206,23 +201,24 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
       const flash = !playingRef.current || Math.floor(performance.now() / 80) % 2 === 0;
       absEls.current[k]?.setAttribute("opacity", abs ? (flash ? "1" : "0.15") : "0");
       const set = (key: string, text: string) => { const el = h[`${key}${k}`]; if (el && el.textContent !== text) el.textContent = text; };
-      set("speed", `${Math.round(car.v[s.i] * 3.6)} km/h`);
-      set("gear", car.gear ? (car.gear[s.i] <= 0 ? (car.gear[s.i] < 0 ? "R" : "N") : `gear ${Math.round(car.gear[s.i])}`) : "");
-      const thrEl = h[`thr${k}`], brkEl = h[`brk${k}`];
+      const kmh = car.v[s.i] * 3.6;
+      set("speed", String(Math.round(kmh)));
+      set("gear", car.gear ? (car.gear[s.i] <= 0 ? (car.gear[s.i] < 0 ? "R" : "N") : String(Math.round(car.gear[s.i]))) : "");
+      h[`arc${k}`]?.setAttribute("stroke-dasharray", `${(GAUGE_ARC * Math.min(1, kmh / GAUGE_MAX_KMH)).toFixed(1)} ${GAUGE_C}`);
+      const deg = car.steer ? car.steer[s.i] : 0;
+      h[`wheel${k}`]?.setAttribute("transform", `rotate(${deg.toFixed(1)})`);
+      set("steer", car.steer ? `${deg > 0 ? "R" : deg < 0 ? "L" : ""} ${Math.abs(Math.round(deg))}°` : "");
+      const thrEl = h[`thr${k}`] as HTMLElement | null, brkEl = h[`brk${k}`] as HTMLElement | null;
       if (thrEl) thrEl.style.width = `${car.thr ? car.thr[s.i] : 0}%`;
       if (brkEl) {
         brkEl.style.width = `${car.brk ? car.brk[s.i] : 0}%`;
         brkEl.style.background = abs ? INPUT_COLORS.abs : "";
       }
-      const g = inputPaths(car, t);
-      graphEls.current[k]?.thr?.setAttribute("d", g.thr);
-      graphEls.current[k]?.brk?.setAttribute("d", g.brk);
-      graphEls.current[k]?.abs?.setAttribute("d", g.abs);
     });
 
     // Camera
     if (svg.current) {
-      const w = viewW, h = w * ASPECT;
+      const w = viewW, h = w * aspect;
       const me = states[camera] ?? states[0], other = states[1 - camera];
       let fx = me.x, fz = me.z;
       if (other && Math.hypot(other.x - me.x, other.z - me.z) < w * 0.6) { fx = (me.x + other.x) / 2; fz = (me.z + other.z) / 2; }
@@ -242,7 +238,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
       h.gap.textContent = done
         ? `Finished: ${cars[cars[0].end <= cars[1].end ? 0 : 1].driver} by ${Math.abs(cars[0].end - cars[1].end).toFixed(3)} s`
         : `${cars[lead].driver} ahead by ${Math.max(0, gapS).toFixed(3)} s · ${Math.round(Math.abs(a.d - b.d))} m`;
-      h.gap.style.color = cars[lead].color;
+      (h.gap as HTMLElement).style.color = cars[lead].color;
     }
 
     // Charts follow the first car (a few times per second is enough)
@@ -256,7 +252,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
       activeTurn.current = current;
       turnEls.current.forEach((el, i) => el?.setAttribute("data-active", String(i === current)));
     }
-  }, [cars, carScale, bbox, camera, viewW, followShare, corners, maxT, onDistance]);
+  }, [cars, carScale, bbox, camera, viewW, followShare, corners, maxT, onDistance, aspect]);
 
   useEffect(() => {
     let raf = 0, last = performance.now();
@@ -320,9 +316,10 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
         <button onClick={onClose} className="ml-auto text-sm text-zinc-400 underline hover:text-white">Close replay</button>
       </div>
 
-      <div ref={stage} className="relative mt-3">
+      <div ref={stage}
+           className="relative mt-3 h-[min(64vh,780px)] min-h-[340px] overflow-hidden rounded-md bg-[#0b0b0d]">
       <svg ref={svg} viewBox={`${bbox.cx - bbox.w / 2} ${bbox.cz - bbox.h / 2} ${bbox.w} ${bbox.h}`}
-           className="aspect-video w-full cursor-zoom-in rounded-md bg-[#0b0b0d]">
+           className="h-full w-full cursor-zoom-in">
         <TrackSurface edges={edges} />
         {paths.map((p, k) => ({ p, k })).reverse().map(({ p, k }) => p.map((seg, j) => (
           <polyline key={`${k}-${j}`} points={seg.points} fill="none" stroke={seg.color} vectorEffect="non-scaling-stroke"
@@ -342,7 +339,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
       </svg>
       {/* Corner checkpoints: click to jump there; the corner the car is in is highlighted */}
       {corners.length > 0 && (
-        <div data-turns className="absolute bottom-2 left-2 top-2 hidden w-28 flex-col gap-1 overflow-y-auto pr-1 sm:flex">
+        <div data-turns className="absolute bottom-[124px] left-2 top-2 hidden w-28 flex-col gap-1 overflow-y-auto pr-1 sm:flex">
           {corners.map((c, i) => (
             <button key={c.number} ref={(el) => { turnEls.current[i] = el; }} onClick={() => jumpTo(i)} data-active="false"
                     title={c.name ?? undefined}
@@ -355,40 +352,58 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
           ))}
         </div>
       )}
+      {/* Gap between the cars */}
+      {cars.length === 2 && (
+        <div className="pointer-events-none absolute left-1/2 top-11 -translate-x-1/2 whitespace-nowrap rounded-md sm:top-2 border border-white/10 bg-black/65 px-3 py-1 backdrop-blur">
+          <span ref={(el) => { hud.current.gap = el; }} className="tabular text-xs font-semibold sm:text-sm" />
+        </div>
+      )}
       {/* Zoom: mouse wheel, or these buttons */}
       <div className="absolute right-2 top-2 flex items-center gap-1 rounded-md border border-white/10 bg-black/65 px-1.5 py-1 text-xs text-zinc-300 backdrop-blur">
         <button onClick={() => setZoom((z) => Math.max(0, z - 0.1))} className="px-1.5 hover:text-white" aria-label="Zoom out">−</button>
         <span className="tabular w-10 text-center">{Math.round(zoom * 100)} %</span>
         <button onClick={() => setZoom((z) => Math.min(1, z + 0.1))} className="px-1.5 hover:text-white" aria-label="Zoom in">+</button>
       </div>
-      </div>
-
-      <div className={`mt-3 grid gap-3 ${cars.length === 2 ? "sm:grid-cols-2" : ""}`}>
-        {cars.map((c, k) => (
-          <div key={k} className="rounded-lg border border-white/10 bg-raised/50 px-3 py-2">
-            <div className="flex items-baseline gap-3 text-sm">
-              <span className="font-semibold" style={{ color: c.color }}>{c.driver}</span>
-              <span ref={(el) => { hud.current[`speed${k}`] = el; }} className="tabular text-white" />
-              <span ref={(el) => { hud.current[`gear${k}`] = el; }} className="text-zinc-400" />
-            </div>
-            <svg viewBox="0 0 400 100" preserveAspectRatio="none" className="mt-2 h-14 w-full rounded bg-black/40"
-                 aria-label={`${c.driver}: throttle and brake over the last ${GRAPH_S} seconds`}>
-              {[25, 50, 75].map((y) => <line key={y} x1={0} x2={400} y1={y} y2={y} stroke="#ffffff10" vectorEffect="non-scaling-stroke" />)}
-              <path ref={(el) => { (graphEls.current[k] ??= {}).thr = el; }} fill="none" stroke={INPUT_COLORS.full} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-              <path ref={(el) => { (graphEls.current[k] ??= {}).brk = el; }} fill="none" stroke={INPUT_COLORS.brake} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-              <path ref={(el) => { (graphEls.current[k] ??= {}).abs = el; }} fill="none" stroke={INPUT_COLORS.abs} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+      {/* HUD per car in the bottom corners (this lap left, the reference right), like Racemake */}
+      {cars.map((c, k) => (
+        <div key={k} className={`pointer-events-none absolute bottom-2 flex items-center gap-3 rounded-xl border border-white/10 bg-black/70 px-1.5 py-1 backdrop-blur sm:px-3 sm:py-2 ${
+               k === 0 ? "left-2" : "right-2 flex-row-reverse"}`}>
+          <svg viewBox="0 0 64 64" className="h-16 w-16 shrink-0 sm:h-[84px] sm:w-[84px]" aria-label={`${c.driver}: speed and gear`}>
+            <circle cx={32} cy={32} r={GAUGE_R} fill="none" stroke="#ffffff1a" strokeWidth={4.5} strokeLinecap="round"
+                    strokeDasharray={`${GAUGE_ARC} ${GAUGE_C}`} transform="rotate(135 32 32)" />
+            <circle ref={(el) => { hud.current[`arc${k}`] = el; }} cx={32} cy={32} r={GAUGE_R} fill="none" stroke={c.color} strokeWidth={4.5}
+                    strokeLinecap="round" strokeDasharray={`0 ${GAUGE_C}`} transform="rotate(135 32 32)" />
+            <text ref={(el) => { hud.current[`gear${k}`] = el; }} x={32} y={21} textAnchor="middle" fontSize={10} fontWeight={700} fill="#a1a1aa" />
+            <text ref={(el) => { hud.current[`speed${k}`] = el; }} x={32} y={38} textAnchor="middle" fontSize={17} fontWeight={700} fill="#fff"
+                  className="tabular" />
+            <text x={32} y={49} textAnchor="middle" fontSize={7} fill="#71717a">km/h</text>
+          </svg>
+          {c.steer && (
+            <svg viewBox="-30 -30 60 60" className="hidden h-[68px] w-[68px] shrink-0 sm:block" aria-label={`${c.driver}: steering wheel`}>
+              <g ref={(el) => { hud.current[`wheel${k}`] = el; }}>
+                <rect x={-26} y={-18} width={52} height={36} rx={11} fill="none" stroke="#d4d4d8" strokeWidth={5} />
+                <rect x={-11} y={-9} width={22} height={18} rx={4} fill="#3f3f46" stroke="#52525b" strokeWidth={1} />
+                <line x1={-23} y1={0} x2={-11} y2={0} stroke="#d4d4d8" strokeWidth={4} />
+                <line x1={11} y1={0} x2={23} y2={0} stroke="#d4d4d8" strokeWidth={4} />
+                <rect x={-1.6} y={-21} width={3.2} height={6} rx={0.8} fill="#ffd200" />
+              </g>
             </svg>
-            <div className="mt-2 grid grid-cols-[56px_1fr] items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
-              <span>Throttle</span>
-              <div className="h-2 rounded bg-white/10"><div ref={(el) => { hud.current[`thr${k}`] = el; }} className="h-2 rounded bg-green-500" /></div>
-              <span>Brake</span>
-              <div className="h-2 rounded bg-white/10"><div ref={(el) => { hud.current[`brk${k}`] = el; }} className="h-2 rounded bg-red-500" /></div>
+          )}
+          <div className={`hidden w-32 text-xs sm:block ${k === 0 ? "" : "text-right"}`}>
+            <div className="truncate font-semibold" style={{ color: c.color }}>{c.driver}</div>
+            <div ref={(el) => { hud.current[`steer${k}`] = el; }} className="tabular text-[11px] text-zinc-400" />
+            <div className="mt-1.5 grid grid-cols-[14px_1fr] items-center gap-x-1.5 gap-y-1 text-[10px] text-zinc-500">
+              <span>T</span>
+              <div className="h-1.5 rounded bg-white/10"><div ref={(el) => { hud.current[`thr${k}`] = el; }} className="h-1.5 rounded bg-green-500" /></div>
+              <span>B</span>
+              <div className="h-1.5 rounded bg-white/10"><div ref={(el) => { hud.current[`brk${k}`] = el; }} className="h-1.5 rounded bg-red-500" /></div>
             </div>
           </div>
-        ))}
+        </div>
+      ))}
       </div>
+
       <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-        {cars.length === 2 && <span ref={(el) => { hud.current.gap = el; }} className="tabular font-medium" />}
         {byInputs && (
           <span className="flex gap-3 text-xs text-zinc-400">
             {[["Throttle", "linear-gradient(90deg, rgb(113,113,122), rgb(34,197,94))"], ["Brake", "linear-gradient(90deg, rgb(113,113,122), rgb(239,68,68))"],
@@ -398,7 +413,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
           </span>
         )}
         <span className="ml-auto text-xs text-zinc-500">
-          Space: play / pause. Mouse wheel on the map: zoom (0 % = whole track, 100 % = one corner). Both cars are placed by elapsed time; the charts follow {cars[0].driver}.
+          Space: play / pause. Mouse wheel on the map: zoom (0 % = whole track, 100 % = one corner). Both cars are placed by elapsed time; the charts below follow {cars[0].driver}.
           {cars.some((c) => c.abs) ? " Blue light at the front: ABS working." : ""}
         </span>
       </div>

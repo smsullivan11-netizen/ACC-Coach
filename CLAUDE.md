@@ -249,6 +249,14 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   0.25×-4×, timeline, live speed / gear / throttle / brake and gap ("ahead by 0.385 s · 20 m":
   time since the leader passed the follower's position). Lines in driver colours or by inputs
   (braking red, ABS working blue, full throttle green, part throttle yellow, coasting grey).
+- Racemake-like layout (user's request, 2026-10-05, from a James Baldwin video of Racemake): the
+  lap page is wider than the site column (`.bleed` in globals.css: up to 1840 px, on
+  `app/laps/[id]/page.tsx`); the replay map fills a box of min(64vh, 780 px) (the view takes the
+  box's proportions, ResizeObserver); a HUD per car in the map's bottom corners (this lap left,
+  reference right): speed gauge with gear, steering wheel rotated by `steering_deg` (positive =
+  right; cars without a known lock: `steering_norm` × 240°), throttle / brake bars (brake blue
+  while ABS works); gap at the top centre. Phones: speed gauges only. With the replay open the
+  charts take the full width under it (small map hidden); the 4-second input graphs were dropped.
 - ABS (user's request, replacing a brake light): a flashing dark-blue light at the front of the car
   while the ABS works, the brake bar and the brake chart in blue there. ACC's `abs` float is the
   ABS intervention (only while braking: 37 % of hard-braking samples, ~1,000 pulses of ~10 ms in a
