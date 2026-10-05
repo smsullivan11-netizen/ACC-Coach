@@ -13,13 +13,19 @@ import { paceReference } from "./targets";
 //  - clean driving (15 %): share of flying laps not invalidated (track limits, server);
 //  - smoothness (10 %): steering activity vs the team's median on the same track and class:
 //    70 % of the team's → 100, the team's → 70, 170 % or more → 0.
-// Rating: the first session sets it; then it moves towards each session score by a step of up to
-// 30 % (smaller for short sessions: full step from 8 valid laps). Provisional until 3 sessions.
-// Only the rating history is kept: nothing is recomputed automatically when targets or old laps
-// change (admins can replay every session: rebuildRatings).
+// Rating = "current form" (user's choice, 2026-10-05): on each track, the driver's best session
+// score of the last 60 days (sessions with 5+ valid laps; when none has, every session counts),
+// averaged over those tracks. Learning sessions and off days do not count against a driver; a
+// track not driven for 60 days drops out. Computed after each session, as of that session's date
+// (one row per rated session in driver_rating: the history). Provisional until 3 sessions.
+// All-time best = highest rating reached once no longer provisional (`allTimeBest`).
+// Nothing is recomputed automatically when targets or old laps change (admins can replay every
+// session: rebuildRatings).
 
 export const WEIGHTS = { pace: 50, consistency: 25, clean: 15, smoothness: 10 } as const;
 export const PROVISIONAL_SESSIONS = 3;
+export const FORM_DAYS = 60;
+export const FORM_MIN_LAPS = 5;
 
 const clamp = (x: number) => Math.max(0, Math.min(100, x));
 const median = (xs: number[]) => {
@@ -79,14 +85,54 @@ export async function rateSession(tx: Sql, sessionId: string) {
   }
   const score = total / weight;
 
-  const [prev] = await tx<{ rating: number }[]>`
-    select rating from driver_rating where driver_id = ${s.driver_id} order by id desc limit 1`;
-  const step = Math.max(0.05, 0.3 * Math.min(1, valid.length / 8));
-  const rating = prev ? prev.rating + step * (score - prev.rating) : score;
-  await tx`
+  const [row] = await tx<{ id: string }[]>`
     insert into driver_rating (driver_id, session_id, rating, session_score, pace, consistency, clean, smoothness, laps)
-    values (${s.driver_id}, ${sessionId}, ${rating}, ${score}, ${pace}, ${consistency}, ${clean}, ${smoothness}, ${valid.length})`;
+    values (${s.driver_id}, ${sessionId}, ${score}, ${score}, ${pace}, ${consistency}, ${clean}, ${smoothness}, ${valid.length})
+    returning id`;
+  const form = await formSessions(tx, s.driver_id, row.id);
+  const rating = form.reduce((a, f) => a + f.session_score, 0) / form.length;
+  await tx`update driver_rating set rating = ${rating} where id = ${row.id}`;
   return { rating, score, ...parts, laps: valid.length };
+}
+
+export type FormSession = {
+  id: string; track_id: string; session_score: number; laps: number;
+  pace: number | null; consistency: number | null; clean: number | null; smoothness: number | null;
+};
+
+/** The sessions the rating is made of: the best one per track in the FORM_DAYS before the driver's
+ *  latest session (up to rating row `upToId`, for the history). */
+export async function formSessions(tx: Sql, driverId: string, upToId: string | null = null) {
+  return tx<FormSession[]>`
+    with mine as (
+      select r.id, r.session_score, r.pace, r.consistency, r.clean, r.smoothness, r.laps, s.track_id,
+             coalesce(s.recorded_at, s.uploaded_at) as at
+      from driver_rating r join session s on s.id = r.session_id
+      where r.driver_id = ${driverId} and ${upToId ? tx`r.id <= ${upToId}` : tx`true`}),
+    win as (select * from mine where at > (select max(at) from mine) - make_interval(days => ${FORM_DAYS})),
+    pool as (select * from win where laps >= ${FORM_MIN_LAPS} or not exists (select 1 from win where laps >= ${FORM_MIN_LAPS}))
+    select distinct on (track_id) id, track_id, session_score, laps, pace, consistency, clean, smoothness
+    from pool order by track_id, session_score desc, id desc`;
+}
+
+/** Average parts of the sessions the rating is made of (rating breakdown, driving style). */
+export async function formParts(tx: Sql, driverId: string) {
+  const rows = await formSessions(tx, driverId);
+  const avg = (k: "pace" | "consistency" | "clean" | "smoothness") => {
+    const v = rows.map((r) => r[k]).filter((x): x is number => x != null);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+  };
+  return { pace: avg("pace"), consistency: avg("consistency"), clean: avg("clean"), smoothness: avg("smoothness"),
+           sessions: rows.length, laps: rows.reduce((a, r) => a + r.laps, 0) };
+}
+
+/** Highest rating each driver reached once no longer provisional (from their 3rd rated session). */
+export async function allTimeBest(tx: Sql) {
+  const rows = await tx<{ driver_id: string; best: number }[]>`
+    select driver_id, max(rating) as best
+    from (select driver_id, rating, row_number() over (partition by driver_id order by id) as n from driver_rating) x
+    where n >= ${PROVISIONAL_SESSIONS} group by driver_id`;
+  return new Map(rows.map((r) => [r.driver_id, r.best]));
 }
 
 /** Replays every session in upload order (after changing the formula, or for sessions uploaded

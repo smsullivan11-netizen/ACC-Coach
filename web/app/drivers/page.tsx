@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Avatar, Chip, delay, PageTitle, Position, RankBadge } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { PROVISIONAL_SESSIONS } from "@/lib/ratings";
+import { allTimeBest, PROVISIONAL_SESSIONS } from "@/lib/ratings";
 
 type Row = { id: string; display_name: string; avatar_url: string | null; rating: number | null; change: number | null; sessions: number };
 
@@ -22,11 +22,12 @@ export default async function DriversPage() {
     left join r cur on cur.driver_id = d.id and cur.n = 1
     left join r prev on prev.driver_id = d.id and prev.n = 2
     order by cur.rating desc nulls last, d.display_name`;
+  const best = await allTimeBest(sql);
   let rank = 0;
 
   return (
     <div>
-      <PageTitle icon={Users} sub="Overall Driver Rating (0-100): pace against the reference lap, consistency, clean driving and smoothness, updated after every session. Ranks: Rookie, Apprentice (20), Intermediate (40), Advanced (50), Contender (60), Front Runner (70), Expert (80), Alien (90).">
+      <PageTitle icon={Users} sub="Overall Driver Rating (0-100): current form / all-time best. Each session is scored on pace against the reference lap, consistency, clean driving and smoothness; the rating averages the best session on each track of the last 60 days. Ranks: Rookie, Apprentice (20), Intermediate (40), Advanced (50), Contender (60), Front Runner (70), Expert (80), Alien (90).">
         Drivers
       </PageTitle>
       <Link href="/drivers/compare" className="btn btn-ghost -mt-2 mb-5"><Swords size={15} /> Head to head</Link>
@@ -56,7 +57,10 @@ export default async function DriversPage() {
                   <td>
                     {r.rating != null ? (
                       <div className="flex items-center gap-3">
-                        <span className="tabular w-12 text-lg font-bold text-accent">{r.rating.toFixed(1)}</span>
+                        <span className="tabular w-28 whitespace-nowrap text-lg font-bold text-accent" title="Current rating / all-time best">
+                          {r.rating.toFixed(1)}
+                          {best.has(r.id) && <span className="text-sm font-semibold text-zinc-500">/{best.get(r.id)!.toFixed(1)}</span>}
+                        </span>
                         <div className="h-1.5 w-40 shrink-0 overflow-hidden rounded-full bg-white/5">
                           <div className="fill h-full rounded-full bg-gradient-to-r from-race to-accent" style={{ width: `${r.rating}%`, ...delay(150 + i * 50) }} />
                         </div>

@@ -8,7 +8,7 @@ import { Chip, delay, Position, RankBadge, SectionTitle } from "@/components/ui"
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
-import { PROVISIONAL_SESSIONS, WEIGHTS } from "@/lib/ratings";
+import { formParts, PROVISIONAL_SESSIONS, WEIGHTS } from "@/lib/ratings";
 import { drivingStyle } from "@/lib/style";
 import { coachSession } from "@/lib/coaching";
 
@@ -39,8 +39,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
   const [history, [parts], best, recent, style] = await Promise.all([
     sql<Point[]>`select rating, session_score, to_char(created_at, 'DD Mon') as date
                  from driver_rating where driver_id = ${id} order by id`,
-    sql<Parts[]>`select avg(pace) as pace, avg(consistency) as consistency, avg(clean) as clean, avg(smoothness) as smoothness
-                 from (select * from driver_rating where driver_id = ${id} order by id desc limit 5) recent`,
+    formParts(sql, id).then((p): Parts[] => [p]),
     sql<{ track: string; car_class: string | null; car: string | null; lap_id: string; lap_time_ms: number; position: number; drivers: number }[]>`
       select t.key as track, r.car_class, c.key as car, r.lap_id, r.lap_time_ms, r.position::int,
              (select count(*) from lap_ranking x where x.track_id = r.track_id and x.car_class is not distinct from r.car_class)::int as drivers
@@ -64,6 +63,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
     order by coalesce(s.recorded_at, s.uploaded_at) desc limit 1`;
   const coaching = coached ? await coachSession(coached.id) : null;
   const rating = history.at(-1)?.rating ?? null;
+  const allTime = history.length >= PROVISIONAL_SESSIONS ? Math.max(...history.slice(PROVISIONAL_SESSIONS - 1).map((h) => h.rating)) : null;
   const change = history.length >= 2 ? history.at(-1)!.rating - history.at(-2)!.rating : null;
   const avatar = d.avatar_url?.replace("size=64", "size=256");
 
@@ -104,6 +104,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
                     </span>
                   )}
             </div>
+            {allTime != null && <div className="mt-0.5 text-sm text-zinc-500">All-time best <span className="tabular font-semibold text-zinc-300">{allTime.toFixed(1)}</span></div>}
           </div>
         </div>
       </div>
@@ -168,7 +169,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
               );
             })}
           </div>
-          <p className="mt-3 text-xs text-zinc-500">Average of the last 5 rated sessions.</p>
+          <p className="mt-3 text-xs text-zinc-500">Best session on each track in the last 60 days (5+ valid laps), averaged over the tracks.</p>
         </section>
         <section className="card rise p-5" style={delay(180)}>
           <SectionTitle icon={TrendingUp}>Rating over time</SectionTitle>

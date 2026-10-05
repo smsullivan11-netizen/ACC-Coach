@@ -1,8 +1,9 @@
 import "server-only";
 import { sql } from "./db";
+import { formParts } from "./ratings";
 
 // Driving-style description of a driver, from data (no AI): their corner results compared with
-// their teammates' on the same corners, plus the parts of their recent session scores.
+// their teammates' on the same corners, plus the parts of the session scores their rating is made of.
 
 export type Trait = { label: string; detail: string; tone: "strength" | "neutral" | "work" };
 
@@ -28,10 +29,7 @@ export async function drivingStyle(driverId: string, name: string): Promise<{ tr
            avg(a.co - b.co) as coasting, count(*)::int as corners
     from m a join m b on a.corner_map_id = b.corner_map_id and a.corner_number = b.corner_number
     where a.me and not b.me`;
-  const [p] = await sql<Parts[]>`
-    select avg(consistency) as consistency, avg(clean) as clean, avg(smoothness) as smoothness, count(*)::int as sessions,
-           coalesce(sum(laps), 0)::int as laps
-    from (select * from driver_rating where driver_id = ${driverId} order by id desc limit 5) recent`;
+  const p: Parts = await formParts(sql, driverId);   // the sessions the rating is made of
 
   const traits: Trait[] = [];
   const f = (x: number) => Math.abs(x).toFixed(0);

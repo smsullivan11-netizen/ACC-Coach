@@ -592,8 +592,14 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 ## Ratings and profiles (web/lib/ratings.ts, web/lib/style.ts)
 - Overall Driver Rating 0-100, computed by the site after each upload (`rateSession`), never by
   the app. Session score = pace 50 / consistency 25 / clean 15 / smoothness 10 (formulas in the
-  header of `ratings.ts`; a part that cannot be measured is left out). The rating moves towards
-  each session score by up to 30 %, less for short sessions; provisional until 3 sessions.
+  header of `ratings.ts`; a part that cannot be measured is left out). Provisional until 3 sessions.
+- Rating = **current form** (since 2026-10-05; before: moved 30 % towards each session score, which
+  the user found too low for a driver whose learning sessions dragged it down): best session score
+  per track in the 60 days before the driver's latest session, sessions with 5+ valid laps (all of
+  them when none has), averaged over the tracks (`formSessions`). The rating breakdown and driving
+  style average those same sessions (`formParts`). **All-time best** = highest rating once no longer
+  provisional (`allTimeBest`), shown as "current/best" on the Drivers list and under the rating on
+  profiles. After deploying a formula change, an admin clicks "Recompute all ratings" (Settings).
 - Pace reference = the faster of the car's target (`car_target`, lib/targets.ts) and the team's best
   valid lap **in that car**; a car without a target uses the class's team best. The user chose "a fixed
   target, updated when someone beats it", per car (Ford and McLaren times differ by track), at LFM's

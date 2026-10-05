@@ -4,7 +4,7 @@ import { Avatar, Chip, delay, Position, RankBadge, SectionTitle } from "@/compon
 import type { Driver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
-import { PROVISIONAL_SESSIONS, WEIGHTS } from "@/lib/ratings";
+import { formParts, PROVISIONAL_SESSIONS, WEIGHTS } from "@/lib/ratings";
 import { recentSessions, timeOfDay, dayLabel, type SessionRow } from "@/lib/sessions";
 
 // Home page of a signed-in driver, four blocks only (the user wants it simple): their rating, their
@@ -13,9 +13,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
   const [history, [parts], ranking, mine, team] = await Promise.all([
     sql<{ rating: number; date: string }[]>`
       select rating, to_char(created_at, 'DD Mon') as date from driver_rating where driver_id = ${me.id} order by id`,
-    sql<{ pace: number | null; consistency: number | null; clean: number | null; smoothness: number | null }[]>`
-      select avg(pace) as pace, avg(consistency) as consistency, avg(clean) as clean, avg(smoothness) as smoothness
-      from (select * from driver_rating where driver_id = ${me.id} order by id desc limit 5) recent`,
+    formParts(sql, me.id).then((p) => [p]),
     sql<{ id: string; display_name: string; avatar_url: string | null; rating: number; sessions: number }[]>`
       select d.id, d.display_name, d.avatar_url, r.rating, (select count(*) from driver_rating where driver_id = d.id)::int as sessions
       from driver d join lateral (select rating from driver_rating where driver_id = d.id order by id desc limit 1) r on true
@@ -66,7 +64,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
               );
             })}
           </div>
-          <p className="mt-3 text-xs text-zinc-500">Average of your last 5 rated sessions.</p>
+          <p className="mt-3 text-xs text-zinc-500">Your best session on each track in the last 60 days (5+ valid laps), averaged over the tracks.</p>
         </section>
 
         {/* 2. Progression */}
