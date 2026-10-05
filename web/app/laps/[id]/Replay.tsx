@@ -106,12 +106,13 @@ function linePaths(car: Car, byInputs: boolean) {
   return out;
 }
 
-export default function Replay({ laps, edges, corners, onDistance, onClose }: {
+export default function Replay({ laps, edges, corners, onDistance, onClose, onTurn }: {
   laps: ReplayLap[];
   edges: Edges;
   corners: Corner[];
   onDistance: (d: number | null) => void;
   onClose: () => void;
+  onTurn?: (number: number) => void;   // a checkpoint was clicked: the charts zoom on that corner
 }) {
   const cars = useMemo(() => laps.map(prepare).filter((c): c is Car => c !== null), [laps]);
   const maxT = Math.max(...cars.map((c) => c.end));
@@ -161,7 +162,11 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
   }, []);
   // When each corner starts for the first car (for the checkpoints)
   const turnTimes = useMemo(() => (cars[0] ? corners.map((c) => timeAt(cars[0], Math.max(0, c.start_m))) : []), [cars, corners]);
-  const jumpTo = (i: number) => { elapsed.current = Math.min(maxT, turnTimes[i] + 0.02); dirty.current = true; };
+  const jumpTo = (i: number) => {
+    elapsed.current = Math.min(maxT, turnTimes[i] + 0.02);
+    dirty.current = true;
+    onTurn?.(corners[i].number);
+  };
   const clock = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 
   const bbox = useMemo(() => {

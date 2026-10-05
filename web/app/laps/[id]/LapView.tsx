@@ -50,6 +50,9 @@ type Range = [number, number] | null;
 
 const COLORS = ["#ffd200", "#d4d4d8"]; // this lap: team yellow; reference: light grey
 
+/** Chart zoom on a corner: from 50 m before it (the braking zone) to 30 m after it. */
+const cornerRange = (c: { start_m: number; end_m: number }): [number, number] => [Math.max(0, c.start_m - 50), c.end_m + 30];
+
 async function loadLap(id: string): Promise<Loaded> {
   const res = await fetch(`/api/laps/${id}`);
   if (!res.ok) throw new Error(`lap ${id}: error ${res.status}`);
@@ -91,7 +94,7 @@ export default function LapView({ lapId, vsId, candidates, corner, startReplay =
   useEffect(() => {
     const c = corner != null ? laps?.[0].corners.find((x) => x.number === corner) : null;
     if (!c) return;
-    const timer = setTimeout(() => zoom.current([Math.max(0, c.start_m - 50), c.end_m + 30]), 100);   // after the charts' first draw
+    const timer = setTimeout(() => zoom.current(cornerRange(c)), 100);   // after the charts' first draw
     return () => clearTimeout(timer);
   }, [laps, corner]);
 
@@ -139,12 +142,14 @@ export default function LapView({ lapId, vsId, candidates, corner, startReplay =
           </label>
         </div>
       </div>
-      <p className="mt-2 text-xs text-zinc-500">Drag on a chart to zoom, double-click to reset; click a corner below to zoom on it.</p>
+      <p className="mt-2 text-xs text-zinc-500">Drag on a chart to zoom, double-click to reset; the Turn buttons zoom every chart on that corner.</p>
 
       {a.t && replay && (
         <Replay laps={laps.flatMap((l, i) => (l.t ? [{ driver: `${l.driver} L${l.number}`, color: COLORS[i], t: l.t }] : []))}
-                edges={a.edges} corners={a.corners} onDistance={followCar} onClose={closeReplay} />
+                edges={a.edges} corners={a.corners} onDistance={followCar} onClose={closeReplay}
+                onTurn={(n) => { const c = a.corners.find((x) => x.number === n); if (c) zoom.current(cornerRange(c)); }} />
       )}
+      {a.t && <CornerChips corners={a.corners} range={range} onSelect={(r) => zoom.current(r)} />}
       {!a.t ? (
         <p className="card mt-6 p-6 text-zinc-400">This lap has no trace (incomplete lap).</p>
       ) : (
@@ -171,6 +176,27 @@ export default function LapView({ lapId, vsId, candidates, corner, startReplay =
         </div>
       )}
       <CornerTable laps={laps} onSelect={(r) => zoom.current(r)} />
+    </div>
+  );
+}
+
+// --- Corner buttons: zoom every chart on a corner (stays under the top bar while scrolling) ------
+
+function CornerChips({ corners, range, onSelect }: { corners: CornerRow[]; range: Range; onSelect: (r: Range) => void }) {
+  if (!corners.length) return null;
+  const same = (r: [number, number]) => range != null && Math.abs(range[0] - r[0]) < 1 && Math.abs(range[1] - r[1]) < 1;
+  const chip = "shrink-0 rounded-md border px-2.5 py-1 text-left text-xs transition";
+  const look = (on: boolean) => (on ? "border-race bg-race/25 text-white" : "border-white/10 bg-raised/60 text-zinc-300 hover:border-accent/60 hover:text-white");
+  return (
+    <div className="sticky top-[56px] z-20 mt-4 flex gap-1.5 overflow-x-auto rounded-lg border border-white/10 bg-ink/85 px-2 py-1.5 backdrop-blur">
+      <button onClick={() => onSelect(null)} className={`${chip} ${look(!range)} font-semibold`}>Full lap</button>
+      {corners.map((c) => (
+        <button key={c.number} onClick={() => onSelect(cornerRange(c))} title={c.name ?? undefined}
+                className={`${chip} ${look(same(cornerRange(c)))}`}>
+          <span className="font-semibold">Turn {c.number}</span>
+          {c.name && <span className="ml-1 text-zinc-400">{c.name}</span>}
+        </button>
+      ))}
     </div>
   );
 }

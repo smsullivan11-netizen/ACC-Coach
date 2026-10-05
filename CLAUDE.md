@@ -261,6 +261,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   `steering_norm` × 240°), throttle / brake bars (brake blue
   while ABS works); gap at the top centre. Phones: speed gauges only. With the replay open the
   charts take the full width under it (small map hidden); the 4-second input graphs were dropped.
+- Corner buttons above the charts (`CornerChips` in LapView, user's request): "Full lap" + one
+  button per corner, sticky under the top bar; a click zooms every chart from 50 m before the
+  corner to 30 m after it (`cornerRange`, same as the coaching links); the button of the current
+  zoom is red. The replay's Turn checkpoints also zoom the charts (`onTurn`).
 - ABS (user's request, replacing a brake light): a flashing dark-blue light at the front of the car
   while the ABS works, the brake bar and the brake chart in blue there. ACC's `abs` float is the
   ABS intervention (only while braking: 37 % of hard-braking samples, ~1,000 pulses of ~10 ms in a
