@@ -20,13 +20,37 @@ def make_logo(size: int, rounded: bool = False):
     return img
 
 
+TAGLINE = "Faster, together."
+
+
+def _font(names, size):
+    from PIL import ImageFont
+    for name in names:   # Windows fonts (Bahnschrift: condensed, close to the site's racing look)
+        try:
+            return ImageFont.truetype(name, size)
+        except OSError:
+            pass
+    return ImageFont.load_default(size)
+
+
 def make_poster(w: int = 1440, h: int = 2160):
-    """2:3 poster: the mascot on black, the team's red and yellow as a bar at the bottom."""
+    """2:3 poster: the mascot on black, the app name and the tagline beneath, the team's red and
+    yellow as a bar at the bottom."""
     img = Image.new("RGBA", (w, h), BLACK)
-    logo = make_logo(w)
-    img.paste(logo, (0, (h - w) // 2 - h // 20))
+    img.paste(make_logo(w), (0, h // 40))
     d = ImageDraw.Draw(img)
     bar = h // 40
+    title = _font(["bahnschrift.ttf", "ariblk.ttf", "arialbd.ttf"], w // 7)
+    if hasattr(title, "set_variation_by_name"):
+        try:
+            title.set_variation_by_name("Bold Condensed")
+        except (OSError, ValueError):
+            pass
+    tag = _font(["bahnschrift.ttf", "arial.ttf"], w // 18)
+    text_y = h // 40 + w + (h - 2 * bar - w - h // 40) // 2
+    d.text((w / 2, text_y - w // 22), "ACC COACH", fill="#ffffff", font=title, anchor="mm")
+    d.rectangle((w // 2 - w // 10, text_y + w // 32, w // 2 + w // 10, text_y + w // 32 + 8), fill="#e10600")
+    d.text((w / 2, text_y + w // 9), TAGLINE, fill="#ffd200", font=tag, anchor="mm")
     d.rectangle((0, h - 2 * bar, w, h - bar), fill="#e10600")
     d.rectangle((0, h - bar, w, h), fill="#ffd200")
     return img

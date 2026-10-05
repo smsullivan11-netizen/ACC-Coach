@@ -28,7 +28,7 @@ def main(out: Path):
 
 def listing(out: Path):
     out.mkdir(parents=True, exist_ok=True)
-    for size in (2160, 1080, 300, 71):
+    for size in (2160, 1080, 300, 150, 71):
         make_logo(size).convert("RGB").save(out / f"ACC-Coach-logo-{size}.png")
     make_poster().convert("RGB").save(out / "ACC-Coach-poster-1440x2160.png")
 
