@@ -136,8 +136,11 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
     is searched after the braking point too;
   - `acVersion` reads "1.7" and `playerNick` is empty (not used);
   - file size 424 MB per hour in format v1 (driving data is noisy), ~280 MB per hour in v2.
-- Missing: steering lock of cars newer than the doc (Ford Mustang GT3…): steering stays in % of lock
-  until a lock table entry is added (e.g. from a MoTeC export of the same car: STEERANGLE vs steerAngle).
+- Steering locks (2026-10-05): `acc_shm.STEER_LOCK_DEG` and `web/lib/steering.ts` hold the
+  **lock-to-lock** angles from Coach Dave Academy's table (user's source; Mustang 516° and McLaren
+  720S GT3 Evo 480° checked in game). Kunos's Appendix 5 gives the angle to each side and was used
+  as lock to lock before: `steering_deg` from apps up to 0.1.5 is half the real angle, so the site
+  ignores it and always derives the angle from `steering_norm` × lock / 2 (`withSteeringDeg`).
 
 ## Pipeline (acc_telemetry.py; MoTeC steps 1-4, recorder files: see above)
 1. Lap boundaries: .ldx, completed with TIME; precise instant from TIME when available.
@@ -254,9 +257,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   `app/laps/[id]/page.tsx`); the replay map fills a box of min(64vh, 780 px) (the view takes the
   box's proportions, ResizeObserver); a HUD per car in the map's bottom corners (this lap left,
   reference right): speed gauge with gear, steering wheel rotated by `steering_deg` (positive =
-  right; cars missing from the official lock table get it on the site from `web/lib/steering.ts`:
-  Ford Mustang GT3 = 516°, measured in game by the user and confirmed by other players; other
-  unknown cars: `steering_norm` × 240°), throttle / brake bars (brake blue
+  right; derived on the site from `web/lib/steering.ts`, see "Steering locks"; cars not in it:
+  `steering_norm` × 240°), throttle / brake bars (brake blue
   while ABS works); gap at the top centre. Phones: speed gauges only. With the replay open the
   charts take the full width under it (small map hidden); the 4-second input graphs were dropped.
 - ABS (user's request, replacing a brake light): a flashing dark-blue light at the front of the car

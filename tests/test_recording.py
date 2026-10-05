@@ -45,7 +45,7 @@ def main():
     assert l2.freqs["SPEED"] == 400
     assert all(np.isfinite(x).all() for x in l2.data.values()), "gaps from missed packets must be bridged"
     assert set(np.unique(l2.data["GEAR"])) <= set(range(1, 7)), "ACC gear offset (2 = 1st) not removed"
-    assert np.allclose(l2.data["STEERANGLE"], l2.data["STEER_NORM"] * 135), "steering lock of the BMW M4 GT3 = 270°"
+    assert np.allclose(l2.data["STEERANGLE"], l2.data["STEER_NORM"] * 258), "steering lock of the BMW M4 GT3 = 516° lock to lock"
 
     r2, r4 = acc.resample_by_distance(laps[1], ref), acc.resample_by_distance(laps[3], ref)
     pa, pb = (np.column_stack([r[c] for c in acc.POS_CHANNELS]) for r in (r2, r4))

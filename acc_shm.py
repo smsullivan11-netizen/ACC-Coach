@@ -87,23 +87,31 @@ SESSION_TYPES = {-1: "unknown", 0: "practice", 1: "qualify", 2: "race", 3: "hotl
                  5: "drift", 6: "drag", 7: "hotstint", 8: "hotstint_superpole"}
 STATUS_OFF, STATUS_REPLAY, STATUS_LIVE, STATUS_PAUSE = 0, 1, 2, 3
 
-# Lock-to-lock steering angle (°) per car, official document Appendix 5. steerAngle (−1…1) × lock / 2
-# = steering wheel angle. Cars released after v1.8.12 are missing: steering stays normalised for them.
+# Lock-to-lock steering angle (°) per car (full left to full right), from Coach Dave Academy's
+# "Correct steering locks and ratios in ACC" (checked by the team in game: Ford Mustang GT3 516°,
+# McLaren 720S GT3 Evo 480°). steerAngle (−1…1) × lock / 2 = steering wheel angle. (Kunos's
+# official Appendix 5 gives half these values, the angle to each side.) Cars missing here: steering
+# stays normalised. Keep in sync with web/lib/steering.ts.
 STEER_LOCK_DEG = {
-    "amr_v12_vantage_gt3": 320, "audi_r8_lms": 360, "bentley_continental_gt3_2016": 320,
-    "bentley_continental_gt3_2018": 320, "bmw_m6_gt3": 283, "jaguar_g3": 360, "ferrari_488_gt3": 240,
-    "honda_nsx_gt3": 310, "lamborghini_gallardo_rex": 360, "lamborghini_huracan_gt3": 310,
-    "lamborghini_huracan_st": 310, "lexus_rc_f_gt3": 320, "mclaren_650s_gt3": 240, "mercedes_amg_gt3": 320,
-    "nissan_gt_r_gt3_2017": 320, "nissan_gt_r_gt3_2018": 320, "porsche_991_gt3_r": 400,
-    "porsche_991ii_gt3_cup": 400, "amr_v8_vantage_gt3": 320, "audi_r8_lms_evo": 360, "honda_nsx_gt3_evo": 310,
-    "lamborghini_huracan_gt3_evo": 310, "mclaren_720s_gt3": 240, "porsche_991ii_gt3_r": 400,
-    "alpine_a110_gt4": 360, "amr_v8_vantage_gt4": 320, "audi_r8_gt4": 360, "bmw_m4_gt4": 246,
-    "chevrolet_camaro_gt4r": 360, "ginetta_g55_gt4": 360, "ktm_xbow_gt4": 290, "maserati_mc_gt4": 450,
-    "mclaren_570s_gt4": 240, "mercedes_amg_gt4": 246, "porsche_718_cayman_gt4_mr": 400,
-    "ferrari_488_gt3_evo": 240, "mercedes_amg_gt3_evo": 320, "bmw_m4_gt3": 270, "audi_r8_lms_evo_ii": 360,
-    "bmw_m2_cs_racing": 180, "ferrari_488_challenge_evo": 240, "lamborghini_huracan_st_evo2": 310,
-    "porsche_992_gt3_cup": 270,
-    "ford_mustang_gt3": 516,   # not in the official table: measured in game by the team (2026-10-05)
+    # GT3
+    "amr_v12_vantage_gt3": 640, "amr_v8_vantage_gt3": 640, "audi_r8_lms": 720, "audi_r8_lms_evo": 720,
+    "audi_r8_lms_evo_ii": 720, "bentley_continental_gt3_2016": 640, "bentley_continental_gt3_2018": 640,
+    "bmw_m6_gt3": 565, "bmw_m4_gt3": 516, "jaguar_g3": 720, "ferrari_488_gt3": 480, "ferrari_488_gt3_evo": 480,
+    "ferrari_296_gt3": 800, "ford_mustang_gt3": 516, "honda_nsx_gt3": 620, "honda_nsx_gt3_evo": 450,
+    "lamborghini_huracan_gt3": 620, "lamborghini_huracan_gt3_evo": 620, "lamborghini_huracan_gt3_evo2": 620,
+    "lamborghini_gallardo_rex": 720, "lexus_rc_f_gt3": 640, "mclaren_650s_gt3": 480, "mclaren_720s_gt3": 480,
+    "mclaren_720s_gt3_evo": 480, "mercedes_amg_gt3": 640, "mercedes_amg_gt3_evo": 640,
+    "nissan_gt_r_gt3_2017": 640, "nissan_gt_r_gt3_2018": 640, "porsche_991_gt3_r": 800,
+    "porsche_991ii_gt3_r": 800, "porsche_992_gt3_r": 800,
+    # GT4
+    "alpine_a110_gt4": 720, "amr_v8_vantage_gt4": 640, "audi_r8_gt4": 720, "bmw_m4_gt4": 500,
+    "chevrolet_camaro_gt4r": 720, "ginetta_g55_gt4": 720, "ktm_xbow_gt4": 580, "maserati_mc_gt4": 900,
+    "mclaren_570s_gt4": 480, "mercedes_amg_gt4": 500, "porsche_718_cayman_gt4_mr": 800,
+    # Single make and GT2
+    "lamborghini_huracan_st": 620, "lamborghini_huracan_st_evo2": 620, "porsche_991ii_gt3_cup": 800,
+    "porsche_992_gt3_cup": 540, "bmw_m2_cs_racing": 360, "ferrari_488_challenge_evo": 480,
+    "audi_r8_lms_gt2": 720, "ktm_xbow_gt2": 582, "maserati_mc20_gt2": 480, "mercedes_amg_gt2": 492,
+    "porsche_991ii_gt2_rs_cs_evo": 720, "porsche_935": 720,
 }
 
 
