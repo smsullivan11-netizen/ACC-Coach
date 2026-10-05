@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Download, Flag, LayoutDashboard, MonitorPlay, Trophy, Users } from "lucide-react";
+import { Download, Flag, LayoutDashboard, MonitorPlay, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,7 +10,6 @@ const LINKS = [
   { href: "/sessions", label: "Sessions", icon: Flag },
   { href: "/tracks", label: "Leaderboards", icon: Trophy },
   { href: "/drivers", label: "Drivers", icon: Users },
-  { href: "/events", label: "Events", icon: CalendarDays },
 ];
 
 // Main navigation; the current section is marked with a red bar.

@@ -509,7 +509,11 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   page, the lap cards and the sessions list (`components/Conditions.tsx`). Older sessions: none.
 - Brands Hatch recording: air 16 °C, track 22 °C, optimum grip, dry, 12:00, wind 0.
 
-## Events and race results (migration 0007, web/lib/events.ts, web/lib/results.ts)
+## Events and race results (REMOVED 2026-10-05, to re-implement later)
+The user found the section too vague and had it removed from the site. The tables of migration
+0007 stay in the database (no data dropped), and the app still sends `driver_name`. The last code is
+in commit a0a6fe2: `git show a0a6fe2:web/lib/events.ts` (also web/lib/results.ts, web/app/events/,
+web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the Events link in NavLinks). As it was:
 - `/events`: upcoming (photo cards, local time + countdown via `LocalTime`, sign-ups yes/maybe/no,
   avatars) and past (team's best race position). Admins create/edit/delete (title, track, start in
   their own time zone → stored UTC, length, sprint/endurance, league, server, notes, mandatory pit
