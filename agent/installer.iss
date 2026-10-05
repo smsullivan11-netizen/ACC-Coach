@@ -9,7 +9,7 @@
 AppId={{6B2E9F3A-4C1D-4E8B-9A57-ACC0C0AC0A01}
 AppName=ACC Coach
 AppVersion={#AppVersion}
-AppPublisher=ACC Coach team
+AppPublisher=PCGR
 DefaultDirName={localappdata}\Programs\ACC Coach
 DisableDirPage=yes
 DisableProgramGroupPage=yes
