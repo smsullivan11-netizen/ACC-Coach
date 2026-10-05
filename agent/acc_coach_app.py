@@ -314,16 +314,17 @@ class Agent:
 
 # --- Tray icon -------------------------------------------------------------------------
 
+ASSETS = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent)) / "assets"
+
+
 def make_icon(size: int = 64, recording: bool = False):
-    from PIL import Image, ImageDraw, ImageFont
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    """Tray icon: the team mascot's helmet (assets/helmet.png), red dot while recording."""
+    from PIL import Image, ImageDraw
+    img = Image.open(ASSETS / "helmet.png").convert("RGBA").resize((size, size), Image.LANCZOS)
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, size - 1, size - 1), radius=max(2, size // 6), fill=255)
+    img.putalpha(mask)
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle((0, 0, size - 1, size - 1), radius=size // 6, fill="#ffd200")
-    try:
-        font = ImageFont.truetype("arialbd.ttf", int(size * 0.5))
-    except OSError:
-        font = ImageFont.load_default()
-    d.text((size / 2, size / 2), "AC", fill="#070707", font=font, anchor="mm")
     if recording:
         r = size // 5
         d.ellipse((size - 2 * r - 2, 2, size - 2, 2 * r + 2), fill="#e11d48", outline="#070707", width=max(1, size // 32))

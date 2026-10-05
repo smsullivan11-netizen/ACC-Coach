@@ -373,8 +373,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   only that, no installer/site copy): PyInstaller folder + `agent\store\AppxManifest.xml` (template,
   runFullTrust, startup task `Enabled="true"` = on after the first launch) + images
   (`store\make_assets.py`, team mascot from `store\logo.py`; it also writes the listing images to
-  `agent\dist\store-logos\`; the program icon is the mascot too, only the tray keeps the "AC" icon
-  with its recording dot) + resources.pri (makepri; the `<packaging>` part of the generated config is
+  `agent\dist\store-logos\`; the program icon is the mascot too; the tray icon is the helmet from
+  `agent\assets\helmet.png`, bundled with `--add-data`, red dot while recording) + resources.pri (makepri; the `<packaging>` part of the generated config is
   removed, or every scale above 100 % goes to resource packs that only bundles use). Identity in
   `agent\store\identity.json` = Partner Center's Product identity (name reserved 2026-10-04:
   PCGRXhanet.ACCCoach, publisher "PCGR Xhanet"). Version = version.py + ".0" (Store: last part 0;

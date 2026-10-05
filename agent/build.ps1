@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Force agent\build | Out-Null
 
 # The MoTeC reader (ldparser, GPL-3.0), plotting and database packages are not part of the app
 & $py -m PyInstaller --noconfirm --clean --windowed --name "ACC Coach" `
-    --icon (Join-Path $root "agent\build\icon.ico") --paths $root --hidden-import pystray._win32 `
+    --icon (Join-Path $root "agent\build\icon.ico") --paths $root --hidden-import pystray._win32 --add-data "$(Join-Path $root 'agent\assets');assets" `
     --exclude-module matplotlib --exclude-module ldparser --exclude-module psycopg `
     --exclude-module tkinter --exclude-module pandas `
     --distpath agent\dist --workpath agent\build\work --specpath agent\build agent\acc_coach_app.py
