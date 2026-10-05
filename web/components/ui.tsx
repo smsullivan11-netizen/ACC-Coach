@@ -126,6 +126,33 @@ export function RankBadge({ rating, size = "sm" }: { rating: number | null | und
   );
 }
 
+/** Progress to the next rank: its symbol, the points still needed and a bar from the current
+ *  rank's floor to the next one's (in the rank colours). */
+export function NextRank({ rating, className = "" }: { rating: number | null | undefined; className?: string }) {
+  if (rating == null) return null;
+  const r = rankFor(rating), next = RANKS[RANKS.indexOf(r) - 1];
+  if (!next)
+    return (
+      <div className={`flex items-center gap-2 text-sm ${className}`} style={{ color: r.color }}>
+        <RankSymbol rank={r} size={18} /> Top rank reached
+      </div>
+    );
+  const share = Math.max(0, Math.min(1, (rating - r.min) / (next.min - r.min)));
+  return (
+    <div className={className}>
+      <div className="flex items-center gap-2 text-sm text-zinc-400">
+        <span className="tabular font-semibold text-white">{(next.min - rating).toFixed(1)}</span> points to
+        <span className="inline-flex items-center gap-1 font-semibold" style={{ color: next.color }}>
+          <RankSymbol rank={next} size={16} /> {next.title}
+        </span>
+      </div>
+      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/5">
+        <div className="fill h-full rounded-full" style={{ width: `${share * 100}%`, background: `linear-gradient(90deg, ${r.color}, ${next.color})` }} />
+      </div>
+    </div>
+  );
+}
+
 /** The rank scale, Rookie to Alien: one segment per rank, as wide as its rating range, the colours
  *  blending into each other like a temperature map. */
 export function RankScale() {

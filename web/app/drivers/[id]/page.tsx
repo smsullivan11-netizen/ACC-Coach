@@ -4,7 +4,7 @@ import { ACHIEVEMENTS } from "@/lib/achievements";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Chip, delay, Position, RankBadge, RankIcon, SectionTitle } from "@/components/ui";
+import { Chip, delay, NextRank, Position, RankBadge, RankIcon, SectionTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
@@ -105,6 +105,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
                   )}
             </div>
             {allTime != null && <div className="mt-0.5 text-sm text-zinc-500">All-time best <span className="tabular font-semibold text-zinc-300">{allTime.toFixed(1)}</span></div>}
+            <NextRank rating={rating} className="ml-auto mt-3 w-64 justify-end [&>div:first-child]:justify-end" />
           </div>
         </div>
       </div>

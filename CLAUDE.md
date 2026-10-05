@@ -600,6 +600,10 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   orange, Expert red, Alien purple. `RankIcon` next to driver names (Drivers list, dashboard
   ranking, profile, track leaderboards), `RankBadge` = symbol + title, `RankScale` = the scale above
   the Drivers list (segments as wide as their rating range, colours blending).
+- Next rank (`NextRank` in components/ui.tsx, user's choice): "7.5 points to Contender" + a bar from
+  the current rank's floor to the next, on the dashboard's rating card and the profile header.
+  Idea on hold (user will think about it): a track only counts in the rating after a couple of
+  sessions there, so learning a new track does not lower it.
 - Weights per session type (user's values, `WEIGHTS_BY_TYPE`): practice 56/24/10/10, qualifying
   62/18/10/10 (also hotlap, superpole), race 45/30/15/10 (also hotstint), mixed running 55/25/10/10
   (default, unknown types). The type comes from ACC unless someone in the team picks another on

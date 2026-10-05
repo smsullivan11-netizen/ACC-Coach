@@ -1,6 +1,6 @@
 import { Activity, ArrowUpRight, Crown, Gauge, Medal, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Link from "next/link";
-import { Avatar, Chip, delay, Position, RankBadge, RankIcon, SectionTitle } from "@/components/ui";
+import { Avatar, Chip, delay, NextRank, Position, RankBadge, RankIcon, SectionTitle } from "@/components/ui";
 import type { Driver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
@@ -50,6 +50,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
               </div>
             </div>
           </div>
+          <NextRank rating={rating} className="mt-4" />
           <div className="mt-5 space-y-2.5">
             {(Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[]).map((k, i) => {
               const v = parts?.[k];
