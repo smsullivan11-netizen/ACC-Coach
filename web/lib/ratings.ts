@@ -13,8 +13,10 @@ import { paceReference } from "./targets";
 //  - (lap times are first corrected for the fuel load: lib/fuel.ts)
 //  - pace: session best vs the reference = the faster of the car's target on the track and
 //    the team's best valid lap in that car (lib/targets.ts): 0 % slower → 100, 3 % → 50, 6 % or more → 0;
-//  - consistency (needs 3 valid laps): median gap of the other valid laps to the session best:
-//    0.1 % or less → 100, 3 % or more → 0;
+//  - consistency (needs 3 valid laps): median gap of the laps to the best one, where on runs of 6+
+//    valid laps (between pit stops) "best" follows the run's trend (lapGaps): fuel burning off, tyre
+//    wear and track changes move lap times steadily over a stint, only the scatter around that
+//    trend counts. 0.1 % or less → 100, 3 % or more → 0;
 //  - clean driving: share of flying laps not invalidated (track limits, server);
 //  - smoothness: steering activity vs the team's median on the same track and class:
 //    70 % of the team's → 100, the team's → 70, 170 % or more → 0.
@@ -66,7 +68,38 @@ const median = (xs: number[]) => {
 };
 
 type Sql = postgres.Sql | postgres.TransactionSql;
-type LapRow = { t: number; comparable: boolean; excluded_reasons: string[]; metrics: Record<string, number> | null };
+type LapRow = { number: number; t: number; comparable: boolean; excluded_reasons: string[]; metrics: Record<string, number> | null };
+
+export const TREND_MIN_LAPS = 6;
+
+/** Relative gaps of a session's valid laps to its best, for consistency. Runs are split at pit laps
+ *  (tyres and fuel change there). On a run of TREND_MIN_LAPS+ valid laps the reference follows the
+ *  run's trend (robust line: median of the pairwise slopes), shifted down to the lap furthest below
+ *  it: a steady drift from fuel burn or tyre wear (ACC does not publish tyre wear) is not counted.
+ *  Shorter runs (hotlaps, qualifying runs) use a flat line: the gap to the run's best lap. The
+ *  reference lap of each run is left out, like the best lap before. */
+export function lapGaps(laps: { number: number; t: number; valid: boolean; pit: boolean }[]) {
+  const runs: { n: number; t: number }[][] = [[]];
+  for (const l of [...laps].sort((a, b) => a.number - b.number)) {
+    if (l.pit) { if (runs.at(-1)!.length) runs.push([]); continue; }
+    if (l.valid) runs.at(-1)!.push({ n: l.number, t: l.t });
+  }
+  const best = Math.min(...laps.filter((l) => l.valid).map((l) => l.t));
+  const gaps: number[] = [];
+  for (const run of runs.filter((r) => r.length)) {
+    let slope = 0;
+    if (run.length >= TREND_MIN_LAPS) {
+      const slopes: number[] = [];
+      for (let i = 0; i < run.length; i++) for (let j = i + 1; j < run.length; j++) slopes.push((run[j].t - run[i].t) / (run[j].n - run[i].n));
+      slope = median(slopes);
+    }
+    const d = run.map((l) => l.t - slope * l.n);
+    const base = Math.min(...d);
+    const k = d.indexOf(base);
+    d.forEach((x, i) => { if (i !== k) gaps.push((x - base) / best); });
+  }
+  return gaps;
+}
 
 export async function rateSession(tx: Sql, sessionId: string) {
   const [s] = await tx<{ driver_id: string; track_id: string; track: string; car_class: string | null; session_type: string | null; rating_type: string | null }[]>`
@@ -75,19 +108,21 @@ export async function rateSession(tx: Sql, sessionId: string) {
     from session s join track t on t.id = s.track_id left join car c on c.id = s.car_id where s.id = ${sessionId}`;
   if (!s) return null;
   const laps = await tx<LapRow[]>`
-    select coalesce(official_lap_time_ms, game_lap_time_ms, lap_time_ms) as t, comparable, excluded_reasons, metrics
+    select number, coalesce(official_lap_time_ms, game_lap_time_ms, lap_time_ms) as t, comparable, excluded_reasons, metrics
     from lap where session_id = ${sessionId}`;
-  // Lap times corrected to the reference fuel load (lib/fuel.ts; laps from app 0.1.6+): a heavy
-  // tank no longer counts against pace, and burning fuel off over a run not against consistency
-  const valid = laps.filter((l) => l.comparable).map((l) => l.t - 1000 * fuelSeconds(s.track, l.metrics?.fuel_l)).sort((a, b) => a - b);
+  // Lap times with the cost of the fuel above minimum fuel removed (lib/fuel.ts; laps from app 0.1.6+)
+  const corrected = laps.map((l) => ({ ...l, t: l.t - 1000 * fuelSeconds(s.track, l.metrics?.fuel_l) }));
+  const valid = corrected.filter((l) => l.comparable).map((l) => l.t).sort((a, b) => a - b);
   if (!valid.length) return null;                        // nothing to judge: no valid flying lap
 
   const reference = (await paceReference(tx, sessionId)).reference_ms!;   // this session's valid laps count: never null here
   const best = valid[0];
   const pace = clamp(100 * (1 - (best - reference) / reference / 0.06));
 
-  const consistency = valid.length >= 3
-    ? clamp(100 * (1 - (median(valid.slice(1).map((t) => (t - best) / best)) - CONSISTENCY_FULL) / (CONSISTENCY_ZERO - CONSISTENCY_FULL)))
+  const gaps = lapGaps(corrected.map((l) => ({ number: l.number, t: l.t, valid: l.comparable,
+                                             pit: l.excluded_reasons.some((r) => r.startsWith("pit_")) })));
+  const consistency = valid.length >= 3 && gaps.length
+    ? clamp(100 * (1 - (median(gaps) - CONSISTENCY_FULL) / (CONSISTENCY_ZERO - CONSISTENCY_FULL)))
     : null;
 
   const flying = laps.filter((l) => !l.excluded_reasons.some((r) => r.startsWith("pit_") || r === "distance" || r === "track_edges"));

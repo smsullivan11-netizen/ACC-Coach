@@ -618,6 +618,11 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Rank promotions are posted to Discord after rating replays too (Recompute all ratings, session
   type changed, edge laps: `announcePromotions` compares every driver's rating before / after);
   the user noticed two promotions from a recompute went unannounced. Rank drops are never posted.
+- Consistency against each run's trend (user: tyre wear offsets the fuel gain, his Kyalami stints
+  drift 1.2 s over 70 min; ACC does not publish tyre wear): `lapGaps` splits the session at pit
+  laps; on runs of 6+ valid laps the reference follows the run's robust trend (median of pairwise
+  slopes) shifted to its lowest lap, so steady drift (fuel, wear, track) is not counted, only the
+  scatter; shorter runs (hotlaps) keep the gap to the best lap. Simulated stint: 77 → 97.
 - Consistency scale widened (user: "too nice for some, too harsh for others"): median gap of the
   other valid laps to the session best, 0.1 % → 100, 3 % → 0 (was 0.3 % → 100, 2 % → 0).
 - Rating = **current form** (since 2026-10-05; before: moved 30 % towards each session score, which
