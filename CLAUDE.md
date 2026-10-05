@@ -593,11 +593,13 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Overall Driver Rating 0-100, computed by the site after each upload (`rateSession`), never by
   the app. Session score = weighted pace / consistency / clean / smoothness (formulas in the header
   of `ratings.ts`; a part that cannot be measured is left out). Provisional until 3 sessions.
-- Rank symbols (user: the Drivers text was too long): `RANK_ICONS` in components/ui.tsx, Rookie
-  sprout, Apprentice wrench, Intermediate gauge, Advanced lightning, Contender swords, Front Runner
-  flame, Expert medal, Alien rocket, in the rank colours (lib/ranks.ts). `RankIcon` next to driver
-  names (Drivers list, dashboard ranking, profile, track leaderboards), `RankBadge` = symbol + title,
-  `RankScale` = the scale above the Drivers list (segments as wide as their rating range).
+- Rank symbols (user: the Drivers text was too long, then "a gauge, not icons"): `RankSymbol` in
+  components/ui.tsx = a gauge whose needle climbs with the rank (Rookie nearly empty, Expert maxed
+  out), Alien = an alien head. Rank colours = weather-map temperature scale (lib/ranks.ts): Rookie
+  blue, Apprentice light blue, Intermediate cyan, Advanced green, Contender yellow, Front Runner
+  orange, Expert red, Alien purple. `RankIcon` next to driver names (Drivers list, dashboard
+  ranking, profile, track leaderboards), `RankBadge` = symbol + title, `RankScale` = the scale above
+  the Drivers list (segments as wide as their rating range, colours blending).
 - Weights per session type (user's values, `WEIGHTS_BY_TYPE`): practice 56/24/10/10, qualifying
   62/18/10/10 (also hotlap, superpole), race 45/30/15/10 (also hotstint), mixed running 55/25/10/10
   (default, unknown types). The type comes from ACC unless someone in the team picks another on

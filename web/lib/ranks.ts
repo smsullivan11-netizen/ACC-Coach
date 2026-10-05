@@ -1,14 +1,16 @@
 // Rank titles from the Overall Driver Rating (the team's scale). Safe on server and client.
+// Colours (user's request): a weather-map temperature scale, cold blues for the low ranks warming
+// up through cyan, green, yellow and orange to red (Expert) and purple (Alien).
 
 export const RANKS = [
-  { min: 90, title: "Alien", color: "#ffd200" },
-  { min: 80, title: "Expert", color: "#ff8a00" },
-  { min: 70, title: "Front Runner", color: "#e10600" },
-  { min: 60, title: "Contender", color: "#c084fc" },
-  { min: 50, title: "Advanced", color: "#38bdf8" },
-  { min: 40, title: "Intermediate", color: "#34d399" },
-  { min: 20, title: "Apprentice", color: "#a1a1aa" },
-  { min: 0, title: "Rookie", color: "#71717a" },
+  { min: 90, title: "Alien", color: "#c04bf2" },
+  { min: 80, title: "Expert", color: "#f03e3e" },
+  { min: 70, title: "Front Runner", color: "#fd7e14" },
+  { min: 60, title: "Contender", color: "#fcc419" },
+  { min: 50, title: "Advanced", color: "#51cf66" },
+  { min: 40, title: "Intermediate", color: "#22b8cf" },
+  { min: 20, title: "Apprentice", color: "#4dabf7" },
+  { min: 0, title: "Rookie", color: "#5c7cfa" },
 ] as const;
 
 export type Rank = (typeof RANKS)[number];

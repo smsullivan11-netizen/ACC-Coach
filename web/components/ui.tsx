@@ -1,6 +1,6 @@
-import { Flame, Gauge, Medal, Rocket, Sprout, Swords, Wrench, Zap, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
-import { RANKS, rankFor, type Rank } from "@/lib/ranks";
+import { RANKS, rankFor, rankLevel, type Rank } from "@/lib/ranks";
 
 // Small shared pieces of the interface (server and client components).
 
@@ -70,11 +70,31 @@ export function Position({ n }: { n: number }) {
   return <span className={`tabular grid h-6 w-6 shrink-0 place-items-center rounded-md text-xs font-bold ${style}`}>{n}</span>;
 }
 
-/** Each rank's symbol (its colour is in lib/ranks.ts). */
-export const RANK_ICONS: Record<Rank["title"], LucideIcon> = {
-  Rookie: Sprout, Apprentice: Wrench, Intermediate: Gauge, Advanced: Zap,
-  Contender: Swords, "Front Runner": Flame, Expert: Medal, Alien: Rocket,
-};
+/** A rank's symbol: a gauge whose needle climbs with the rank (Rookie nearly empty, Expert maxed
+ *  out), and an alien head for Alien; in the rank's colour (lib/ranks.ts). */
+export function RankSymbol({ rank, size = 16 }: { rank: Rank; size?: number }) {
+  if (rank.title === "Alien")
+    return (
+      <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
+        <path d="M12 2.5C6.6 2.5 3.8 6.3 3.8 10.2c0 4.7 4.6 10.6 8.2 11.3 3.6-.7 8.2-6.6 8.2-11.3 0-3.9-2.8-7.7-8.2-7.7Z" fill={rank.color} />
+        <ellipse cx={8.4} cy={11.6} rx={2.9} ry={1.6} transform="rotate(32 8.4 11.6)" fill="#0b0b0d" />
+        <ellipse cx={15.6} cy={11.6} rx={2.9} ry={1.6} transform="rotate(-32 15.6 11.6)" fill="#0b0b0d" />
+      </svg>
+    );
+  const f = Math.max(0.04, rankLevel(rank.min) / (RANKS.length - 2));   // Rookie 0 … Expert 1 (a sliver for Rookie)
+  const R = 8.5, cx = 12, cy = 13.5, start = 150, sweep = 240;
+  const at = (deg: number, r = R) => [cx + r * Math.cos((deg * Math.PI) / 180), cy + r * Math.sin((deg * Math.PI) / 180)].map((v) => v.toFixed(2)).join(" ");
+  const arc = (to: number) => `M${at(start)} A${R} ${R} 0 ${to - start > 180 ? 1 : 0} 1 ${at(to)}`;
+  const needle = start + sweep * f;
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" strokeLinecap="round" aria-hidden>
+      <path d={arc(start + sweep)} stroke="currentColor" strokeOpacity={0.22} strokeWidth={2.6} />
+      <path d={arc(needle)} stroke={rank.color} strokeWidth={2.6} />
+      <path d={`M${cx} ${cy} L${at(needle, R - 2.6)}`} stroke="#f4f4f5" strokeWidth={1.9} />
+      <circle cx={cx} cy={cy} r={1.7} fill="#f4f4f5" />
+    </svg>
+  );
+}
 
 const rankRange = (r: Rank) => {
   const next = RANKS[RANKS.indexOf(r) - 1];
@@ -84,11 +104,11 @@ const rankRange = (r: Rank) => {
 /** A driver's rank as its symbol on a tinted square, next to their name (title on hover). */
 export function RankIcon({ rating, size = 18 }: { rating: number | null | undefined; size?: number }) {
   if (rating == null) return null;
-  const r = rankFor(rating), Icon = RANK_ICONS[r.title];
+  const r = rankFor(rating);
   return (
     <span title={`${r.title} (${rankRange(r)})`} className="inline-grid shrink-0 place-items-center rounded-md"
           style={{ width: size + 8, height: size + 8, color: r.color, background: `${r.color}1f`, boxShadow: `inset 0 0 0 1px ${r.color}55` }}>
-      <Icon size={size - 2} strokeWidth={2.2} />
+      <RankSymbol rank={r} size={size} />
     </span>
   );
 }
@@ -96,30 +116,31 @@ export function RankIcon({ rating, size = 18 }: { rating: number | null | undefi
 /** Rank title of a rating (lib/ranks.ts), as a coloured pill with its symbol. */
 export function RankBadge({ rating, size = "sm" }: { rating: number | null | undefined; size?: "sm" | "md" }) {
   if (rating == null) return null;
-  const r = rankFor(rating), Icon = RANK_ICONS[r.title];
+  const r = rankFor(rating);
   return (
     <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border font-semibold uppercase tracking-wider ${size === "md" ? "px-2.5 py-0.5 text-xs" : "px-2 py-px text-[10px]"}`}
           style={{ color: r.color, borderColor: `${r.color}66`, background: `${r.color}14` }}>
-      <Icon size={size === "md" ? 13 : 11} strokeWidth={2.4} />
+      <RankSymbol rank={r} size={size === "md" ? 14 : 12} />
       {r.title}
     </span>
   );
 }
 
-/** The rank scale, Rookie to Alien: one coloured segment per rank, as wide as its rating range. */
+/** The rank scale, Rookie to Alien: one segment per rank, as wide as its rating range, the colours
+ *  blending into each other like a temperature map. */
 export function RankScale() {
   const ranks = [...RANKS].reverse();
   return (
     <div className="card rise overflow-x-auto p-4">
       <div className="flex min-w-[480px] gap-1">
         {ranks.map((r, k) => {
-          const Icon = RANK_ICONS[r.title], width = (ranks[k + 1]?.min ?? 100) - r.min;
+          const width = (ranks[k + 1]?.min ?? 100) - r.min, next = ranks[k + 1]?.color ?? r.color;
           return (
             <div key={r.title} className="min-w-0 text-center" style={{ flex: `${width} 1 0`, minWidth: 58 }}>
               <div className="mx-auto mb-1.5 grid h-8 w-8 place-items-center rounded-lg" style={{ color: r.color, background: `${r.color}1f`, boxShadow: `inset 0 0 0 1px ${r.color}55` }}>
-                <Icon size={17} strokeWidth={2.2} />
+                <RankSymbol rank={r} size={22} />
               </div>
-              <div className="h-1.5 rounded-full" style={{ background: r.color }} />
+              <div className="h-1.5 rounded-full" style={{ background: `linear-gradient(90deg, ${r.color}, ${next})` }} />
               <div className="mt-1.5 truncate text-[11px] font-semibold" style={{ color: r.color }}>{r.title}</div>
               <div className="tabular text-[10px] text-zinc-500">{rankRange(r)}</div>
             </div>
