@@ -248,6 +248,13 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   trace, ABS blue on the brake trace (threshold ≥ 5 % = one ACC pulse in the 50 ms window). Charts say
   "not recorded for <lap> (app older than …)" when a lap lacks a channel: that was the usual reason
   ABS "did not appear" (laps from app 0.1.0; on the real recording every ABS braking zone shows).
+- Replay zoom (user's request): mouse wheel on the map (native non-passive listener on the stage, so
+  the page does not scroll; not over a scrolling checkpoint list), or −/+ buttons; 0 % = whole track,
+  100 % = 70 m wide (about one corner), log scale (8 % per wheel notch); the camera eases from the
+  track's centre to the followed car over the first 20 %. Replaced the Close/Medium/Wide and "Whole
+  track" options. Map labels scale with the view (viewW/60).
+- Corner checkpoints: "Turn N" boxes on the left of the player (name below, time the first car enters
+  the turn); click = jump there; the turn the first car is in is highlighted (data-active).
 - Replay lines, "brake / throttle" (user's request, like Racemake): grey with nothing pressed, mixed
   towards green in proportion to the throttle, towards red to the brake, blue with ABS; every metre,
   10 colour steps so consecutive equal segments merge (~950 polylines for two laps).

@@ -13,7 +13,7 @@ import { smoothGear, type Trace } from "@/lib/trace";
 // Drawing happens outside React on every animation frame (refs and setAttribute).
 
 export type ReplayLap = { driver: string; color: string; t: Trace };
-type Corner = { number: number; apex_m: number };
+type Corner = { number: number; apex_m: number; start_m: number; name: string | null };
 type Car = {
   driver: string; color: string; n: number; step: number; end: number;
   time: Float64Array; x: Float64Array; z: Float64Array; v: Float64Array;
@@ -21,7 +21,7 @@ type Car = {
 };
 
 const RATES = [0.25, 0.5, 1, 2, 4];
-const ZOOMS = { close: 120, medium: 250, wide: 500 } as const;   // view width in metres when following
+const MIN_VIEW_M = 70;   // view width at 100 % zoom: about one corner
 const CAR_L = 4.6, CAR_W = 2.0;                                    // GT3 footprint (m)
 const ASPECT = 9 / 16;
 const INPUT_COLORS = { brake: "#ef4444", abs: "#2563eb", full: "#22c55e", coast: "#71717a" };
@@ -130,8 +130,8 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
   const maxT = Math.max(...cars.map((c) => c.end));
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
-  const [camera, setCamera] = useState<string>("0");     // index of the followed car, or "track"
-  const [zoom, setZoom] = useState<keyof typeof ZOOMS>("medium");
+  const [camera, setCamera] = useState(0);               // index of the followed car
+  const [zoom, setZoom] = useState(0);                   // 0 = whole track … 1 = one corner (mouse wheel)
   const [byInputs, setByInputs] = useState(false);
 
   const elapsed = useRef(0);
@@ -144,9 +144,30 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
   const graphEls = useRef<{ thr?: SVGPathElement | null; brk?: SVGPathElement | null; abs?: SVGPathElement | null }[]>([]);
   const hud = useRef<Record<string, HTMLElement | null>>({});
   const slider = useRef<HTMLInputElement>(null);
+  const turnEls = useRef<(HTMLButtonElement | null)[]>([]);
+  const activeTurn = useRef(-2);
   const lastSync = useRef(0);
   useEffect(() => { playingRef.current = playing; rateRef.current = rate; }, [playing, rate]);
   useEffect(() => { dirty.current = true; }, [camera, zoom, byInputs]);
+  // Mouse wheel zoom on the map (a native listener: React's wheel events cannot prevent page scrolling)
+  // over the whole map, checkpoints included, except a checkpoint list that has to scroll (long tracks)
+  const stage = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => {
+      const list = (e.target as HTMLElement).closest("[data-turns]");
+      if (list && list.scrollHeight > list.clientHeight) return;
+      e.preventDefault();
+      setZoom((z) => Math.max(0, Math.min(1, z - Math.sign(e.deltaY) * Math.min(1, Math.abs(e.deltaY) / 100) * 0.08)));
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  }, []);
+  // When each corner starts for the first car (for the checkpoints)
+  const turnTimes = useMemo(() => (cars[0] ? corners.map((c) => timeAt(cars[0], Math.max(0, c.start_m))) : []), [cars, corners]);
+  const jumpTo = (i: number) => { elapsed.current = Math.min(maxT, turnTimes[i] + 0.02); dirty.current = true; };
+  const clock = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 
   const bbox = useMemo(() => {
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
@@ -159,8 +180,10 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
     return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, w, h };
   }, [cars]);
 
-  const follow = camera !== "track";
-  const viewW = follow ? ZOOMS[zoom] : bbox.w;
+  // View width: from the whole track (0 %) to about one corner (100 %), on a log scale so each wheel
+  // step zooms by the same factor; the camera moves from the track's centre to the followed car
+  const viewW = bbox.w * Math.pow(Math.min(1, MIN_VIEW_M / bbox.w), zoom);
+  const followShare = Math.min(1, zoom / 0.2);
   const carScale = Math.max(1, viewW / 140);                    // cars stay visible when zoomed out
   const paths = useMemo(() => cars.map((c) => linePaths(c, byInputs)), [cars, byInputs]);
   const labels = useMemo(() => {
@@ -168,7 +191,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
     if (!a) return [];
     return corners.map((c) => {
       const i = Math.min(a.n - 1, Math.max(0, Math.round(c.apex_m / a.step)));
-      return { n: c.number, ...labelPoint(a.x, a.z, i, viewW / 22, 15) };
+      return { n: c.number, ...labelPoint(a.x, a.z, i, viewW / 45, 15) };
     });
   }, [cars, corners, viewW]);
 
@@ -199,13 +222,11 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
 
     // Camera
     if (svg.current) {
-      let cx = bbox.cx, cz = bbox.cz, w = bbox.w, h = bbox.h;
-      if (follow) {
-        const k = Number(camera), me = states[k] ?? states[0], other = states[1 - k];
-        w = ZOOMS[zoom]; h = w * ASPECT;
-        cx = me.x; cz = me.z;
-        if (other && Math.hypot(other.x - me.x, other.z - me.z) < w * 0.6) { cx = (me.x + other.x) / 2; cz = (me.z + other.z) / 2; }
-      }
+      const w = viewW, h = w * ASPECT;
+      const me = states[camera] ?? states[0], other = states[1 - camera];
+      let fx = me.x, fz = me.z;
+      if (other && Math.hypot(other.x - me.x, other.z - me.z) < w * 0.6) { fx = (me.x + other.x) / 2; fz = (me.z + other.z) / 2; }
+      const cx = bbox.cx + (fx - bbox.cx) * followShare, cz = bbox.cz + (fz - bbox.cz) * followShare;
       svg.current.setAttribute("viewBox", `${cx - w / 2} ${cz - h / 2} ${w} ${h}`);
     }
 
@@ -227,7 +248,15 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
     // Charts follow the first car (a few times per second is enough)
     const now = performance.now();
     if (now - lastSync.current > 60) { lastSync.current = now; onDistance(states[0]?.d ?? null); }
-  }, [cars, carScale, bbox, follow, camera, zoom, maxT, onDistance]);
+    // Corner checkpoints: the one the first car is in
+    const d0 = states[0]?.d ?? 0;
+    let current = -1;
+    corners.forEach((c, i) => { if (d0 >= c.start_m - 1) current = i; });
+    if (current !== activeTurn.current) {
+      activeTurn.current = current;
+      turnEls.current.forEach((el, i) => el?.setAttribute("data-active", String(i === current)));
+    }
+  }, [cars, carScale, bbox, camera, viewW, followShare, corners, maxT, onDistance]);
 
   useEffect(() => {
     let raf = 0, last = performance.now();
@@ -279,13 +308,9 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
         <select value={rate} onChange={(e) => setRate(Number(e.target.value))} className={select} aria-label="Speed">
           {RATES.map((r) => <option key={r} value={r}>{r}×</option>)}
         </select>
-        <select value={camera} onChange={(e) => setCamera(e.target.value)} className={select} aria-label="Camera">
-          {cars.map((c, k) => <option key={k} value={String(k)}>Follow {c.driver}</option>)}
-          <option value="track">Whole track</option>
-        </select>
-        {follow && (
-          <select value={zoom} onChange={(e) => setZoom(e.target.value as keyof typeof ZOOMS)} className={select} aria-label="Zoom">
-            <option value="close">Close</option><option value="medium">Medium</option><option value="wide">Wide</option>
+        {cars.length > 1 && (
+          <select value={camera} onChange={(e) => setCamera(Number(e.target.value))} className={select} aria-label="Camera">
+            {cars.map((c, k) => <option key={k} value={k}>Follow {c.driver}</option>)}
           </select>
         )}
         <select value={byInputs ? "inputs" : "drivers"} onChange={(e) => setByInputs(e.target.value === "inputs")} className={select} aria-label="Line colours">
@@ -295,15 +320,16 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
         <button onClick={onClose} className="ml-auto text-sm text-zinc-400 underline hover:text-white">Close replay</button>
       </div>
 
+      <div ref={stage} className="relative mt-3">
       <svg ref={svg} viewBox={`${bbox.cx - bbox.w / 2} ${bbox.cz - bbox.h / 2} ${bbox.w} ${bbox.h}`}
-           className="mt-3 aspect-video w-full rounded-md bg-[#0b0b0d]">
+           className="aspect-video w-full cursor-zoom-in rounded-md bg-[#0b0b0d]">
         <TrackSurface edges={edges} />
         {paths.map((p, k) => ({ p, k })).reverse().map(({ p, k }) => p.map((seg, j) => (
           <polyline key={`${k}-${j}`} points={seg.points} fill="none" stroke={seg.color} vectorEffect="non-scaling-stroke"
                     strokeWidth={k === 0 ? 2.5 : byInputs ? 1.5 : 2} strokeOpacity={k === 0 ? 1 : 0.75} strokeLinejoin="round" />
         )))}
         {labels.map((l) => (
-          <text key={l.n} x={l.x} y={l.z} fontSize={viewW / 30} fill="#a1a1aa" textAnchor="middle" dominantBaseline="central">T{l.n}</text>
+          <text key={l.n} x={l.x} y={l.z} fontSize={viewW / 60} fill="#a1a1aa" textAnchor="middle" dominantBaseline="central">T{l.n}</text>
         ))}
         {cars.map((c, k) => ({ c, k })).reverse().map(({ c, k }) => (
           <g key={k} ref={(el) => { carEls.current[k] = el; }}>
@@ -314,6 +340,28 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
           </g>
         ))}
       </svg>
+      {/* Corner checkpoints: click to jump there; the corner the car is in is highlighted */}
+      {corners.length > 0 && (
+        <div data-turns className="absolute bottom-2 left-2 top-2 hidden w-28 flex-col gap-1 overflow-y-auto pr-1 sm:flex">
+          {corners.map((c, i) => (
+            <button key={c.number} ref={(el) => { turnEls.current[i] = el; }} onClick={() => jumpTo(i)} data-active="false"
+                    title={c.name ?? undefined}
+                    className="shrink-0 rounded-md border border-white/10 bg-black/65 px-2 py-1 text-left backdrop-blur transition hover:border-accent/60 data-[active=true]:border-race data-[active=true]:bg-race/25">
+              <div className="flex items-baseline justify-between gap-1 text-[11px] font-semibold text-white">
+                Turn {c.number}<span className="tabular font-normal text-zinc-400">{clock(turnTimes[i])}</span>
+              </div>
+              {c.name && <div className="truncate text-[10px] text-zinc-400">{c.name}</div>}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* Zoom: mouse wheel, or these buttons */}
+      <div className="absolute right-2 top-2 flex items-center gap-1 rounded-md border border-white/10 bg-black/65 px-1.5 py-1 text-xs text-zinc-300 backdrop-blur">
+        <button onClick={() => setZoom((z) => Math.max(0, z - 0.1))} className="px-1.5 hover:text-white" aria-label="Zoom out">−</button>
+        <span className="tabular w-10 text-center">{Math.round(zoom * 100)} %</span>
+        <button onClick={() => setZoom((z) => Math.min(1, z + 0.1))} className="px-1.5 hover:text-white" aria-label="Zoom in">+</button>
+      </div>
+      </div>
 
       <div className={`mt-3 grid gap-3 ${cars.length === 2 ? "sm:grid-cols-2" : ""}`}>
         {cars.map((c, k) => (
@@ -350,7 +398,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
           </span>
         )}
         <span className="ml-auto text-xs text-zinc-500">
-          Space: play / pause. Both cars are placed by elapsed time; the charts follow {cars[0].driver}.
+          Space: play / pause. Mouse wheel on the map: zoom (0 % = whole track, 100 % = one corner). Both cars are placed by elapsed time; the charts follow {cars[0].driver}.
           {cars.some((c) => c.abs) ? " Blue light at the front: ABS working." : ""}
         </span>
       </div>
