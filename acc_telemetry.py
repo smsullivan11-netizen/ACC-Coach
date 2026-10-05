@@ -16,7 +16,7 @@ import numpy as np
 import corners as cn
 
 INPUTS = ["SPEED", "THROTTLE", "BRAKE", "STEERANGLE", "GEAR", "RPMS"]
-DISCRETE = {"GEAR", "BRAKE_ZONE", "ABS_ACTIVE", "TC_ACTIVE"}   # not to be linearly interpolated
+DISCRETE = {"GEAR", "BRAKE_ZONE", "ABS_ACTIVE", "TC_ACTIVE", "TC_LEVEL", "TC2_LEVEL", "ABS_LEVEL", "ENGINE_MAP"}   # not to be linearly interpolated
 POS_CHANNELS = ("POS_X", "POS_Y", "POS_Z")                     # car position (recorder only)
 
 # Input cleaning

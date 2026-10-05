@@ -176,7 +176,7 @@ export default function LapView({ lapId, vsId, candidates, corner, startReplay =
 type Panel = {
   title: string;
   height: number;
-  series: { data: ArrayLike<number | null>; color: string; readout?: boolean }[];
+  series: { data: ArrayLike<number | null>; color: string; readout?: boolean; label?: string; dash?: number[] }[];
   range?: uPlot.Scale["range"];
   stepped?: boolean;
   format?: (v: number) => string;   // value shown in the title while hovering
@@ -215,15 +215,27 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
       return g ? { data: smoothGear(g), color: COLORS[i], readout: true } : null;
     }).filter((s) => s !== null).reverse();
     const steerDeg = traces.every((t) => t.channels.steering_deg);
-    // ABS (recorded from app 0.1.1): the brake trace drawn again in blue where the ABS works
-    const ABS_COLORS = ["#3b82f6", "#93c5fd"];
-    const absOverlay = traces.flatMap((t, i) => {
-      const abs = t.channels.abs_pct, brk = t.channels.brake_clean_pct;
-      if (!abs || !brk) return [];
+    // ABS / TC intervention (recorded from app 0.1.1 / 0.1.3): the brake / throttle trace drawn again
+    // where they work (≥ 5 % of the time around that metre: one ACC pulse is enough)
+    const ASSIST_ON = 5;
+    const overlay = (assist: string, input: string, colors: string[]) => traces.flatMap((t, i) => {
+      const a = t.channels[assist], v = t.channels[input];
+      if (!a || !v) return [];
       const data: (number | null)[] = new Array(n).fill(null);
-      for (let j = 0; j < n; j++) if (abs[j] > 5 || (abs[j - 1] > 5 && j > 0)) data[j] = brk[j];
-      return [{ data, color: ABS_COLORS[i] }];
+      for (let j = 0; j < n; j++) if (a[j] >= ASSIST_ON || (j > 0 && a[j - 1] >= ASSIST_ON)) data[j] = v[j];
+      return [{ data, color: colors[i] }];
     }).reverse();
+    const absOverlay = overlay("abs_pct", "brake_clean_pct", ["#3b82f6", "#93c5fd"]);
+    const tcOverlay = overlay("tc_pct", "throttle_clean_pct", ["#fb923c", "#fdba74"]);
+    const lapName = (i: number) => `${laps[i].driver} L${laps[i].number}`;
+    const missing = (ch: string) => traces.map((t, i) => (t.channels[ch] ? null : lapName(i))).filter(Boolean).join(", ");
+    const noAbs = missing("abs_pct"), noTc = missing("tc_pct"), noLevels = missing("tc_level");
+    // Electronics settings (app 0.1.3): this lap solid, the reference dashed
+    const ELEC = [["tc_level", "TC", "#fb923c"], ["tc2_level", "TC2", "#c084fc"], ["abs_level", "ABS", "#38bdf8"]] as const;
+    const electronics = traces.flatMap((t, i) => ELEC.flatMap(([key, label, color]) => {
+      const d = ch(t, key);
+      return d ? [{ data: d, color, readout: true, label: i === 0 ? label : `ref ${label}`, dash: i === 1 ? [4, 3] : undefined }] : [];
+    })).reverse();
 
     const panels: Panel[] = [];
     if (traces.length === 2) {
@@ -237,14 +249,18 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
     }
     panels.push(
       { title: "Speed (km/h)", height: 230, series: both("speed_ms", 3.6), format: (v) => `${Math.round(v)} km/h` },
-      { title: "Throttle (%)", height: 110, series: both("throttle_clean_pct"), range: [0, 105], format: (v) => `${Math.round(v)} %` },
-      { title: absOverlay.length ? "Brake (%) · blue: ABS working" : "Brake (%)", height: 110,
+      { title: `Throttle (%)${tcOverlay.length ? " · orange: TC working" : ""}${noTc && tcOverlay.length ? ` · TC not recorded for ${noTc}` : ""}`, height: 110,
+        series: [...both("throttle_clean_pct"), ...tcOverlay], range: [0, 105], format: (v) => `${Math.round(v)} %` },
+      { title: `Brake (%) · blue: ABS working${noAbs ? ` · ABS not recorded for ${noAbs} (app older than 0.1.1)` : ""}`, height: 110,
         series: [...both("brake_clean_pct"), ...absOverlay], range: [0, 105], format: (v) => `${Math.round(v)} %` },
       { title: steerDeg ? "Steering (°)" : "Steering (% of lock)", height: 120,
         series: steerDeg ? both("steering_deg") : both("steering_norm", 100), format: (v) => `${Math.round(v)}${steerDeg ? "°" : " %"}` },
       { title: "Gear", height: 90, series: gears, stepped: true, range: [0, 7],
         format: (v) => (v < 0 ? "R" : v === 0 ? "N" : String(Math.round(v))) },
     );
+    if (electronics.length)
+      panels.push({ title: `Electronics: TC · TC2 · ABS settings${traces.length > 1 ? " (reference dashed)" : ""}${noLevels ? ` · not recorded for ${noLevels} (app older than 0.1.3)` : ""}`,
+                    height: 110, series: electronics, stepped: true, range: [0, 12], format: (v) => String(Math.round(v)) });
 
     el.innerHTML = "";
     const plots: uPlot[] = [];
@@ -261,7 +277,7 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
         span.className = "ml-3 font-medium tabular";
         span.style.color = s.color;
         title.appendChild(span);
-        return { span, j };
+        return { span, j, label: s.label };
       });
       wrap.appendChild(title);
       el.appendChild(wrap);
@@ -278,15 +294,15 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
           { stroke: "#71717a", grid: { stroke: "#ffffff0d" }, ticks: { stroke: "#ffffff1a" }, size: 46 },
         ],
         series: [{}, ...p.series.map((s) => ({
-          stroke: s.color, width: 1.25,
+          stroke: s.color, width: 1.25, ...(s.dash ? { dash: s.dash } : {}),
           ...(p.stepped ? { paths: uPlot.paths.stepped!({ align: 1 }) } : {}),
         }))],
         hooks: {
           setCursor: [(u) => {
             const i = u.cursor.idx;
-            for (const { span, j } of values) {
+            for (const { span, j, label } of values) {
               const v = i == null ? null : (u.data[j][i] as number | null);
-              span.textContent = v == null || !p.format ? "" : p.format(v);
+              span.textContent = v == null || !p.format ? "" : `${label ? `${label} ` : ""}${p.format(v)}`;
             }
             if (k === 0) callbacks.current.onCursor(i ?? null);
           }],

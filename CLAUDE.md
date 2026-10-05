@@ -241,6 +241,16 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   follows the first car (every chart, `setCursor`). Drawing runs outside React (rAF + refs).
 - Replay HUD: per car, a rolling graph of the last 4 s of throttle (green) and brake (red, blue
   with ABS) above the bars. Charts: values under the cursor in each chart's title (both laps).
+- Electronics (app 0.1.3): graphics `tcLevel`, `tcCutLevel` (TC2), `absLevel`, `engineMap` (0-based,
+  +1 stored) held per metre → bundle `tc_level`, `tc2_level`, `abs_level`, `engine_map`; TC intervention
+  `tc_pct` like `abs_pct` (physics `tc` float). Lap page: "Electronics" stepped chart (TC orange, TC2
+  violet, ABS blue; reference dashed; labelled hover values), TC working drawn orange on the throttle
+  trace, ABS blue on the brake trace (threshold ≥ 5 % = one ACC pulse in the 50 ms window). Charts say
+  "not recorded for <lap> (app older than …)" when a lap lacks a channel: that was the usual reason
+  ABS "did not appear" (laps from app 0.1.0; on the real recording every ABS braking zone shows).
+- Replay lines, "brake / throttle" (user's request, like Racemake): grey with nothing pressed, mixed
+  towards green in proportion to the throttle, towards red to the brake, blue with ABS; every metre,
+  10 colour steps so consecutive equal segments merge (~950 polylines for two laps).
 - Gear: ACC passes through neutral (0) for a few metres at every shift; `smoothGear` (lib/trace.ts)
   gives those short neutrals (< 40 m) the previous gear, in the charts and the replay.
 

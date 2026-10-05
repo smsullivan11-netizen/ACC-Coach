@@ -24,7 +24,7 @@ const RATES = [0.25, 0.5, 1, 2, 4];
 const ZOOMS = { close: 120, medium: 250, wide: 500 } as const;   // view width in metres when following
 const CAR_L = 4.6, CAR_W = 2.0;                                    // GT3 footprint (m)
 const ASPECT = 9 / 16;
-const INPUT_COLORS = { brake: "#ef4444", abs: "#2563eb", full: "#22c55e", partial: "#facc15", coast: "#a1a1aa" };
+const INPUT_COLORS = { brake: "#ef4444", abs: "#2563eb", full: "#22c55e", coast: "#71717a" };
 const ABS_ON = 5;   // % of the time with ABS working, per metre
 const GRAPH_S = 4, GRAPH_N = 80;   // input graphs: the last 4 s, 80 points
 
@@ -40,7 +40,7 @@ function inputPaths(car: Car, t: number) {
     thr += `${thr ? "L" : "M"}${x},${y(car.thr ? car.thr[i] : 0)}`;
     const b = car.brk ? car.brk[i] : 0;
     brk += `${brk ? "L" : "M"}${x},${y(b)}`;
-    if (car.abs && car.abs[i] > ABS_ON && b > 5) { abs += `${penUp ? "M" : "L"}${x},${y(b)}`; penUp = false; } else penUp = true;
+    if (car.abs && car.abs[i] >= ABS_ON && b > 5) { abs += `${penUp ? "M" : "L"}${x},${y(b)}`; penUp = false; } else penUp = true;
   }
   return { thr, brk, abs };
 }
@@ -88,18 +88,27 @@ function timeAt(car: Car, d: number) {
   return car.time[i] + (car.time[i + 1] - car.time[i]) * (p - i);
 }
 
-function inputCategory(car: Car, i: number): keyof typeof INPUT_COLORS {
-  if (car.brk && car.brk[i] > 5) return car.abs && car.abs[i] > ABS_ON ? "abs" : "brake";
-  const thr = car.thr ? car.thr[i] : 100;
-  return thr >= 98 ? "full" : thr > 5 ? "partial" : "coast";
+const BASE_GREY = [113, 113, 122], GREEN = [34, 197, 94], RED = [239, 68, 68], BLUE = [37, 99, 235];
+const mix = (to: number[], k: number) => {
+  const q = Math.round(Math.max(0, Math.min(1, k)) * 10) / 10;   // 10 steps: fewer segments to draw
+  return `rgb(${BASE_GREY.map((g, j) => Math.round(g + (to[j] - g) * q)).join(",")})`;
+};
+
+/** Colour of the line at metre i (like Racemake): grey with nothing pressed, green as strong as the
+ *  throttle, red as strong as the brake, blue while the ABS works. */
+function inputColor(car: Car, i: number) {
+  const brk = car.brk ? car.brk[i] : 0;
+  if (brk > 2) return car.abs && car.abs[i] >= ABS_ON ? mix(BLUE, Math.max(0.6, brk / 100)) : mix(RED, brk / 100);
+  return mix(GREEN, (car.thr ? car.thr[i] : 0) / 100);
 }
 
-/** The line as polylines: one per lap, or split by inputs (brake / full / partial throttle / coasting). */
+/** The line as polylines: one per lap, or split where its input colour changes (every metre). */
 function linePaths(car: Car, byInputs: boolean) {
   const out: { points: string; color: string }[] = [];
   let cur: { points: string[]; color: string } | null = null;
-  for (let i = 0; i < car.n; i += 2) {
-    const color = byInputs ? INPUT_COLORS[inputCategory(car, i)] : car.color;
+  const step = byInputs ? 1 : 2;
+  for (let i = 0; i < car.n; i += step) {
+    const color = byInputs ? inputColor(car, i) : car.color;
     const pt = `${car.x[i].toFixed(1)},${car.z[i].toFixed(1)}`;
     if (!cur || cur.color !== color) {
       if (cur) { cur.points.push(pt); out.push({ points: cur.points.join(" "), color: cur.color }); }
@@ -169,7 +178,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
     states.forEach((s, k) => {
       carEls.current[k]?.setAttribute("transform", `translate(${s.x} ${s.z}) rotate(${s.angle}) scale(${carScale})`);
       const h = hud.current, car = cars[k];
-      const abs = car.abs != null && car.abs[s.i] > ABS_ON;
+      const abs = car.abs != null && car.abs[s.i] >= ABS_ON;
       // Flashes while playing (about 6 times a second), steady when paused
       const flash = !playingRef.current || Math.floor(performance.now() / 80) % 2 === 0;
       absEls.current[k]?.setAttribute("opacity", abs ? (flash ? "1" : "0.15") : "0");
@@ -334,9 +343,10 @@ export default function Replay({ laps, edges, corners, onDistance, onClose }: {
         {cars.length === 2 && <span ref={(el) => { hud.current.gap = el; }} className="tabular font-medium" />}
         {byInputs && (
           <span className="flex gap-3 text-xs text-zinc-400">
-            {Object.entries({ Braking: INPUT_COLORS.brake, "ABS working": INPUT_COLORS.abs, "Full throttle": INPUT_COLORS.full, "Part throttle": INPUT_COLORS.partial, Coasting: INPUT_COLORS.coast })
+            {[["Throttle", "linear-gradient(90deg, rgb(113,113,122), rgb(34,197,94))"], ["Brake", "linear-gradient(90deg, rgb(113,113,122), rgb(239,68,68))"],
+              ["ABS working", INPUT_COLORS.abs], ["Nothing pressed", INPUT_COLORS.coast]]
               .filter(([label]) => label !== "ABS working" || cars.some((car) => car.abs))
-              .map(([label, color]) => <span key={label} className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm" style={{ background: color }} />{label}</span>)}
+              .map(([label, bg]) => <span key={label} className="flex items-center gap-1"><span className={`h-2 rounded-sm ${bg.startsWith("linear") ? "w-8" : "w-3"}`} style={{ background: bg }} />{label}{bg.startsWith("linear") ? " 0→100 %" : ""}</span>)}
           </span>
         )}
         <span className="ml-auto text-xs text-zinc-500">

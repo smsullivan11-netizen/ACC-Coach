@@ -39,7 +39,8 @@ PHYSICS_DEFAULT = ["packetId", "gas", "brake", "clutch", "gear", "rpm", "steerAn
 GRAPHICS_DEFAULT = ["packetId", "status", "session", "completedLaps", "position", "iCurrentTime", "iLastTime",
                     "iBestTime", "distanceTraveled", "isInPit", "isInPitLane", "isValidLap", "currentSectorIndex",
                     "sessionIndex", "normalizedCarPosition", "activeCars", "playerCarID", "flag", "penalty",
-                    "trackGripStatus", "rainIntensity", "windSpeed", "windDirection", "clock"]
+                    "trackGripStatus", "rainIntensity", "windSpeed", "windDirection", "clock",
+                    "tcLevel", "tcCutLevel", "absLevel", "engineMap"]
 PLAYER_COORDINATES = "playerCoordinates"   # derived: carCoordinates of the player's car only
 
 
