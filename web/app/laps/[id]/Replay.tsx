@@ -1,5 +1,6 @@
 "use client";
 
+import { Maximize2, Minimize2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TrackSurface, { type Edges } from "@/components/TrackSurface";
 import { lapTime } from "@/lib/format";
@@ -68,6 +69,22 @@ function carState(car: Car, t: number) {
   };
 }
 
+/** Full-lap throttle and brake traces for the fullscreen strip (viewBox 0 0 1000 100: throttle in the
+ *  top lane, brake in the bottom one), x = distance / longest lap. */
+const STRIP_LANES = { thr: [4, 44], brk: [56, 96] } as const;
+function stripPaths(car: Car, lengthM: number) {
+  const line = (v: Float64Array | null, [top, bottom]: readonly [number, number]) => {
+    if (!v) return "";
+    let d = "";
+    for (let i = 0; i < car.n; i += 2) {
+      const x = ((i * car.step) / lengthM) * 1000, y = bottom - (Math.max(0, Math.min(100, v[i])) / 100) * (bottom - top);
+      d += `${d ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`;
+    }
+    return d;
+  };
+  return { thr: line(car.thr, STRIP_LANES.thr), brk: line(car.brk, STRIP_LANES.brk) };
+}
+
 /** Elapsed time when a car reached distance d (m). */
 function timeAt(car: Car, d: number) {
   const p = Math.min(Math.max(d / car.step, 0), car.n - 1);
@@ -129,6 +146,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
   const svg = useRef<SVGSVGElement>(null);
   const carEls = useRef<(SVGGElement | null)[]>([]);
   const absEls = useRef<(SVGRectElement | null)[]>([]);
+  const playhead = useRef<SVGLineElement>(null);
   const hud = useRef<Record<string, HTMLElement | SVGElement | null>>({});
   const slider = useRef<HTMLInputElement>(null);
   const turnEls = useRef<(HTMLButtonElement | null)[]>([]);
@@ -136,6 +154,31 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
   const lastSync = useRef(0);
   useEffect(() => { playingRef.current = playing; rateRef.current = rate; }, [playing, rate]);
   useEffect(() => { dirty.current = true; }, [camera, zoom, byInputs]);
+  // Fullscreen (button at the top right; Esc leaves): the browser's fullscreen on the replay, or the
+  // whole window where the browser has none (iPhone)
+  const section = useRef<HTMLElement>(null);
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const change = () => setFull(document.fullscreenElement === section.current);
+    document.addEventListener("fullscreenchange", change);
+    return () => document.removeEventListener("fullscreenchange", change);
+  }, []);
+  const toggleFull = () => {
+    const el = section.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else if (full) setFull(false);
+    else if (el.requestFullscreen) el.requestFullscreen().catch(() => setFull(true));
+    else setFull(true);
+  };
+  useEffect(() => {   // Esc also leaves the window-sized mode (the browser's fullscreen handles Esc itself)
+    if (!full || document.fullscreenElement) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setFull(false); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [full]);
+  const lapLength = Math.max(...cars.map((c) => c.n * c.step));
+  const strips = useMemo(() => cars.map((c) => stripPaths(c, lapLength)), [cars, lapLength]);
   // The map fills its box (wide screens: wider than 16:9); the view keeps the box's proportions
   const [aspect, setAspect] = useState(9 / 16);
   const stage = useRef<HTMLDivElement>(null);
@@ -231,6 +274,11 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
       svg.current.setAttribute("viewBox", `${cx - w / 2} ${cz - h / 2} ${w} ${h}`);
     }
 
+    // Fullscreen strip: where the first car is on the lap
+    const px = (((states[0]?.d ?? 0) / lapLength) * 1000).toFixed(1);
+    playhead.current?.setAttribute("x1", px);
+    playhead.current?.setAttribute("x2", px);
+
     // Clock and gap
     const h = hud.current;
     if (h.clock) h.clock.textContent = `${lapTime(Math.round(t * 1000))} / ${lapTime(Math.round(maxT * 1000))}`;
@@ -257,7 +305,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
       activeTurn.current = current;
       turnEls.current.forEach((el, i) => el?.setAttribute("data-active", String(i === current)));
     }
-  }, [cars, carScale, bbox, camera, viewW, followShare, corners, maxT, onDistance, aspect]);
+  }, [cars, carScale, bbox, camera, viewW, followShare, corners, maxT, onDistance, aspect, lapLength]);
 
   useEffect(() => {
     let raf = 0, last = performance.now();
@@ -295,7 +343,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
   const select = "input py-1";
 
   return (
-    <section className="card card-red rise mt-4 p-3">
+    <section ref={section} className={full ? "fixed inset-0 z-[60] flex flex-col bg-ink p-3" : "card card-red rise mt-4 p-3"}>
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => { elapsed.current = 0; dirty.current = true; }} title="Back to the start"
                 className="btn btn-ghost px-2.5 py-1">⏮</button>
@@ -322,7 +370,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
       </div>
 
       <div ref={stage}
-           className="relative mt-3 h-[min(64vh,780px)] min-h-[340px] overflow-hidden rounded-md bg-[#0b0b0d]">
+           className={`relative mt-3 overflow-hidden rounded-md bg-[#0b0b0d] ${full ? "min-h-0 flex-1" : "h-[min(64vh,780px)] min-h-[340px]"}`}>
       <svg ref={svg} viewBox={`${bbox.cx - bbox.w / 2} ${bbox.cz - bbox.h / 2} ${bbox.w} ${bbox.h}`}
            className="h-full w-full cursor-zoom-in">
         <TrackSurface edges={edges} />
@@ -363,12 +411,34 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
           <span ref={(el) => { hud.current.gap = el; }} className="tabular text-xs font-semibold sm:text-sm" />
         </div>
       )}
-      {/* Zoom: mouse wheel, or these buttons */}
-      <div className="absolute right-2 top-2 flex items-center gap-1 rounded-md border border-white/10 bg-black/65 px-1.5 py-1 text-xs text-zinc-300 backdrop-blur">
-        <button onClick={() => setZoom((z) => Math.max(0, z - 0.1))} className="px-1.5 hover:text-white" aria-label="Zoom out">−</button>
-        <span className="tabular w-10 text-center">{Math.round(zoom * 100)} %</span>
-        <button onClick={() => setZoom((z) => Math.min(1, z + 0.1))} className="px-1.5 hover:text-white" aria-label="Zoom in">+</button>
+      {/* Zoom (mouse wheel, or these buttons) and fullscreen */}
+      <div className="absolute right-2 top-2 flex items-center gap-1.5">
+        <div className="flex items-center gap-1 rounded-md border border-white/10 bg-black/65 px-1.5 py-1 text-xs text-zinc-300 backdrop-blur">
+          <button onClick={() => setZoom((z) => Math.max(0, z - 0.1))} className="px-1.5 hover:text-white" aria-label="Zoom out">−</button>
+          <span className="tabular w-10 text-center">{Math.round(zoom * 100)} %</span>
+          <button onClick={() => setZoom((z) => Math.min(1, z + 0.1))} className="px-1.5 hover:text-white" aria-label="Zoom in">+</button>
+        </div>
+        <button onClick={toggleFull} title={full ? "Leave fullscreen (Esc)" : "Fullscreen"} aria-label={full ? "Leave fullscreen" : "Fullscreen"}
+                className="rounded-md border border-white/10 bg-black/65 p-1.5 text-zinc-300 backdrop-blur hover:text-white">
+          {full ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+        </button>
       </div>
+      {/* Fullscreen: throttle and brake over the whole lap, between the two HUDs, see-through */}
+      {full && (
+        <div className="pointer-events-none absolute bottom-2 left-[350px] right-[350px] flex h-[104px] gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur-[2px]">
+          <div className="flex flex-col justify-around text-[10px] text-zinc-400"><span>Throttle</span><span>Brake</span></div>
+          <svg viewBox="0 0 1000 100" preserveAspectRatio="none" className="h-full min-w-0 flex-1" aria-label="Throttle and brake over the lap">
+            <line x1={0} x2={1000} y1={50} y2={50} stroke="#ffffff14" vectorEffect="non-scaling-stroke" />
+            {strips.map((p, k) => ({ p, k })).reverse().map(({ p, k }) => (
+              <g key={k} opacity={k === 0 ? 0.9 : 0.6}>
+                <path d={p.thr} fill="none" stroke={cars[k].color} strokeWidth={1.2} vectorEffect="non-scaling-stroke" />
+                <path d={p.brk} fill="none" stroke={cars[k].color} strokeWidth={1.2} vectorEffect="non-scaling-stroke" />
+              </g>
+            ))}
+            <line ref={playhead} x1={0} x2={0} y1={0} y2={100} stroke="#ffffff" strokeOpacity={0.8} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+          </svg>
+        </div>
+      )}
       {/* HUD per car in the bottom corners (this lap left, the reference right), like Racemake */}
       {cars.map((c, k) => (
         <div key={k} className={`pointer-events-none absolute bottom-2 flex items-center gap-3 rounded-xl border border-white/10 bg-black/70 px-1.5 py-1 backdrop-blur sm:px-3 sm:py-2 ${
@@ -408,7 +478,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
       ))}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+      <div className={`mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm ${full ? "hidden" : ""}`}>
         {byInputs && (
           <span className="flex gap-3 text-xs text-zinc-400">
             {[["Throttle", "linear-gradient(90deg, rgb(113,113,122), rgb(34,197,94))"], ["Brake", "linear-gradient(90deg, rgb(113,113,122), rgb(239,68,68))"],

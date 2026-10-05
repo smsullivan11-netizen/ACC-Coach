@@ -261,6 +261,11 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   `steering_norm` × 240°), throttle / brake bars (brake blue
   while ABS works); gap at the top centre. Phones: speed gauges only. With the replay open the
   charts take the full width under it (small map hidden); the 4-second input graphs were dropped.
+- Replay fullscreen (user's request): button at the top right of the map (browser fullscreen on the
+  replay section; window-sized fallback where the browser has none, Esc leaves). Adds only a
+  see-through strip at the bottom between the two HUDs with the full-lap throttle and brake
+  traces of both laps and a playhead (the user wanted nothing more there: no gears or other
+  channels); the HUDs stay as they are.
 - Corner buttons above the charts (`CornerChips` in LapView, user's request): "Full lap" + one
   button per corner, sticky under the top bar; a click zooms every chart from 50 m before the
   corner to 30 m after it (`cornerRange`, same as the coaching links); the button of the current
