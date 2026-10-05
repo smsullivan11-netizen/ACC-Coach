@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RATING_TYPE_LABELS, ratingType, WEIGHTS_BY_TYPE, type RatingType as RatingTypeKey } from "@/lib/ratings";
 import RatingType from "./RatingType";
-import { fuelSeconds } from "@/lib/fuel";
+import { fuelReference, fuelSeconds } from "@/lib/fuel";
 import { Avatar, Chip, delay, SectionTitle } from "@/components/ui";
 import Conditions, { type SessionConditions } from "@/components/Conditions";
 import { requireDriver } from "@/lib/auth";
@@ -70,11 +70,11 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   const time = (l: Lap) => l.official_lap_time_ms ?? l.game_lap_time_ms ?? l.lap_time_ms;
   const best = Math.min(...laps.filter((l) => l.comparable).map(time));
   const coaching = await coachSession(id);
-  // Fuel load per lap (app 0.1.6+) and what its weight cost against the rating's reference load
+  // Fuel load per lap (app 0.1.6+) and what the fuel above the track's minimum-fuel reference cost
   const hasFuel = laps.some((l) => l.metrics?.fuel_l != null);
   const fuelCost = (fuel: number) => {
     const sec = fuelSeconds(session.track, fuel);
-    return Math.abs(sec) < 0.05 ? "" : `${sec > 0 ? "+" : "−"}${Math.abs(sec).toFixed(2)} s`;
+    return sec < 0.05 ? "" : `+${sec.toFixed(2)} s`;
   };
 
   // Session type for the rating weights: ACC's by default, or chosen by the team (RatingType)
@@ -146,7 +146,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
                 <th className="text-right">Time</th>
                 <th className="text-right">Gap</th>
                 <th>Status</th>
-                {hasFuel && <th className="text-right" title="Average fuel load over the lap, and what its weight cost against 15 L (the rating corrects for it)">Fuel</th>}
+                {hasFuel && <th className="text-right" title={`Average fuel load over the lap, and what the fuel above ${fuelReference(session.track)} L (minimum fuel on this track) cost: the rating corrects for it`}>Fuel</th>}
                 <th className="text-right">Full throttle</th>
                 <th className="text-right">Braking</th>
                 <th className="text-right">Top speed</th>

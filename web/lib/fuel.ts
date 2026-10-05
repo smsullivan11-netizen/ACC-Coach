@@ -1,10 +1,22 @@
 // Fuel weight correction for the rating (user's request, 2026-10-06): a lap driven with a lot of fuel
-// is slower, so the rating corrects lap times to a reference load. The lap's fuel (litres, average
-// over the lap) comes from the app (0.1.6+, in lap.metrics.fuel_l); older laps are not corrected.
-// Leaderboards and records keep the real times. Safe on server and client.
+// is slower, so the rating removes what the fuel above a minimum-fuel load cost. The minimum (the
+// reference) is what a hotlap or short qualifying run carries: 8 L on tracks under 5 km, 10 L on
+// longer ones, 15 L on the Nordschleife (user's values). A lap at or below it is not corrected (no
+// bonus for running lighter). The lap's fuel (litres, average over the lap) comes from the app
+// (0.1.6+, in lap.metrics.fuel_l); older laps are not corrected. Leaderboards and records keep the
+// real times. Safe on server and client.
 
 export const FUEL_KG_PER_L = 0.72;   // ACC
-export const FUEL_REF_L = 15;        // about qualifying fuel: a lap at 15 L is not corrected
+
+// Minimum-fuel reference per track (litres)
+const REF_L: Record<string, number> = {
+  brands_hatch: 8, zolder: 8, misano: 8, donington: 8, oulton_park: 8, laguna_seca: 8, zandvoort: 8, red_bull_ring: 8,
+  hungaroring: 8, valencia: 8, kyalami: 8, imola: 8, barcelona: 8, indianapolis: 8, snetterton: 8,
+  spa: 10, monza: 10, silverstone: 10, suzuka: 10, cota: 10, paul_ricard: 10, mount_panorama: 10, nurburgring: 10,
+  watkins_glen: 10, nurburgring_24h: 15,
+};
+const DEFAULT_REF_L = 10;
+export const fuelReference = (trackKey: string) => REF_L[trackKey.toLowerCase()] ?? DEFAULT_REF_L;
 
 // Seconds lost per lap for 10 kg, measured in ACC by OhneSpeed (shared by the user)
 const S_PER_10KG: Record<string, number> = {
@@ -15,9 +27,9 @@ const S_PER_10KG: Record<string, number> = {
 };
 const DEFAULT_S_PER_10KG = 0.16;     // tracks not measured
 
-/** Seconds the fuel load cost (positive) or gave (below the reference) on a lap of this track. */
+/** Seconds the fuel above the track's minimum-fuel reference cost on a lap (0 at or below it). */
 export function fuelSeconds(trackKey: string, fuelL: number | null | undefined) {
   if (fuelL == null || !Number.isFinite(fuelL)) return 0;
   const perKg = (S_PER_10KG[trackKey.toLowerCase()] ?? DEFAULT_S_PER_10KG) / 10;
-  return perKg * FUEL_KG_PER_L * (fuelL - FUEL_REF_L);
+  return perKg * FUEL_KG_PER_L * Math.max(0, fuelL - fuelReference(trackKey));
 }
