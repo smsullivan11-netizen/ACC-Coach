@@ -591,8 +591,15 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 
 ## Ratings and profiles (web/lib/ratings.ts, web/lib/style.ts)
 - Overall Driver Rating 0-100, computed by the site after each upload (`rateSession`), never by
-  the app. Session score = pace 50 / consistency 25 / clean 15 / smoothness 10 (formulas in the
-  header of `ratings.ts`; a part that cannot be measured is left out). Provisional until 3 sessions.
+  the app. Session score = weighted pace / consistency / clean / smoothness (formulas in the header
+  of `ratings.ts`; a part that cannot be measured is left out). Provisional until 3 sessions.
+- Weights per session type (user's values, `WEIGHTS_BY_TYPE`): practice 56/24/10/10, qualifying
+  62/18/10/10 (also hotlap, superpole), race 45/30/15/10 (also hotstint), mixed running 55/25/10/10
+  (default, unknown types). The type comes from ACC unless someone in the team picks another on
+  the session page (`session.rating_type`, migration 0010; `RatingType.tsx` →
+  `/api/sessions/[id]/rating-type`, which replays that driver's ratings: `rebuildDriverRatings`).
+- Consistency scale widened (user: "too nice for some, too harsh for others"): median gap of the
+  other valid laps to the session best, 0.1 % → 100, 3 % → 0 (was 0.3 % → 100, 2 % → 0).
 - Rating = **current form** (since 2026-10-05; before: moved 30 % towards each session score, which
   the user found too low for a driver whose learning sessions dragged it down): best session score
   per track in the 60 days before the driver's latest session, sessions with 5+ valid laps (all of

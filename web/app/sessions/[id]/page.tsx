@@ -2,6 +2,8 @@ import { ArrowLeft, CalendarDays, Car, CircleCheck, Crown, GitCompareArrows, Lin
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { RATING_TYPE_LABELS, ratingType, WEIGHTS_BY_TYPE, type RatingType as RatingTypeKey } from "@/lib/ratings";
+import RatingType from "./RatingType";
 import { Avatar, Chip, delay, SectionTitle } from "@/components/ui";
 import Conditions, { type SessionConditions } from "@/components/Conditions";
 import { requireDriver } from "@/lib/auth";
@@ -22,6 +24,7 @@ type Session = {
   car: string | null;
   car_class: string | null;
   session_type: string | null;
+  rating_type: string | null;
   source_kind: string;
   source_file: string;
 };
@@ -53,7 +56,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   const [session] = await sql<Session[]>`
     select s.id, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY, HH24:MI') as recorded,
            d.display_name as driver, d.id as driver_id, d.avatar_url, s.conditions, t.key as track, c.key as car, c.class as car_class,
-           s.session_type, s.source_kind, s.source_file
+           s.session_type, s.rating_type, s.source_kind, s.source_file
     from session s join driver d on d.id = s.driver_id join track t on t.id = s.track_id
     left join car c on c.id = s.car_id
     where s.id = ${id}`;
@@ -66,6 +69,14 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   const time = (l: Lap) => l.official_lap_time_ms ?? l.game_lap_time_ms ?? l.lap_time_ms;
   const best = Math.min(...laps.filter((l) => l.comparable).map(time));
   const coaching = await coachSession(id);
+
+  // Session type for the rating weights: ACC's by default, or chosen by the team (RatingType)
+  const w = (t: RatingTypeKey) => { const x = WEIGHTS_BY_TYPE[t]; return `pace ${x.pace} · consistency ${x.consistency} · clean ${x.clean} · smoothness ${x.smoothness}`; };
+  const autoType = ratingType(null, session.session_type);
+  const typeOptions = [
+    { value: "", label: "", weights: w(autoType) },
+    ...(Object.keys(WEIGHTS_BY_TYPE) as RatingTypeKey[]).map((t) => ({ value: t as string, label: RATING_TYPE_LABELS[t], weights: w(t) })),
+  ];
 
   const info = trackInfo(session.track);
   const photo = hasPhoto(session.track);
@@ -112,6 +123,9 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
           </div>
         </div>
       </div>
+
+      <RatingType sessionId={id} chosen={session.rating_type} options={typeOptions}
+                  accLabel={`${session.session_type ?? "unknown"} → ${RATING_TYPE_LABELS[autoType]}`} />
 
       {coaching && <Coach c={coaching} />}
 

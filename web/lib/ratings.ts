@@ -5,13 +5,15 @@ import { paceReference } from "./targets";
 // Overall Driver Rating (0-100), updated after each uploaded session.
 //
 // Session score = weighted average of four parts (0-100 each; a part that cannot be measured is
-// left out and the weights of the others are scaled up):
-//  - pace (50 %): session best vs the reference = the faster of the car's target on the track and
+// left out and the weights of the others are scaled up). The weights depend on the session type
+// (WEIGHTS_BY_TYPE, user's values): the type chosen on the session page, else ACC's (hotlap and
+// superpole = qualifying, hotstint = race, unknown = mixed running):
+//  - pace: session best vs the reference = the faster of the car's target on the track and
 //    the team's best valid lap in that car (lib/targets.ts): 0 % slower → 100, 3 % → 50, 6 % or more → 0;
-//  - consistency (25 %, needs 3 valid laps): median gap of the other valid laps to the session best:
-//    0.3 % or less → 100, 2 % or more → 0;
-//  - clean driving (15 %): share of flying laps not invalidated (track limits, server);
-//  - smoothness (10 %): steering activity vs the team's median on the same track and class:
+//  - consistency (needs 3 valid laps): median gap of the other valid laps to the session best:
+//    0.1 % or less → 100, 3 % or more → 0;
+//  - clean driving: share of flying laps not invalidated (track limits, server);
+//  - smoothness: steering activity vs the team's median on the same track and class:
 //    70 % of the team's → 100, the team's → 70, 170 % or more → 0.
 // Rating = "current form" (user's choice, 2026-10-05): on each track, the driver's best session
 // score of the last 60 days (sessions with 5+ valid laps; when none has, every session counts),
@@ -22,10 +24,36 @@ import { paceReference } from "./targets";
 // Nothing is recomputed automatically when targets or old laps change (admins can replay every
 // session: rebuildRatings).
 
-export const WEIGHTS = { pace: 50, consistency: 25, clean: 15, smoothness: 10 } as const;
+type Weights = { pace: number; consistency: number; clean: number; smoothness: number };
+export type RatingType = "practice" | "qualifying" | "race" | "mixed";
+export const WEIGHTS_BY_TYPE: Record<RatingType, Weights> = {
+  practice: { pace: 56, consistency: 24, clean: 10, smoothness: 10 },     // drivers push, care less about track limits
+  qualifying: { pace: 62, consistency: 18, clean: 10, smoothness: 10 },   // also hotlap and superpole
+  race: { pace: 45, consistency: 30, clean: 15, smoothness: 10 },         // also hotstint
+  mixed: { pace: 55, consistency: 25, clean: 10, smoothness: 10 },        // long runs and short runs; the default
+};
+export const RATING_TYPE_LABELS: Record<RatingType, string> = {
+  practice: "Practice", qualifying: "Qualifying simulation", race: "Race simulation", mixed: "Mixed running",
+};
+/** The four parts, in display order (their weights depend on the session type). */
+export const WEIGHTS = WEIGHTS_BY_TYPE.mixed;
+
+/** Weights to use: the type chosen for the session, else ACC's session type. */
+export function ratingType(chosen: string | null, acc: string | null): RatingType {
+  if (chosen && chosen in WEIGHTS_BY_TYPE) return chosen as RatingType;
+  switch (acc) {
+    case "practice": return "practice";
+    case "qualify": case "qualifying": case "hotlap": case "superpole": case "hotstint_superpole": return "qualifying";
+    case "race": case "hotstint": return "race";
+    default: return "mixed";
+  }
+}
 export const PROVISIONAL_SESSIONS = 3;
 export const FORM_DAYS = 60;
 export const FORM_MIN_LAPS = 5;
+// Consistency scale (median gap of the other valid laps to the session best): widened on 2026-10-05
+// (was 0.3 % → 100, 2 % → 0: too generous at the top, too harsh below)
+const CONSISTENCY_FULL = 0.001, CONSISTENCY_ZERO = 0.03;
 
 const clamp = (x: number) => Math.max(0, Math.min(100, x));
 const median = (xs: number[]) => {
@@ -38,8 +66,8 @@ type Sql = postgres.Sql | postgres.TransactionSql;
 type LapRow = { t: number; comparable: boolean; excluded_reasons: string[]; metrics: Record<string, number> | null };
 
 export async function rateSession(tx: Sql, sessionId: string) {
-  const [s] = await tx<{ driver_id: string; track_id: string; car_class: string | null }[]>`
-    select s.driver_id, s.track_id, c.class as car_class
+  const [s] = await tx<{ driver_id: string; track_id: string; car_class: string | null; session_type: string | null; rating_type: string | null }[]>`
+    select s.driver_id, s.track_id, c.class as car_class, s.session_type, s.rating_type
     from session s left join car c on c.id = s.car_id where s.id = ${sessionId}`;
   if (!s) return null;
   const laps = await tx<LapRow[]>`
@@ -53,7 +81,7 @@ export async function rateSession(tx: Sql, sessionId: string) {
   const pace = clamp(100 * (1 - (best - reference) / reference / 0.06));
 
   const consistency = valid.length >= 3
-    ? clamp(100 * (1 - (median(valid.slice(1).map((t) => (t - best) / best)) - 0.003) / (0.02 - 0.003)))
+    ? clamp(100 * (1 - (median(valid.slice(1).map((t) => (t - best) / best)) - CONSISTENCY_FULL) / (CONSISTENCY_ZERO - CONSISTENCY_FULL)))
     : null;
 
   const flying = laps.filter((l) => !l.excluded_reasons.some((r) => r.startsWith("pit_") || r === "distance" || r === "track_edges"));
@@ -76,7 +104,7 @@ export async function rateSession(tx: Sql, sessionId: string) {
 
   const parts = { pace, consistency, clean, smoothness };
   let total = 0, weight = 0;
-  for (const [k, w] of Object.entries(WEIGHTS)) {
+  for (const [k, w] of Object.entries(WEIGHTS_BY_TYPE[ratingType(s.rating_type, s.session_type)])) {
     const v = parts[k as keyof typeof parts];
     if (v != null) {
       total += v * w;
@@ -133,6 +161,15 @@ export async function allTimeBest(tx: Sql) {
     from (select driver_id, rating, row_number() over (partition by driver_id order by id) as n from driver_rating) x
     where n >= ${PROVISIONAL_SESSIONS} group by driver_id`;
   return new Map(rows.map((r) => [r.driver_id, r.best]));
+}
+
+/** Replays one driver's sessions in upload order (after their session type was changed). */
+export async function rebuildDriverRatings(sql: postgres.Sql, driverId: string) {
+  return sql.begin(async (tx) => {
+    await tx`delete from driver_rating where driver_id = ${driverId}`;
+    const sessions = await tx<{ id: string }[]>`select id from session where driver_id = ${driverId} order by uploaded_at, id`;
+    for (const s of sessions) await rateSession(tx, s.id);
+  });
 }
 
 /** Replays every session in upload order (after changing the formula, or for sessions uploaded

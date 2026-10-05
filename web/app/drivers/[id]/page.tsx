@@ -8,7 +8,7 @@ import { Chip, delay, Position, RankBadge, SectionTitle } from "@/components/ui"
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
-import { formParts, PROVISIONAL_SESSIONS, WEIGHTS } from "@/lib/ratings";
+import { formParts, PROVISIONAL_SESSIONS } from "@/lib/ratings";
 import { drivingStyle } from "@/lib/style";
 import { coachSession } from "@/lib/coaching";
 
@@ -159,7 +159,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
               return (
                 <div key={p.key}>
                   <div className="flex justify-between text-sm">
-                    <span className="text-zinc-200">{p.label} <span className="text-zinc-500">· {WEIGHTS[p.key]} % · {p.help}</span></span>
+                    <span className="text-zinc-200">{p.label} <span className="text-zinc-500">· {p.help}</span></span>
                     <span className="tabular font-semibold text-white">{v != null ? Math.round(v) : "–"}</span>
                   </div>
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/5">
@@ -169,7 +169,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
               );
             })}
           </div>
-          <p className="mt-3 text-xs text-zinc-500">Best session on each track in the last 60 days (5+ valid laps), averaged over the tracks.</p>
+          <p className="mt-3 text-xs text-zinc-500">Best session on each track in the last 60 days (5+ valid laps), averaged over the tracks. Weights depend on the session type (practice, qualifying, race, mixed running).</p>
         </section>
         <section className="card rise p-5" style={delay(180)}>
           <SectionTitle icon={TrendingUp}>Rating over time</SectionTitle>
