@@ -191,10 +191,9 @@ function CornerChips({ corners, range, onSelect }: { corners: CornerRow[]; range
     <div className="sticky top-[56px] z-20 mt-4 flex gap-1.5 overflow-x-auto rounded-lg border border-white/10 bg-ink/85 px-2 py-1.5 backdrop-blur">
       <button onClick={() => onSelect(null)} className={`${chip} ${look(!range)} font-semibold`}>Full lap</button>
       {corners.map((c) => (
-        <button key={c.number} onClick={() => onSelect(cornerRange(c))} title={c.name ?? undefined}
-                className={`${chip} ${look(same(cornerRange(c)))}`}>
-          <span className="font-semibold">Turn {c.number}</span>
-          {c.name && <span className="ml-1 text-zinc-400">{c.name}</span>}
+        <button key={c.number} onClick={() => onSelect(cornerRange(c))}
+                className={`${chip} ${look(same(cornerRange(c)))} font-semibold`}>
+          Turn {c.number}
         </button>
       ))}
     </div>
