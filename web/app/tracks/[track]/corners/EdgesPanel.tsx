@@ -8,11 +8,12 @@ export type EdgeStatus = { side: "left" | "right"; lap_id: string | null; driver
 export type EdgeCandidate = { id: string; driver: string; number: number; time_ms: number; date: string; excluded_reasons: string[] };
 
 // Track edges: which laps draw the white lines, and (admins) picking edge laps among recent laps.
-export default function EdgesPanel({ track, isAdmin, status, candidates }: {
+export default function EdgesPanel({ track, isAdmin, status, candidates, source }: {
   track: string;
   isAdmin: boolean;
   status: EdgeStatus[];
   candidates: EdgeCandidate[];
+  source: { kind: string; laps: number | null } | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -33,11 +34,26 @@ export default function EdgesPanel({ track, isAdmin, status, candidates }: {
     <section className="card mt-8 max-w-4xl p-5">
       <h2 className="display text-sm uppercase tracking-wider text-white">Track edges</h2>
       <p className="mt-1 text-sm text-zinc-400">
-        ACC does not share where the track ends, so the track surface on the maps comes from two laps driven slowly along the
-        white lines: one with the <strong className="text-zinc-200">left</strong> wheels on the line, one with the{" "}
-        <strong className="text-zinc-200">right</strong> wheels on it (left and right in the driving direction). Drive them
-        in their own practice session with the app running, then pick them here. Edge laps are left out of leaderboards,
-        ratings and corner maps.
+        ACC does not share where the track ends, so the track surface on the maps is drawn automatically from the
+        team&apos;s valid laps: they touch the edges at turn-in, apex and exit, and the track is made wide enough for every
+        one of them. On tracks of the TU Munich race track database, its measured widths are used too. It gets more
+        accurate with every lap uploaded.
+      </p>
+      <p className="mt-2 rounded-lg border border-white/10 bg-raised/50 px-3 py-2 text-sm">
+        <span className="text-zinc-400">Now drawn from: </span>
+        <span className="text-white">
+          {!source ? "nothing yet (no lap with car positions)"
+            : source.kind === "edge laps" ? "the two edge laps below (exact)"
+            : source.kind === "tumftm" ? `TU Munich widths, fitted to ${source.laps} team lap${source.laps === 1 ? "" : "s"}`
+            : `${source.laps} team lap${source.laps === 1 ? "" : "s"}`}
+        </span>
+      </p>
+      <p className="mt-4 text-sm text-zinc-400">
+        Optional, for exact white lines: two laps driven slowly along them, one with the{" "}
+        <strong className="text-zinc-200">left</strong> wheels on the line, one with the{" "}
+        <strong className="text-zinc-200">right</strong> wheels on it (left and right in the driving direction), picked here
+        by an admin. When both are set they replace the automatic surface. Edge laps are left out of leaderboards, ratings
+        and corner maps.
       </p>
       <div className="mt-3 flex flex-wrap gap-3 text-sm">
         {(["left", "right"] as const).map((side) => {

@@ -3,9 +3,11 @@ import { sql } from "./db";
 import { rebuildRatings } from "./ratings";
 import type { EncodedChannel } from "./trace";
 import { decodeStored } from "./trace-store";
+import { trackOutline } from "./track-outline";
 
-// Track edges (white lines) for drawing the track surface. ACC does not publish them, so they come
-// from two edge laps: one driven with the left wheels on the white line, one with the right wheels.
+// Track edges (white lines) for drawing the track surface. ACC does not publish them: by default
+// they are estimated from the team's laps (lib/track-outline.ts). For exact lines, an admin can
+// pick two edge laps: one driven with the left wheels on the white line, one with the right wheels.
 // The car's position is the middle of its four tyre contact points: the edge is that line moved
 // outward by half the car's width. An edge lap is taken out of rankings, ratings and corner maps
 // (excluded reason "track_edges"); clearing it puts the lap back.
@@ -32,15 +34,14 @@ export function edgeFromLine(x: ArrayLike<number>, z: ArrayLike<number>, side: S
   return out;
 }
 
-/** The track's edges; null before migration 0004 or when none is set (maps then show lines only). */
-export async function trackEdges(trackId: string): Promise<Edges | null> {
-  try {
-    const rows = await sql<{ side: Side; points: EdgeLine }[]>`select side, points from track_edge where track_id = ${trackId}`;
-    if (!rows.length) return null;
-    return { left: rows.find((r) => r.side === "left")?.points ?? null, right: rows.find((r) => r.side === "right")?.points ?? null };
-  } catch {
-    return null;
-  }
+/** The track's edges: both edge laps when an admin set them, else the automatic outline from the
+ *  team's laps (lib/track-outline.ts); null when the track has no lap with car positions yet. */
+export async function trackEdges(trackId: string, key: string): Promise<(Edges & { source: string; laps?: number }) | null> {
+  const rows = await sql<{ side: Side; points: EdgeLine }[]>`select side, points from track_edge where track_id = ${trackId}`
+    .catch(() => []);
+  const left = rows.find((r) => r.side === "left")?.points, right = rows.find((r) => r.side === "right")?.points;
+  if (left && right) return { left, right, source: "edge laps" };
+  return trackOutline(trackId, key).catch((e) => { console.error("track outline", e); return null; });
 }
 
 const restore = (lapId: string) => sql`

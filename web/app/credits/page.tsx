@@ -33,6 +33,14 @@ export default function CreditsPage() {
         Country flags: flagcdn.com (public domain). Headings: Konexy, the team&apos;s livery font (personal-use licence).
         Icons: Lucide (ISC licence).
       </p>
+      <p className="mt-3 text-sm text-zinc-500">
+        Track widths on the maps of Barcelona, Brands Hatch, COTA, Hungaroring, Monza, Nürburgring GP, Red Bull Ring,
+        Silverstone, Spa, Suzuka and Zandvoort:{" "}
+        <a href="https://github.com/TUMFTM/racetrack-database" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-white hover:underline">
+          racetrack-database
+        </a>{" "}
+        by the Chair of Automotive Technology, Technical University of Munich (LGPL-3.0 licence), fitted to the team&apos;s laps.
+      </p>
     </div>
   );
 }

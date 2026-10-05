@@ -1,5 +1,6 @@
 // The track surface (asphalt between the two white lines) for SVG track maps, drawn under the
-// racing lines. Edges come from edge laps (lib/track-edges.ts); nothing is drawn without them.
+// racing lines. Edges come from lib/track-edges.ts (edge laps, else the automatic outline);
+// nothing is drawn without them.
 // Works in server and client components (no hooks).
 
 export type EdgeLine = { x: number[]; z: number[] };
@@ -21,7 +22,7 @@ export default function TrackSurface({ edges }: { edges: Edges }) {
         <path d={path(edges.left) + path(edges.right)} fill="#2b2b30" fillRule="evenodd" />
       )}
       {lines.map((e, k) => (
-        <path key={k} d={path(e)} fill="none" stroke="#e4e4e7" strokeOpacity={0.55} strokeWidth={1}
+        <path key={k} d={path(e)} fill="none" stroke="#e4e4e7" strokeOpacity={0.8} strokeWidth={1.4}
               vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
       ))}
     </g>

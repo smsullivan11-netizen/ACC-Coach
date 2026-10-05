@@ -38,8 +38,8 @@ export default async function CornersPage(props: PageProps<"/tracks/[track]/corn
     for (let i = 0; i < x.length; i += k) { line.x.push(Math.round(x[i] * 10) / 10); line.z.push(Math.round(z[i] * 10) / 10); }
   }
 
-  // Track edges (table from migration 0004: none before it is applied)
-  const edges = await trackEdges(t.id);
+  // Track edges: edge laps when both are set, else the automatic outline
+  const edges = await trackEdges(t.id, track);
   const status = await sql<EdgeStatus[]>`
     select e.side, e.lap_id, d.display_name as driver, l.number, to_char(e.set_at, 'DD Mon YYYY') as date
     from track_edge e left join lap l on l.id = e.lap_id left join session s on s.id = l.session_id
@@ -85,7 +85,8 @@ export default async function CornersPage(props: PageProps<"/tracks/[track]/corn
       ) : (
         <p className="mt-6 text-zinc-400">No corner map yet: it is made with the first session uploaded on this track.</p>
       )}
-      <EdgesPanel track={track} isAdmin={me.is_admin} status={status} candidates={candidates} />
+      <EdgesPanel track={track} isAdmin={me.is_admin} status={status} candidates={candidates}
+                  source={edges ? { kind: edges.source, laps: edges.laps ?? null } : null} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { gunzipSync } from "node:zlib";
+import { after } from "next/server";
 import { driverFromRequest } from "@/lib/auth";
 import { awardAchievements } from "@/lib/achievements";
 import { afterUpload } from "@/lib/corner-maps";
@@ -7,6 +8,7 @@ import { sql } from "@/lib/db";
 import { importBundle, Rejected, type Bundle } from "@/lib/import-bundle";
 import { compressOldTraces, pruneTraces } from "@/lib/storage";
 import { rateSession } from "@/lib/ratings";
+import { refreshOutlineForSession } from "@/lib/track-outline";
 
 // Upload of a session bundle (.json.gz written by bundle.py), from the desktop app / upload script
 // (Authorization: Bearer <upload token>) or from the upload page (browser session).
@@ -41,6 +43,8 @@ export async function POST(request: Request) {
   await announceSession(result.sessionId);
   await pruneTraces();
   await compressOldTraces(10).catch((e) => console.error("compress traces", e));   // older traces, a few per upload
+  // Track surface on the maps, recomputed with the new laps once the app has its answer
+  after(() => refreshOutlineForSession(result.sessionId).catch((e) => console.error("track outline", e)));
   return Response.json({
     ok: true,
     session_id: result.sessionId,

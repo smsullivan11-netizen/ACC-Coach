@@ -218,15 +218,31 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   theoretical best only uses the latest version.
 
 ## Track edges and replay (web/lib/track-edges.ts, web/app/laps/[id]/Replay.tsx)
-- Track surface on maps (asphalt between two white lines, `components/TrackSurface.tsx`): ACC has
-  no edges, so they come from two **edge laps** driven slowly with the left / right wheels on the
-  white line (driving direction), uploaded as usual, then picked by an admin on the track map page
-  (Leaderboard → track map & corners). Edge = the lap's line moved outward by 1.0 m (car centre to
-  the outer side of the tyres), one point every 2 m. An edge lap gets the excluded reason
-  `track_edges` (out of rankings, ratings, corner maps; ratings replayed); clearing restores it.
-  Read paths tolerate a database without migration 0004 (no surface drawn).
-- The user's choice: a Racemake/ACC Drive-like track view. Estimating edges from the team's laps
-  was rejected: racing lines only touch the edges at corners and few laps give a narrow band.
+- Track surface on maps (asphalt between two white lines, `components/TrackSurface.tsx`). ACC has
+  no edges. The user insisted on a Racemake/Popometer-like track view **without driving edge laps**
+  (45 min along the Nordschleife white lines was refused), so by default it is automatic
+  (`lib/track-outline.ts`, 2026-10-05):
+  - Frame = mean line of the team's valid laps (up to 80, same trace length ± 1 %, duplicates
+    dropped), right-hand normals; band `lo`/`hi` = extreme lateral offsets (2nd most extreme with
+    6+ laps) ± 1 m car half width. The jump at the start/finish line (a lap starts where the
+    previous one ended) is spread over ±50 m.
+  - First guess, then the smallest local shift that fits every lap inside, smoothed (±12 m, 30
+    passes): TUM racetrack database (`lib/track-data/tumftm.json`, 11 tracks, LGPL-3.0, credited on
+    /credits) aligned automatically (coarse search over reflection and rotation every 2°, then
+    40 ICP passes, scale clamped 0.97-1.03); rejected when it needs big corrections (median shift
+    > 1 m, 95th percentile > 3.5 m). The data has local errors of 1-3 m (Brands Hatch: 8 % of the
+    line > 1 m outside its edges even with the best rigid fit), hence the correction by the laps.
+    Indianapolis left out (the TUM file is the oval). Otherwise: centre = middle of the band
+    averaged over ±60 m, width = 90th percentile of the width the laps need, 9-16 m.
+  - Stored in `track_outline` (migration 0009) with the newest lap used and a method `VERSION`
+    (bump it when the method changes); recomputed after each upload (`after()` in the upload route)
+    or on read when stale. Without the table it is computed on every read (not stored). Brands
+    Hatch: ~1.4 s to compute on the dev server, 0.06 s when stored.
+- Optional exact edges: two **edge laps** driven slowly with the left / right wheels on the white
+  line (driving direction), picked by an admin on the track map page; both set = they replace the
+  automatic surface. Edge = the lap's line moved outward by 1.0 m, one point every 2 m. An edge
+  lap gets the excluded reason `track_edges` (out of rankings, ratings, corner maps; ratings
+  replayed); clearing restores it.
 - Replay on the lap page ("Replay both laps"): both cars placed by **elapsed time** (inverse of
   the `time_s` channel), drawn as 4.6 × 2.0 m cars with a brake light, follow camera (close /
   medium / wide = 120 / 250 / 500 m view, centred between the cars when close) or whole track,
@@ -317,6 +333,7 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   0003: ratings (`driver.is_admin`, the first Discord member becomes admin; `track_target` per
   track and class; `driver_rating` = one row per rated session, the history of the rating).
   0004: `track_edge` (white lines per track and side, from edge laps; see "Track edges").
+  0009: `track_outline` (automatic track surface per track; see "Track edges").
   0005: `car_target` (target lap time per track key and car key, seeded with LFM's 101 % times for
   the Ford Mustang GT3 and McLaren 720S GT3 Evo); `track_target` (per class) is unused, to drop later.
 - The corner map fingerprint (`corners.map_hash`) formats numbers with one decimal: a map that
@@ -576,8 +593,8 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   the site, direct address for `npm run db:migrate`), Discord application with redirects for
   localhost and the site. Settings are trimmed in code: a tab pasted into APP_URL once broke sign-in.
 - More real recordings: other tracks/cars, a multiplayer server session, a session with pit stops.
-- Track edges: the user does not want to drive edge laps on every track. The edge-lap tool stays,
-  but an automatic estimate from the team's laps is the direction to explore.
+- Track surface: automatic since 2026-10-05 (see "Track edges"). Check it on the real tracks
+  (Nordschleife especially: no TUM data, tight sections) once deployed.
 - App 0.1.1 (ABS channel): installer published on the site; `ACC-Coach-0.1.1.msix` to submit to the
   Store once 0.1.0 has passed certification.
 - Coaching: tune thresholds with real sessions; maybe the rating change and the top focus in the
