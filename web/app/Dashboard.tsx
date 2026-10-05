@@ -1,6 +1,6 @@
 import { Activity, ArrowUpRight, Crown, Gauge, Medal, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Link from "next/link";
-import { Avatar, Chip, delay, Position, RankBadge, SectionTitle } from "@/components/ui";
+import { Avatar, Chip, delay, Position, RankBadge, RankIcon, SectionTitle } from "@/components/ui";
 import type { Driver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
@@ -103,7 +103,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
                 <Link href={`/drivers/${d.id}`} className={`flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/5 ${d.id === me.id ? "bg-accent/[0.06] ring-1 ring-accent/20" : ""}`}>
                   <Position n={i + 1} />
                   <Avatar url={d.avatar_url} name={d.display_name} size={28} />
-                  <span className="min-w-0 flex-1 truncate text-sm text-white">{d.display_name}</span>
+                  <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-white"><span className="truncate">{d.display_name}</span><RankIcon rating={d.rating} size={14} /></span>
                   <span className="hidden md:inline"><RankBadge rating={d.rating} /></span>
                   {d.sessions < PROVISIONAL_SESSIONS && <span className="hidden text-[11px] text-zinc-500 sm:inline">provisional</span>}
                   <div className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-white/5 sm:block">

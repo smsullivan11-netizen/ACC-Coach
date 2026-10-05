@@ -4,7 +4,7 @@ import { ACHIEVEMENTS } from "@/lib/achievements";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Chip, delay, Position, RankBadge, SectionTitle } from "@/components/ui";
+import { Chip, delay, Position, RankBadge, RankIcon, SectionTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
@@ -82,7 +82,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
             </div>
           )}
           <div>
-            <h1 className="display text-3xl text-white">{d.display_name}</h1>
+            <h1 className="display flex items-center gap-3 text-3xl text-white">{d.display_name}<RankIcon rating={rating} size={22} /></h1>
             <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-400">
               Team member since {d.since}
               {d.is_admin && <Chip tone="red" icon={Shield}>admin</Chip>}

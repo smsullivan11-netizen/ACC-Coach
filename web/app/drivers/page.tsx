@@ -1,7 +1,7 @@
 import { Swords, TrendingDown, TrendingUp, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Avatar, Chip, delay, PageTitle, Position, RankBadge } from "@/components/ui";
+import { Avatar, Chip, delay, PageTitle, Position, RankBadge, RankIcon, RankScale } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { allTimeBest, PROVISIONAL_SESSIONS } from "@/lib/ratings";
@@ -27,10 +27,11 @@ export default async function DriversPage() {
 
   return (
     <div>
-      <PageTitle icon={Users} sub="Overall Driver Rating (0-100): current form / all-time best. Each session is scored on pace against the reference lap, consistency, clean driving and smoothness; the rating averages the best session on each track of the last 60 days. Ranks: Rookie, Apprentice (20), Intermediate (40), Advanced (50), Contender (60), Front Runner (70), Expert (80), Alien (90).">
+      <PageTitle icon={Users} sub="Rating: current form / all-time best, out of 100.">
         Drivers
       </PageTitle>
       <Link href="/drivers/compare" className="btn btn-ghost -mt-2 mb-5"><Swords size={15} /> Head to head</Link>
+      <div className="mb-5"><RankScale /></div>
       <div className="card card-red rise overflow-x-auto">
         <table className="data-table">
           <thead>
@@ -52,6 +53,7 @@ export default async function DriversPage() {
                     <Link href={`/drivers/${r.id}`} className="flex items-center gap-3 text-white hover:underline">
                       <Avatar url={r.avatar_url} name={r.display_name} size={32} />
                       <span className="font-medium">{r.display_name}</span>
+                      <RankIcon rating={r.rating} size={16} />
                     </Link>
                   </td>
                   <td>

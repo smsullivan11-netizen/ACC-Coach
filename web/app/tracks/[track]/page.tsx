@@ -2,7 +2,7 @@ import { ArrowLeft, Crown, GitCompareArrows, Map as MapIcon, Ruler, Target } fro
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Avatar, Chip, delay, Position } from "@/components/ui";
+import { Avatar, Chip, delay, Position, RankIcon } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, gap, lapTime, prettyKey } from "@/lib/format";
@@ -18,6 +18,7 @@ type Row = {
   car_class: string | null;
   driver_id: string;
   driver: string;
+  rating: number | null;
   avatar_url: string | null;
   car: string | null;
   session_id: string;
@@ -43,7 +44,8 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
     with map as (select id from corner_map where track_id = ${t.id} order by version desc limit 1)
     select r.position::int, r.gap_ms, r.lap_time_ms, r.lap_id, r.car_class, r.driver_id, d.display_name as driver, d.avatar_url,
            c.key as car, l.session_id, to_char(r.recorded_at, 'DD Mon YYYY') as date,
-           round(tb.theoretical_s * 1000)::int as theoretical_ms
+           round(tb.theoretical_s * 1000)::int as theoretical_ms,
+           (select dr.rating from driver_rating dr where dr.driver_id = r.driver_id order by dr.id desc limit 1) as rating
     from lap_ranking r
     join driver d on d.id = r.driver_id
     join lap l on l.id = r.lap_id
@@ -148,6 +150,7 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
                         <td>
                           <Link href={`/drivers/${r.driver_id}`} className="flex items-center gap-2.5 text-white hover:underline">
                             <Avatar url={r.avatar_url} name={r.driver} size={26} /> {r.driver}
+                            <RankIcon rating={r.rating} size={14} />
                             {r.position === 1 && <Crown size={14} className="text-accent" />}
                           </Link>
                         </td>
