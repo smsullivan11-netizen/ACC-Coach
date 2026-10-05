@@ -1,5 +1,6 @@
 import "server-only";
 import type postgres from "postgres";
+import { announcePromotions, currentRatings } from "./discord";
 import { paceReference } from "./targets";
 
 // Overall Driver Rating (0-100), updated after each uploaded session.
@@ -166,21 +167,27 @@ export async function allTimeBest(tx: Sql) {
 
 /** Replays one driver's sessions in upload order (after their session type was changed). */
 export async function rebuildDriverRatings(sql: postgres.Sql, driverId: string) {
-  return sql.begin(async (tx) => {
+  const before = await currentRatings();
+  await sql.begin(async (tx) => {
     await tx`delete from driver_rating where driver_id = ${driverId}`;
     const sessions = await tx<{ id: string }[]>`select id from session where driver_id = ${driverId} order by uploaded_at, id`;
     for (const s of sessions) await rateSession(tx, s.id);
   });
+  await announcePromotions(before).catch((e) => console.error("discord promotions", e));
 }
 
 /** Replays every session in upload order (after changing the formula, or for sessions uploaded
  *  before ratings existed). Uses today's targets and team bests for all of them. */
 export async function rebuildRatings(sql: postgres.Sql) {
-  return sql.begin(async (tx) => {
+  const before = await currentRatings();
+  const result = await sql.begin(async (tx) => {
     await tx`delete from driver_rating`;
     const sessions = await tx<{ id: string }[]>`select id from session order by uploaded_at, id`;
     let rated = 0;
     for (const s of sessions) if (await rateSession(tx, s.id)) rated++;
     return { sessions: sessions.length, rated };
   });
+  // Rank promotions caused by the replay are posted like after an upload (user's request)
+  await announcePromotions(before).catch((e) => console.error("discord promotions", e));
+  return result;
 }

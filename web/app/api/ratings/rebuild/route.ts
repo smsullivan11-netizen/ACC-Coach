@@ -4,7 +4,8 @@ import { sql } from "@/lib/db";
 import { rebuildRatings } from "@/lib/ratings";
 
 // Recomputes every rating, then every achievement, from all sessions in upload order (admins): for
-// sessions uploaded before they existed, or after changing a rule. Nothing is posted to Discord.
+// sessions uploaded before they existed, or after changing a rule. Only the rank promotions it causes are
+// posted to Discord (lib/ratings.ts), no records.
 export const maxDuration = 60;
 
 export async function POST() {

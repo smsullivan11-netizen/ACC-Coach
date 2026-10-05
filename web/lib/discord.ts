@@ -68,16 +68,38 @@ export async function announceSession(sessionId: string) {
     select rating, prev from (select session_id, rating, lag(rating) over (order by id) as prev
                               from driver_rating where driver_id = ${s.driver_id}) x
     where session_id = ${sessionId}`;   // only this upload's rating: no repeat when a session is not rated
-  if (r?.prev != null && rankLevel(r.rating) > rankLevel(r.prev)) {
-    const rank = rankFor(r.rating);
-    embeds.push({
-      color: parseInt(rank.color.slice(1), 16),
-      title: `🎖️ ${s.driver} is now ${rank.title}`,
-      description: `Overall Driver Rating ${r.rating.toFixed(1)} (from ${rankFor(r.prev).title}).`,
-      url: `${appUrl()}/drivers/${s.driver_id}`,
-    });
-  }
+  if (r?.prev != null && rankLevel(r.rating) > rankLevel(r.prev)) embeds.push(promotion(s.driver, s.driver_id, r.rating, r.prev));
   if (embeds.length) await post({ embeds });
+}
+
+const promotion = (driver: string, driverId: string, rating: number, prev: number) => {
+  const rank = rankFor(rating);
+  return {
+    color: parseInt(rank.color.slice(1), 16),
+    title: `🎖️ ${driver} is now ${rank.title}`,
+    description: `Overall Driver Rating ${rating.toFixed(1)} (from ${rankFor(prev).title}).`,
+    url: `${appUrl()}/drivers/${driverId}`,
+  };
+};
+
+/** Every driver's current rating (their latest rating row). */
+export async function currentRatings() {
+  const rows = await sql<{ driver_id: string; rating: number }[]>`
+    select distinct on (driver_id) driver_id, rating from driver_rating order by driver_id, id desc`;
+  return new Map(rows.map((r) => [r.driver_id, r.rating]));
+}
+
+/** After ratings were replayed (Recompute all ratings, a session type changed, edge laps): posts the
+ *  rank promotions it caused, like after an upload. Rank drops are not posted. */
+export async function announcePromotions(before: Map<string, number>) {
+  if (!env("DISCORD_WEBHOOK_URL")) return;
+  const after = await currentRatings();
+  const up = [...after].filter(([id, r]) => before.has(id) && rankLevel(r) > rankLevel(before.get(id)!));
+  if (!up.length) return;
+  const names = new Map((await sql<{ id: string; display_name: string }[]>`
+    select id, display_name from driver where id in ${sql(up.map(([id]) => id))}`).map((d) => [d.id, d.display_name]));
+  const embeds = up.map(([id, r]) => promotion(names.get(id) ?? "A driver", id, r, before.get(id)!));
+  for (let i = 0; i < embeds.length; i += 10) await post({ embeds: embeds.slice(i, i + 10) });   // Discord: 10 per message
 }
 
 /** Admin test message from Settings. */

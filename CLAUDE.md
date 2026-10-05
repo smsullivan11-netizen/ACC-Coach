@@ -598,6 +598,9 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   (default, unknown types). The type comes from ACC unless someone in the team picks another on
   the session page (`session.rating_type`, migration 0010; `RatingType.tsx` →
   `/api/sessions/[id]/rating-type`, which replays that driver's ratings: `rebuildDriverRatings`).
+- Rank promotions are posted to Discord after rating replays too (Recompute all ratings, session
+  type changed, edge laps: `announcePromotions` compares every driver's rating before / after);
+  the user noticed two promotions from a recompute went unannounced. Rank drops are never posted.
 - Consistency scale widened (user: "too nice for some, too harsh for others"): median gap of the
   other valid laps to the session best, 0.1 % → 100, 3 % → 0 (was 0.3 % → 100, 2 % → 0).
 - Rating = **current form** (since 2026-10-05; before: moved 30 % towards each session score, which
