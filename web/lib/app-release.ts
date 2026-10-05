@@ -1,8 +1,8 @@
 // Current release of the ACC Coach desktop app. The installer is served from web/public/downloads/
 // (agent/build.ps1 copies it there and updates this file).
 export const APP_RELEASE = {
-  version: "0.1.3",
+  version: "0.1.4",
   file: "/downloads/ACC-Coach-Setup.exe",
-  sizeMb: 20.9,
+  sizeMb: 21.2,
   date: "2026-10-05",
 };

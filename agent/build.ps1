@@ -13,7 +13,7 @@ $version = (Select-String -Path version.py -Pattern '__version__ = "(.+)"').Matc
 $py = Join-Path $root ".venv\Scripts\python.exe"
 
 New-Item -ItemType Directory -Force agent\build | Out-Null
-& $py -c "import sys; sys.path[:0] = ['agent', '.']; from acc_coach_app import make_icon; make_icon(256).save('agent/build/icon.ico', sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])"
+& $py -c "import sys; sys.path[:0] = ['agent', '.']; sys.path[:0] = ['agent/store']; from logo import make_logo; make_logo(256, rounded=True).save('agent/build/icon.ico', sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)], append_images=[make_logo(s, rounded=True) for s in (16, 24, 32, 48, 64, 128)])"
 
 # The MoTeC reader (ldparser, GPL-3.0), plotting and database packages are not part of the app
 & $py -m PyInstaller --noconfirm --clean --windowed --name "ACC Coach" `
@@ -46,7 +46,7 @@ $id = Get-Content agent\store\identity.json -Raw | ConvertFrom-Json
 $layout = "agent\build\msix"
 Remove-Item -Recurse -Force $layout, agent\build\pri -ErrorAction SilentlyContinue
 Copy-Item "agent\dist\ACC Coach" $layout -Recurse
-& $py agent\store\make_assets.py agent\build\pri\Assets
+& $py agent\store\make_assets.py agent\build\pri\Assets --listing agent\dist\store-logos
 if ($LASTEXITCODE) { throw "Store images failed" }
 Copy-Item agent\build\pri\Assets "$layout\Assets" -Recurse
 $manifest = Get-Content agent\store\AppxManifest.xml -Raw
