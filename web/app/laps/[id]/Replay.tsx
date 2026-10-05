@@ -392,7 +392,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
       </svg>
       {/* Corner checkpoints: click to jump there; the corner the car is in is highlighted */}
       {corners.length > 0 && (
-        <div data-turns className="absolute bottom-[124px] left-2 top-2 hidden w-28 flex-col gap-1 overflow-y-auto pr-1 sm:flex">
+        <div data-turns className={`absolute left-2 top-2 hidden w-28 flex-col gap-1 overflow-y-auto pr-1 sm:flex ${full ? "bottom-[calc(max(17%,96px)+112px)]" : "bottom-[108px]"}`}>
           {corners.map((c, i) => (
             <button key={c.number} ref={(el) => { turnEls.current[i] = el; }} onClick={() => jumpTo(i)} data-active="false"
                     title={c.name ?? undefined}
@@ -423,9 +423,9 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
           {full ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
         </button>
       </div>
-      {/* Fullscreen: throttle and brake over the whole lap, between the two HUDs, see-through */}
+      {/* Fullscreen: throttle and brake over the whole lap, full width at the bottom (~1/6 of the height), see-through; the HUDs sit above it */}
       {full && (
-        <div className="pointer-events-none absolute bottom-2 left-[350px] right-[350px] flex h-[104px] gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur-[2px]">
+        <div className="pointer-events-none absolute inset-x-2 bottom-2 flex h-[max(17%,96px)] gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur-[2px]">
           <div className="flex flex-col justify-around text-[10px] text-zinc-400"><span>Throttle</span><span>Brake</span></div>
           <svg viewBox="0 0 1000 100" preserveAspectRatio="none" className="h-full min-w-0 flex-1" aria-label="Throttle and brake over the lap">
             <line x1={0} x2={1000} y1={50} y2={50} stroke="#ffffff14" vectorEffect="non-scaling-stroke" />
@@ -441,9 +441,9 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
       )}
       {/* HUD per car in the bottom corners (this lap left, the reference right), like Racemake */}
       {cars.map((c, k) => (
-        <div key={k} className={`pointer-events-none absolute bottom-2 flex items-center gap-3 rounded-xl border border-white/10 bg-black/70 px-1.5 py-1 backdrop-blur sm:px-3 sm:py-2 ${
-               k === 0 ? "left-2" : "right-2 flex-row-reverse"}`}>
-          <svg viewBox="0 0 64 64" className="h-16 w-16 shrink-0 sm:h-[84px] sm:w-[84px]" aria-label={`${c.driver}: speed and gear`}>
+        <div key={k} className={`pointer-events-none absolute flex items-center gap-2.5 rounded-xl border border-white/10 bg-black/70 px-1.5 py-1 backdrop-blur sm:px-2.5 sm:py-1.5 ${
+               full ? "bottom-[calc(max(17%,96px)+16px)]" : "bottom-2"} ${k === 0 ? "left-2" : "right-2 flex-row-reverse"}`}>
+          <svg viewBox="0 0 64 64" className="h-14 w-14 shrink-0 sm:h-[60px] sm:w-[60px]" aria-label={`${c.driver}: speed and gear`}>
             <circle cx={32} cy={32} r={GAUGE_R} fill="none" stroke="#ffffff1a" strokeWidth={4.5} strokeLinecap="round"
                     strokeDasharray={`${GAUGE_ARC} ${GAUGE_C}`} transform="rotate(135 32 32)" />
             <circle ref={(el) => { hud.current[`arc${k}`] = el; }} cx={32} cy={32} r={GAUGE_R} fill="none" stroke={c.color} strokeWidth={4.5}
@@ -464,14 +464,16 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
               </g>
             </svg>
           )}
-          <div className={`hidden w-32 text-xs sm:block ${k === 0 ? "" : "text-right"}`}>
-            <div className="truncate font-semibold" style={{ color: c.color }}>{c.driver}</div>
-            <div ref={(el) => { hud.current[`steer${k}`] = el; }} className="tabular text-[11px] text-zinc-400" />
-            <div className="mt-1.5 grid grid-cols-[14px_1fr] items-center gap-x-1.5 gap-y-1 text-[10px] text-zinc-500">
+          <div className={`hidden w-44 text-xs sm:block ${k === 0 ? "" : "text-right"}`}>
+            <div className="flex items-baseline gap-2" style={{ flexDirection: k === 0 ? "row" : "row-reverse" }}>
+              <span className="truncate font-semibold" style={{ color: c.color }}>{c.driver}</span>
+              <span ref={(el) => { hud.current[`steer${k}`] = el; }} className="tabular text-[11px] text-zinc-400" />
+            </div>
+            <div className="mt-1.5 grid grid-cols-[14px_1fr] items-center gap-x-1.5 gap-y-1.5 text-[10px] font-semibold text-zinc-400">
               <span>T</span>
-              <div className="h-1.5 rounded bg-white/10"><div ref={(el) => { hud.current[`thr${k}`] = el; }} className="h-1.5 rounded bg-green-500" /></div>
+              <div className="h-3 rounded bg-white/10"><div ref={(el) => { hud.current[`thr${k}`] = el; }} className="h-3 rounded bg-green-500" /></div>
               <span>B</span>
-              <div className="h-1.5 rounded bg-white/10"><div ref={(el) => { hud.current[`brk${k}`] = el; }} className="h-1.5 rounded bg-red-500" /></div>
+              <div className="h-3 rounded bg-white/10"><div ref={(el) => { hud.current[`brk${k}`] = el; }} className="h-3 rounded bg-red-500" /></div>
             </div>
           </div>
         </div>
