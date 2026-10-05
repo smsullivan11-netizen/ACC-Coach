@@ -254,7 +254,9 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   `app/laps/[id]/page.tsx`); the replay map fills a box of min(64vh, 780 px) (the view takes the
   box's proportions, ResizeObserver); a HUD per car in the map's bottom corners (this lap left,
   reference right): speed gauge with gear, steering wheel rotated by `steering_deg` (positive =
-  right; cars without a known lock: `steering_norm` × 240°), throttle / brake bars (brake blue
+  right; cars missing from the official lock table get it on the site from `web/lib/steering.ts`:
+  Ford Mustang GT3 = 516°, measured in game by the user and confirmed by other players; other
+  unknown cars: `steering_norm` × 240°), throttle / brake bars (brake blue
   while ABS works); gap at the top centre. Phones: speed gauges only. With the replay open the
   charts take the full width under it (small map hidden); the 4-second input graphs were dropped.
 - ABS (user's request, replacing a brake light): a flashing dark-blue light at the front of the car

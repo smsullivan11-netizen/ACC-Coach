@@ -9,6 +9,7 @@ import Conditions, { type SessionConditions } from "@/components/Conditions";
 import TrackSurface, { type Edges } from "@/components/TrackSurface";
 import { lapTime, prettyKey, REASONS } from "@/lib/format";
 import { labelPoint } from "@/lib/geometry";
+import { withSteeringDeg } from "@/lib/steering";
 import { decodeTrace, smoothGear, type EncodedTrace, type Trace } from "@/lib/trace";
 import Replay from "./Replay";
 
@@ -53,7 +54,9 @@ async function loadLap(id: string): Promise<Loaded> {
   const res = await fetch(`/api/laps/${id}`);
   if (!res.ok) throw new Error(`lap ${id}: error ${res.status}`);
   const data = (await res.json()) as LapData;
-  return { ...data, t: data.trace ? decodeTrace(data.trace) : null };
+  const t = data.trace ? decodeTrace(data.trace) : null;
+  if (t) t.channels = withSteeringDeg(t.channels, data.car);
+  return { ...data, t };
 }
 
 export default function LapView({ lapId, vsId, candidates, corner, startReplay = false }: {

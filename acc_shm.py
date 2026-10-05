@@ -103,6 +103,7 @@ STEER_LOCK_DEG = {
     "ferrari_488_gt3_evo": 240, "mercedes_amg_gt3_evo": 320, "bmw_m4_gt3": 270, "audi_r8_lms_evo_ii": 360,
     "bmw_m2_cs_racing": 180, "ferrari_488_challenge_evo": 240, "lamborghini_huracan_st_evo2": 310,
     "porsche_992_gt3_cup": 270,
+    "ford_mustang_gt3": 516,   # not in the official table: measured in game by the team (2026-10-05)
 }
 
 
