@@ -21,7 +21,7 @@ export type SessionRow = {
   position: number | null;   // position of the best lap on the track's leaderboard, when it is the driver's PB
 };
 
-export async function recentSessions({ driverId, limit }: { driverId?: string; limit: number }) {
+export async function recentSessions({ driverId, trackKey, limit }: { driverId?: string; trackKey?: string; limit: number }) {
   return sql<SessionRow[]>`
     select s.id, coalesce(s.recorded_at, s.uploaded_at) as at, d.id as driver_id, d.display_name as driver, d.avatar_url,
            t.key as track, c.key as car, s.session_type, s.conditions,
@@ -37,6 +37,7 @@ export async function recentSessions({ driverId, limit }: { driverId?: string; l
       from lap l where l.session_id = s.id and l.comparable order by 2 limit 1) b on true
     left join lap_ranking r on r.lap_id = b.lap_id
     where ${driverId ? sql`s.driver_id = ${driverId}` : sql`true`}
+      and ${trackKey ? sql`t.key = ${trackKey}` : sql`true`}
       and not exists (select 1 from lap l where l.session_id = s.id and 'track_edges' = any(l.excluded_reasons))
     order by coalesce(s.recorded_at, s.uploaded_at) desc
     limit ${limit}`;

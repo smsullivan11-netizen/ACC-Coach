@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarDays, Car, CircleCheck, Crown, LineChart, Timer } from "lucide-react";
+import { ArrowLeft, CalendarDays, Car, CircleCheck, Crown, GitCompareArrows, LineChart, Timer } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -42,6 +42,14 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   await requireDriver();
   const { id } = await props.params;
   if (!/^\d+$/.test(id)) notFound();
+  // Picking a lap to compare with (lap page → "Choose another lap…" → this track's sessions)
+  const { compare } = await props.searchParams;
+  const [picking] = typeof compare === "string" && /^\d+$/.test(compare)
+    ? await sql<{ id: string; driver: string; number: number; track: string }[]>`
+        select l.id, d.display_name as driver, l.number, t.key as track
+        from lap l join session s on s.id = l.session_id join driver d on d.id = s.driver_id join track t on t.id = s.track_id
+        where l.id = ${compare}`
+    : [];
   const [session] = await sql<Session[]>`
     select s.id, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY, HH24:MI') as recorded,
            d.display_name as driver, d.id as driver_id, d.avatar_url, s.conditions, t.key as track, c.key as car, c.class as car_class,
@@ -64,9 +72,20 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
 
   return (
     <div>
-      <Link href="/sessions" className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white">
-        <ArrowLeft size={15} /> All sessions
-      </Link>
+      {picking ? (
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-400">
+          <Link href={`/sessions?track=${picking.track}&compare=${picking.id}`} className="inline-flex items-center gap-1.5 hover:text-white">
+            <ArrowLeft size={15} /> Other sessions at {prettyKey(picking.track)}
+          </Link>
+          <span className="rounded-md border border-race/40 bg-race/10 px-2.5 py-1 text-zinc-200">
+            Choose the lap to compare {picking.driver}&apos;s L{picking.number} with
+          </span>
+        </div>
+      ) : (
+        <Link href="/sessions" className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white">
+          <ArrowLeft size={15} /> All sessions
+        </Link>
+      )}
       <div className="card rise relative overflow-hidden">
         {photo && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -138,7 +157,13 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
                     <td className="text-right">{m.braking_pct != null ? `${m.braking_pct.toFixed(1)} %` : "–"}</td>
                     <td className="text-right">{m.max_speed_kmh != null ? `${m.max_speed_kmh.toFixed(0)} km/h` : "–"}</td>
                     <td className="text-right">
-                      <Link href={`/laps/${l.id}`} className="btn btn-ghost px-2.5 py-1 text-xs font-medium"><LineChart size={13} /> Analyse</Link>
+                      {picking ? (
+                        picking.id !== l.id && (
+                          <Link href={`/laps/${picking.id}?vs=${l.id}`} className="btn btn-primary px-2.5 py-1 text-xs font-medium"><GitCompareArrows size={13} /> Compare</Link>
+                        )
+                      ) : (
+                        <Link href={`/laps/${l.id}`} className="btn btn-ghost px-2.5 py-1 text-xs font-medium"><LineChart size={13} /> Analyse</Link>
+                      )}
                     </td>
                   </tr>
                 );

@@ -266,6 +266,11 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   see-through strip at the bottom between the two HUDs with the full-lap throttle and brake
   traces of both laps and a playhead (the user wanted nothing more there: no gears or other
   channels); the HUDs stay as they are.
+- "Compare with…" on the lap page (user's request): first "Team best (Driver) · time" (fastest
+  valid lap with a trace on the track in the lap's class), then each driver's best, the other laps
+  of the session, and "Choose another lap…" → `/sessions?track=<key>&compare=<lap id>` (that
+  track's sessions, any car or class) → `/sessions/<id>?compare=<lap id>` (yellow Compare buttons
+  instead of Analyse) → `/laps/<lap id>?vs=<chosen>`.
 - Corner buttons above the charts (`CornerChips` in LapView, user's request): "Full lap" + one
   button per corner, sticky under the top bar; a click zooms every chart from 50 m before the
   corner to 30 m after it (`cornerRange`, same as the coaching links); the button of the current

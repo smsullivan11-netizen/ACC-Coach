@@ -62,8 +62,8 @@ async function loadLap(id: string): Promise<Loaded> {
   return { ...data, t };
 }
 
-export default function LapView({ lapId, vsId, candidates, corner, startReplay = false }: {
-  lapId: string; vsId: string | null; candidates: Candidate[]; corner?: number | null; startReplay?: boolean;
+export default function LapView({ lapId, vsId, candidates, otherHref, corner, startReplay = false }: {
+  lapId: string; vsId: string | null; candidates: Candidate[]; otherHref: string; corner?: number | null; startReplay?: boolean;
 }) {
   const router = useRouter();
   const [laps, setLaps] = useState<Loaded[] | null>(null);
@@ -131,13 +131,17 @@ export default function LapView({ lapId, vsId, candidates, corner, startReplay =
             <GitCompareArrows size={14} className="text-race" />
             <select
               value={vsId ?? ""}
-              onChange={(e) => router.push(e.target.value ? `/laps/${lapId}?vs=${e.target.value}` : `/laps/${lapId}`)}
+              onChange={(e) => router.push(e.target.value === "other" ? otherHref : e.target.value ? `/laps/${lapId}?vs=${e.target.value}` : `/laps/${lapId}`)}
               className="input min-w-0 flex-1 py-1"
             >
               <option value="">Compare with…</option>
               {candidates.map((c) => (
                 <option key={c.id} value={c.id}>{c.label}</option>
               ))}
+              {vsId && b && !candidates.some((c) => c.id === vsId) && (
+                <option value={vsId}>{b.driver} · L{b.number} · {lapTime(b.time_ms)}</option>
+              )}
+              <option value="other">Choose another lap…</option>
             </select>
           </label>
         </div>

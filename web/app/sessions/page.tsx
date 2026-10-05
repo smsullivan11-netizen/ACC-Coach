@@ -1,9 +1,10 @@
-import { ChevronRight, Crown, Flag, MapPin, Medal } from "lucide-react";
+import { ArrowLeft, ChevronRight, Crown, Flag, GitCompareArrows, MapPin, Medal } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Conditions from "@/components/Conditions";
 import { Avatar, Chip, delay, PageTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
+import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
 import { dayLabel, recentSessions, timeOfDay, type SessionRow } from "@/lib/sessions";
 
@@ -11,10 +12,19 @@ export const metadata: Metadata = { title: "Sessions" };
 
 const TYPE_TONE: Record<string, "yellow" | "red" | "blue" | "grey"> = { race: "red", qualify: "yellow", qualifying: "yellow", practice: "grey", hotlap: "blue" };
 
-// Every session of the team, newest first, grouped by day.
-export default async function SessionsPage() {
+// Every session of the team, newest first, grouped by day. With ?track=…&compare=<lap id> (from a
+// lap page's "Choose another lap…"): only that track's sessions (any car or class), each opening
+// with Compare buttons that bring the chosen lap back to the lap page as the reference.
+export default async function SessionsPage(props: PageProps<"/sessions">) {
   await requireDriver();
-  const sessions = await recentSessions({ limit: 200 });
+  const { track, compare } = await props.searchParams;
+  const trackKey = typeof track === "string" && /^[\w-]+$/.test(track) ? track : undefined;
+  const [picking] = typeof compare === "string" && /^\d+$/.test(compare)
+    ? await sql<{ id: string; driver: string; number: number }[]>`
+        select l.id, d.display_name as driver, l.number
+        from lap l join session s on s.id = l.session_id join driver d on d.id = s.driver_id where l.id = ${compare}`
+    : [];
+  const sessions = await recentSessions({ trackKey, limit: 200 });
   const days: { label: string; rows: SessionRow[] }[] = [];
   for (const s of sessions) {
     const label = dayLabel(new Date(s.at));
@@ -24,9 +34,17 @@ export default async function SessionsPage() {
 
   return (
     <div>
-      <PageTitle icon={Flag} sub="Every session of the team, newest first. Open one for its laps and the coach's summary.">
-        Sessions
+      {picking && (
+        <Link href={`/laps/${picking.id}`} className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white">
+          <ArrowLeft size={15} /> Back to {picking.driver}&apos;s L{picking.number}
+        </Link>
+      )}
+      <PageTitle icon={picking ? GitCompareArrows : Flag}
+                 sub={picking ? `Pick a session, then the lap to compare ${picking.driver}'s L${picking.number} with. Every car and class on this track.`
+                   : trackKey ? "Every session of the team on this track, newest first." : "Every session of the team, newest first. Open one for its laps and the coach's summary."}>
+        {trackKey ? `Sessions at ${prettyKey(trackKey)}` : "Sessions"}
       </PageTitle>
+      {trackKey && !picking && <Link href="/sessions" className="-mt-3 mb-4 inline-block text-sm text-zinc-400 underline hover:text-white">All tracks</Link>}
       {sessions.length === 0 && (
         <p className="card p-6 text-zinc-400">
           No session yet. <Link href="/download" className="text-accent underline">Get the app</Link>: it uploads every session you drive.
@@ -38,7 +56,7 @@ export default async function SessionsPage() {
             <h2 className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">{day.label}</h2>
             <div className="card divide-y divide-white/5 overflow-hidden">
               {day.rows.map((s) => (
-                <Link key={s.id} href={`/sessions/${s.id}`}
+                <Link key={s.id} href={picking ? `/sessions/${s.id}?compare=${picking.id}` : `/sessions/${s.id}`}
                       className="group grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-white/[0.03] md:grid-cols-[34px_10rem_minmax(0,1fr)_14rem_5.5rem_7.5rem]">
                   <Avatar url={s.avatar_url} name={s.driver} size={34} />
                   <div className="min-w-0">
