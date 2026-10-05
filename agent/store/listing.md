@@ -41,6 +41,10 @@ members only).
 **Short description**: Records your Assetto Corsa Competizione sessions and uploads them to your
 team's telemetry site.
 
+**Search terms** (max 7; not "free" and no other product's name such as Assetto Corsa
+Competizione: the first submission was refused for "Free"): telemetry, sim racing, lap times,
+racing coach, motorsport, driving analysis, racing team
+
 **Features**
 - Records ACC sessions automatically at the game's physics rate
 - Uploads your laps when the session ends
