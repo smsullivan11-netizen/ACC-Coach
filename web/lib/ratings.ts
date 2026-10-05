@@ -67,7 +67,8 @@ type LapRow = { t: number; comparable: boolean; excluded_reasons: string[]; metr
 
 export async function rateSession(tx: Sql, sessionId: string) {
   const [s] = await tx<{ driver_id: string; track_id: string; car_class: string | null; session_type: string | null; rating_type: string | null }[]>`
-    select s.driver_id, s.track_id, c.class as car_class, s.session_type, s.rating_type
+    select s.driver_id, s.track_id, c.class as car_class, s.session_type,
+           to_jsonb(s) ->> 'rating_type' as rating_type   -- null before migration 0010
     from session s left join car c on c.id = s.car_id where s.id = ${sessionId}`;
   if (!s) return null;
   const laps = await tx<LapRow[]>`

@@ -56,7 +56,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   const [session] = await sql<Session[]>`
     select s.id, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY, HH24:MI') as recorded,
            d.display_name as driver, d.id as driver_id, d.avatar_url, s.conditions, t.key as track, c.key as car, c.class as car_class,
-           s.session_type, s.rating_type, s.source_kind, s.source_file
+           s.session_type, to_jsonb(s) ->> 'rating_type' as rating_type, s.source_kind, s.source_file
     from session s join driver d on d.id = s.driver_id join track t on t.id = s.track_id
     left join car c on c.id = s.car_id
     where s.id = ${id}`;
