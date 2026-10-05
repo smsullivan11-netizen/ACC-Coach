@@ -183,9 +183,12 @@ def load_recording(path: str, track_length: float | None = None, tol: float = 0.
         if pit.any():
             first = g_tg[frames[np.argmax(pit)]] - a
             side = "out" if first < 0.1 * (b - a) else "in"
+        # Fuel load (litres, physics page): the site corrects lap times for its weight in the rating
+        fuel = float(np.mean(ip(p["fuel"]))) if "fuel" in p else None
         laps.append(Lap(n, a, b, b - a, float(data["SPEED"].sum() / f), data, {k: f for k in data}, pit=side,
                         game_time=c1["official_ms"] / 1000 if c1["official_ms"] > 0 else None,
-                        game_valid=bool(np.all(g["isValidLap"][in_lap] > 0)) if in_lap.any() else None))
+                        game_valid=bool(np.all(g["isValidLap"][in_lap] > 0)) if in_lap.any() else None,
+                        fuel_l=fuel if fuel is not None and fuel > 0 else None))
     if not laps:
         return head, laps, 0.0
 

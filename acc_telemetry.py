@@ -47,6 +47,7 @@ class Lap:
     official_valid: bool | None = None   # isValidForBest from the server .json
     game_time: float | None = None       # lap time published by the game (recorder only)
     game_valid: bool | None = None       # the game's isValidLap flag over the lap (recorder only)
+    fuel_l: float | None = None          # average fuel in the tank over the lap, litres (recorder only)
 
     @property
     def valid(self) -> bool:

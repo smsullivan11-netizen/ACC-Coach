@@ -1,6 +1,7 @@
 import "server-only";
 import type postgres from "postgres";
 import { announcePromotions, currentRatings } from "./discord";
+import { fuelSeconds } from "./fuel";
 import { paceReference } from "./targets";
 
 // Overall Driver Rating (0-100), updated after each uploaded session.
@@ -9,6 +10,7 @@ import { paceReference } from "./targets";
 // left out and the weights of the others are scaled up). The weights depend on the session type
 // (WEIGHTS_BY_TYPE, user's values): the type chosen on the session page, else ACC's (hotlap and
 // superpole = qualifying, hotstint = race, unknown = mixed running):
+//  - (lap times are first corrected for the fuel load: lib/fuel.ts)
 //  - pace: session best vs the reference = the faster of the car's target on the track and
 //    the team's best valid lap in that car (lib/targets.ts): 0 % slower → 100, 3 % → 50, 6 % or more → 0;
 //  - consistency (needs 3 valid laps): median gap of the other valid laps to the session best:
@@ -67,15 +69,17 @@ type Sql = postgres.Sql | postgres.TransactionSql;
 type LapRow = { t: number; comparable: boolean; excluded_reasons: string[]; metrics: Record<string, number> | null };
 
 export async function rateSession(tx: Sql, sessionId: string) {
-  const [s] = await tx<{ driver_id: string; track_id: string; car_class: string | null; session_type: string | null; rating_type: string | null }[]>`
-    select s.driver_id, s.track_id, c.class as car_class, s.session_type,
+  const [s] = await tx<{ driver_id: string; track_id: string; track: string; car_class: string | null; session_type: string | null; rating_type: string | null }[]>`
+    select s.driver_id, s.track_id, t.key as track, c.class as car_class, s.session_type,
            to_jsonb(s) ->> 'rating_type' as rating_type   -- null before migration 0010
-    from session s left join car c on c.id = s.car_id where s.id = ${sessionId}`;
+    from session s join track t on t.id = s.track_id left join car c on c.id = s.car_id where s.id = ${sessionId}`;
   if (!s) return null;
   const laps = await tx<LapRow[]>`
     select coalesce(official_lap_time_ms, game_lap_time_ms, lap_time_ms) as t, comparable, excluded_reasons, metrics
     from lap where session_id = ${sessionId}`;
-  const valid = laps.filter((l) => l.comparable).map((l) => l.t).sort((a, b) => a - b);
+  // Lap times corrected to the reference fuel load (lib/fuel.ts; laps from app 0.1.6+): a heavy
+  // tank no longer counts against pace, and burning fuel off over a run not against consistency
+  const valid = laps.filter((l) => l.comparable).map((l) => l.t - 1000 * fuelSeconds(s.track, l.metrics?.fuel_l)).sort((a, b) => a - b);
   if (!valid.length) return null;                        // nothing to judge: no valid flying lap
 
   const reference = (await paceReference(tx, sessionId)).reference_ms!;   // this session's valid laps count: never null here

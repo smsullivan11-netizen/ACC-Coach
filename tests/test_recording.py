@@ -69,6 +69,9 @@ def main():
     assert b["source"]["kind"] == "shared_memory" and b["session"]["driver_name"] == "Test Driver"
     assert [x["game_valid"] for x in b["laps"]] == [True, True, False, True, True]
     assert all(x["game_lap_time_ms"] == ms for x, ms in zip(b["laps"], expect["lap_ms"]))
+    # Fuel load per lap (app 0.1.6): fake ACC burns 1 L per 2 km from 50 L, so it falls lap after lap
+    fuels = [x["metrics"]["fuel_l"] for x in b["laps"] if x["metrics"]]
+    assert len(fuels) >= 3 and all(40 < f < 50 for f in fuels) and fuels == sorted(fuels, reverse=True), fuels
     channels = b["laps"][1]["trace"]["channels"]
     assert {"pos_x_m", "pos_y_m", "pos_z_m", "steering_norm", "steering_deg"} <= channels.keys()
     x = bundle.decode_channel(channels["pos_x_m"])

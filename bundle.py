@@ -108,6 +108,8 @@ def build_bundle(source_path: str, head, laps: list, ref: float, cmap: dict,
         if l.dist_ok:   # complete lap: metrics and traces are meaningful
             r = acc.resample_by_distance(l, ref, TRACE_STEP_M)
             entry["metrics"] = {k: round(v, 3) for k, v in acc.lap_metrics(r).items()}
+            if getattr(l, "fuel_l", None) is not None:   # app 0.1.6+: the site corrects lap times for the fuel's weight
+                entry["metrics"]["fuel_l"] = round(l.fuel_l, 1)
             entry["corners"] = cn.corner_metrics(r, corners)
             entry["trace"] = {"step_m": TRACE_STEP_M, "length": len(r["dist"]), "channels": {
                 name: encode_channel(r[src], dtype, scale)

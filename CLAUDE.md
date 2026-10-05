@@ -604,6 +604,11 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   the current rank's floor to the next, on the dashboard's rating card and the profile header.
   Idea on hold (user will think about it): a track only counts in the rating after a couple of
   sessions there, so learning a new track does not lower it.
+- Fuel correction (user's request, 2026-10-06; app 0.1.6): the app sends each lap's average fuel
+  (`metrics.fuel_l`, litres; no migration). The rating corrects lap times to 15 L
+  (`web/lib/fuel.ts`): seconds per 10 kg per track measured in ACC by OhneSpeed (Nordschleife 0.78,
+  Spa 0.2…; 0.16 for tracks not measured), 0.72 kg/L. Leaderboards and records keep real times; the
+  session page shows a Fuel column ("48 L +0.38 s"). Laps from older apps are not corrected.
 - Weights per session type (user's values, `WEIGHTS_BY_TYPE`): practice 56/24/10/10, qualifying
   62/18/10/10 (also hotlap, superpole), race 45/30/15/10 (also hotstint), mixed running 55/25/10/10
   (default, unknown types). The type comes from ACC unless someone in the team picks another on
