@@ -24,7 +24,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${konexy.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <header className="sticky top-0 z-30 bg-black/55 shadow-[0_12px_32px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl backdrop-saturate-150">
-          <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2">
+          <nav className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-2">
             <Link href="/" className="flex shrink-0 items-center gap-2.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/team-helmet.jpg" alt="" width={34} height={34} className="rounded-lg ring-1 ring-white/10" />

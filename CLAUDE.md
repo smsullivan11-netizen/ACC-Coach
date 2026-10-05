@@ -651,3 +651,14 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   session, stint view, server results import.
 - Name the corners of the team's tracks; weighted composite ranking to define with the team.
 - Safer .json matching when `head.driver` is empty: carModel ↔ car-from-file-name table.
+
+## YouTube (web/lib/youtube.ts, /youtube, 2026-10-06)
+- The team's channel @PCGroupRacing (id UCGSgxcvFG5fMuAOMoJAQBZA, title "PCGR"), YouTube Data API v3
+  with `YOUTUBE_API_KEY` (user's free key; in `web/.env.local` and Vercel, never in git). Calls
+  cached 1 h (`next: { revalidate: 3600 }`), 1 quota unit each (10,000 a day free).
+- Three sections (user's choice A): Livery reveals, Hotlaps, Highlights, fed by the channel's public
+  playlists whose title contains "livery", "hotlap" or "highlight". Videos in none are not shown
+  (the channel also has non-racing videos), except while none of these playlists exists: then the
+  30 latest uploads with a note on creating them. Videos play on the page (youtube-nocookie embed).
+- YouTube images need `referrerPolicy="no-referrer"` (the channel avatar is refused otherwise).
+- The menu got a 7th link: the header's nav is `max-w-7xl` (labels nowrap) so it stays on one line.
