@@ -8,6 +8,7 @@ import { Avatar, Chip, delay, NextRank, PartBar, Position, RankBadge, RankIcon, 
 import type { Driver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
+import { pickQuote } from "@/lib/quotes";
 import { rankFor } from "@/lib/ranks";
 import { formParts, PROVISIONAL_SESSIONS, WEIGHTS } from "@/lib/ratings";
 import { recentSessions, timeOfDay, dayLabel, type SessionRow } from "@/lib/sessions";
@@ -38,7 +39,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
     // The team video behind the page; the cards turn to frosted glass over it (globals.css .glass)
     <div className="glass">
       <BackgroundVideo src="/media/dashboard-bg.mp4" poster="/media/dashboard-bg.jpg" />
-      <WelcomeHero day={dayLabel(new Date())} name={first} />
+      <WelcomeHero day={dayLabel(new Date())} name={first} quote={pickQuote()} />
 
       <div className="grid gap-5 lg:grid-cols-2">
         {/* 1. Rating */}
