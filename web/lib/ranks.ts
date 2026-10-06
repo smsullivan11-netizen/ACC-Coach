@@ -18,8 +18,14 @@ export type Rank = (typeof RANKS)[number];
 export const rankFor = (rating: number): Rank => RANKS.find((r) => rating >= r.min) ?? RANKS[RANKS.length - 1];
 
 // The whole scale as one 0-100 gradient, as the rank scale draws it: each rank's colour at its
-// floor, blending into the next one's (Alien stays purple from 90).
-const STOPS: [number, string][] = [...[...RANKS].reverse().map((r): [number, string] => [r.min, r.color]), [100, RANKS[0].color]];
+// floor, blending into the next one's (Alien stays purple from 90). Rookie's white holds until
+// ROOKIE_HOLD before blending into Apprentice's blue (user's request: blended over its whole
+// range, the white was swallowed by the blue).
+export const ROOKIE_HOLD = 14;
+const STOPS: [number, string][] = [
+  ...[...RANKS].reverse().flatMap((r): [number, string][] => (r.min === 0 ? [[0, r.color], [ROOKIE_HOLD, r.color]] : [[r.min, r.color]])),
+  [100, RANKS[0].color],
+];
 export const SCALE_GRADIENT = `linear-gradient(90deg, ${STOPS.map(([at, c]) => `${c} ${at}%`).join(", ")})`;
 
 /** The scale's colour at a value (0-100), blended between the two nearest ranks' colours. */

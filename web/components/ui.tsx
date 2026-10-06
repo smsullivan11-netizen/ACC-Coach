@@ -1,7 +1,7 @@
 import { ArrowUpRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import { RANKS, rankFor, rankLevel, SCALE_GRADIENT, scaleColor, scaleGradient, type Rank } from "@/lib/ranks";
+import { RANKS, rankFor, rankLevel, ROOKIE_HOLD, SCALE_GRADIENT, scaleColor, scaleGradient, type Rank } from "@/lib/ranks";
 
 // Small shared pieces of the interface (server and client components).
 
@@ -244,7 +244,10 @@ export function RankScale() {
               <div className="mx-auto mb-1.5 grid h-8 w-8 place-items-center rounded-lg" style={{ color: r.color, background: `${r.color}1f`, boxShadow: `inset 0 0 0 1px ${r.color}55` }}>
                 <RankSymbol rank={r} size={22} />
               </div>
-              <div className="h-1.5 rounded-full" style={{ background: `linear-gradient(90deg, ${r.color}, ${next})` }} />
+              <div className="h-1.5 rounded-full"
+                   style={{ background: r.min === 0
+                     ? `linear-gradient(90deg, ${r.color} 0%, ${r.color} ${(ROOKIE_HOLD / width) * 100}%, ${next} 100%)`   // Rookie: white holds
+                     : `linear-gradient(90deg, ${r.color}, ${next})` }} />
               <div className="mt-1.5 truncate text-[11px] font-semibold" style={{ color: r.color }}>{r.title}</div>
               <div className="tabular text-[10px] text-zinc-500">{rankRange(r)}</div>
             </div>
