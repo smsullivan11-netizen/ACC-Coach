@@ -674,7 +674,7 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Rank symbols (user: the Drivers text was too long, then "a gauge, not icons"): `RankSymbol` in
   components/ui.tsx = a gauge whose needle climbs with the rank (Rookie nearly empty, Expert maxed
   out), Alien = an alien head. Rank colours = weather-map temperature scale (lib/ranks.ts): Rookie
-  blue, Apprentice light blue, Intermediate cyan, Advanced green, Contender yellow, Front Runner
+  white (was blue, too close to Apprentice's), Apprentice light blue, Intermediate cyan, Advanced green, Contender yellow, Front Runner
   orange, Expert red, Alien purple. `RankIcon` next to driver names (Drivers list, dashboard
   ranking, profile, track leaderboards), `RankBadge` = symbol + title, `RankScale` = the scale above
   the Drivers list (segments as wide as their rating range, colours blending).
