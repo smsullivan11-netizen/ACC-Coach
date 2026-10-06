@@ -205,13 +205,13 @@ export default function Replay({ laps, edges, corners, boards = [], checkpoints,
     return () => ro.disconnect();
   }, []);
   // Mouse wheel zoom on the map (a native listener: React's wheel events cannot prevent page scrolling)
-  // over the whole map, checkpoints included, except a checkpoint list that has to scroll (long tracks)
+  // over the whole map, checkpoints included even when their list has to scroll (it used to scroll
+  // the list instead: no zoom right after clicking a checkpoint when the list was a few pixels too
+  // tall, e.g. fullscreen on a 1280×720 screen); the list keeps the current checkpoint in view instead
   useEffect(() => {
     const el = stage.current;
     if (!el) return;
     const wheel = (e: WheelEvent) => {
-      const list = (e.target as HTMLElement).closest("[data-turns]");
-      if (list && list.scrollHeight > list.clientHeight) return;
       e.preventDefault();
       setZoom((z) => Math.max(0, Math.min(1, z - Math.sign(e.deltaY) * Math.min(1, Math.abs(e.deltaY) / 100) * 0.08)));
     };
@@ -325,6 +325,12 @@ export default function Replay({ laps, edges, corners, boards = [], checkpoints,
     if (current !== activeTurn.current) {
       activeTurn.current = current;
       turnEls.current.forEach((el, i) => el?.setAttribute("data-active", String(i === current)));
+      // Scrolled into view within the list only (scrollIntoView would also scroll the page)
+      const btn = turnEls.current[current], list = btn?.parentElement;
+      if (btn && list && list.scrollHeight > list.clientHeight) {
+        if (btn.offsetTop < list.scrollTop) list.scrollTop = btn.offsetTop;
+        else if (btn.offsetTop + btn.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = btn.offsetTop + btn.offsetHeight - list.clientHeight;
+      }
     }
   }, [cars, carScale, bbox, camera, viewW, followShare, checkpoints, maxT, onDistance, aspect, lapLength, offsets]);
   useEffect(() => { dirty.current = true; }, [offsets]);
@@ -407,7 +413,7 @@ export default function Replay({ laps, edges, corners, boards = [], checkpoints,
         {viewW <= BOARDS_VIEW_M && <Boards boards={boards} size={Math.max(1.6, viewW / 70)} />}
         {cars.map((c, k) => ({ c, k })).reverse().map(({ c, k }) => (
           <g key={k} ref={(el) => { carEls.current[k] = el; }}>
-            <CarShape car={c.model} color={c.color} />
+            <CarShape car={c.model} white={k > 0} />
             <rect ref={(el) => { absEls.current[k] = el; }} x={noseOf(c.model) - 0.42} y={-0.45} width={0.3} height={0.9} rx={0.12}
                   fill="#1d4ed8" stroke="#93c5fd" strokeWidth={0.1} opacity={0} />
           </g>

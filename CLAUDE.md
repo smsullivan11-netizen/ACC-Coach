@@ -298,8 +298,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   every car is, for now (user's request), the team's Ford Mustang GT3 in the PCGR livery: a real
   top-down ACC screenshot the user took, cut out of the tarmac with GrabCut
   (`tools/car_shapes/cut_car.py`, the screenshot itself isn't in the repo) →
-  `public/media/cars/mustang-pcgr.webp` (nose to the right, 4.9 m long) + its outline in metres. Both
-  cars look the same, so each gets a halo in its driver's colour along that outline. Other cars'
+  `public/media/cars/mustang-pcgr.webp` (nose to the right, 4.9 m long). The first car keeps the
+  yellow livery, the second has it in white (`mustang-pcgr-white.webp`, made by
+  `tools/car_shapes/white_livery.py`; user's choice over coloured halos), matching the yellow and
+  silver lines. Other cars'
   pictures go in `SPRITES` (ACC key prefix → sprite) when the user sends top-down screenshots of
   them. History: hand-drawn shapes ("looked completely different"), then shapes traced from
   reference pictures (`trace_cars2.py`, `make_shapes.py`), replaced by the screenshot. ABS light on
@@ -313,7 +315,9 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   "not recorded for <lap> (app older than …)" when a lap lacks a channel: that was the usual reason
   ABS "did not appear" (laps from app 0.1.0; on the real recording every ABS braking zone shows).
 - Replay zoom (user's request): mouse wheel on the map (native non-passive listener on the stage, so
-  the page does not scroll; not over a scrolling checkpoint list), or −/+ buttons; 0 % = whole track,
+  the page does not scroll; over the checkpoint list too, even when it scrolls: letting it scroll
+  there froze the zoom in fullscreen on 1280×720 screens; the list keeps the current checkpoint in
+  view by itself), or −/+ buttons; 0 % = whole track,
   100 % = 70 m wide (about one corner), log scale (8 % per wheel notch); the camera eases from the
   track's centre to the followed car over the first 20 %. Replaced the Close/Medium/Wide and "Whole
   track" options. Map labels scale with the view (viewW/60).
