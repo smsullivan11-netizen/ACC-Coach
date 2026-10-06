@@ -295,14 +295,15 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Replay HUD: per car, a rolling graph of the last 4 s of throttle (green) and brake (red, blue
   with ABS) above the bars. Charts: values under the cursor in each chart's title (both laps).
 - Like Racemake (user's request): the replay's cars are seen from above (`components/CarShapes.tsx`):
-  the team's five most driven cars (Mustang GT3, M4 GT3, 296 GT3, 992 GT3 R, 720S GT3 / Evo; ACC key
-  prefixes) traced from top-view references the user sent (the first, hand-drawn version "looked
-  completely different"): symmetric body profile (per slice the narrower side, median-filtered:
-  mirrors and watermarks drop out), windows by their colour in the picture (convex, side windows
-  mirrored; the 992's cockpit by hand), a few dark vents, scaled to the real length; shaded across
-  (darker sides, roof highlight) with a dark rear wing. Only shapes are kept, not the pictures
-  (partly watermarked commercial templates); scripts in `tools/car_shapes/`. Every other car = the
-  generic GT3. In the driver's colour, ABS light on the nose (`noseOf`). The laps'
+  every car is, for now (user's request), the team's Ford Mustang GT3 in the PCGR livery: a real
+  top-down ACC screenshot the user took, cut out of the tarmac with GrabCut
+  (`tools/car_shapes/cut_car.py`, the screenshot itself isn't in the repo) →
+  `public/media/cars/mustang-pcgr.webp` (nose to the right, 4.9 m long) + its outline in metres. Both
+  cars look the same, so each gets a halo in its driver's colour along that outline. Other cars'
+  pictures go in `SPRITES` (ACC key prefix → sprite) when the user sends top-down screenshots of
+  them. History: hand-drawn shapes ("looked completely different"), then shapes traced from
+  reference pictures (`trace_cars2.py`, `make_shapes.py`), replaced by the screenshot. ABS light on
+  the nose (`noseOf`). The laps'
   traces on the charts have a light fill under them (series `area`, colour at ~6 % opacity).
 - Electronics (app 0.1.3): graphics `tcLevel`, `tcCutLevel` (TC2), `absLevel`, `engineMap` (0-based,
   +1 stored) held per metre → bundle `tc_level`, `tc2_level`, `abs_level`, `engine_map`; TC intervention
