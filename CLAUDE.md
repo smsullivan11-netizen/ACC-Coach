@@ -557,7 +557,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   faststart → `public/media/dashboard-bg.mp4` (6 MB) + `dashboard-bg.jpg` poster (made with a
   portable ffmpeg, imageio-ffmpeg in the scratchpad). `components/BackgroundVideo.tsx`: fixed behind
   the page, darkened (gradient + vignette), loads and plays only on screens ≥ 768 px without data
-  saver or reduced motion (else the still). Cards over it are frosted glass (`.glass .card` in
+  saver (else the still). Not skipped for prefers-reduced-motion: Windows sends it whenever
+  "Animation effects" is off (the user's gaming PC), and the video never played. Cards over it are frosted glass (`.glass .card` in
   globals.css: 72 % panel + backdrop blur; write only the standard `backdrop-filter`, the CSS build
   dropped it when the -webkit- line was there too).
 - Redesign done page by page with the user's feedback (they like Racemake's dark look and

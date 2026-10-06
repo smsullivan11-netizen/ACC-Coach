@@ -4,17 +4,19 @@ import { useEffect, useRef } from "react";
 
 // A full-page video behind the dashboard (user's request; the team's 1006.mp4, cropped of its
 // letterbox and compressed from 790 MB to 6 MB: public/media/). Fixed, muted, looping and darkened
-// so the cards stay readable. It only loads and plays on wide screens, without data saver and
-// without "reduce motion": the others keep the still image.
+// so the cards stay readable. It only loads and plays on wide screens without data saver: phones
+// keep the still image. "Reduce motion" is not a reason to skip it: Windows sends it whenever
+// "Animation effects" is off, which gaming PCs often do for speed (the user's did, so the video
+// never played).
 export default function BackgroundVideo({ src, poster }: { src: string; poster: string }) {
   const video = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const v = video.current;
     if (!v) return;
     const wide = window.matchMedia("(min-width: 768px)").matches;
-    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const save = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
-    if (!wide || calm || save) return;
+    if (!wide || save) return;
+    v.muted = true;   // autoplay needs it set on the element itself, whatever the markup says
     v.preload = "auto";
     v.play().catch(() => { /* autoplay refused: the still image stays */ });
   }, []);
