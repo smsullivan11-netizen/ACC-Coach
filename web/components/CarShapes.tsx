@@ -1,23 +1,55 @@
 // The replay's cars seen from above (user's request, like Racemake): the team's five most driven
-// cars with their own shape, a generic GT3 for the others. Each one is drawn from its real length
-// and width, its axles, its body outline (half-width along the length, smoothed) and its cockpit
-// (where the engine layout puts it: set back behind a long bonnet on the front-engined Mustang and
-// M4, forward on the mid-engined 296 and 720S, centred and sloping to the engine on the 992), plus
-// the details that make it recognisable. Metres, front towards +x; drawn in the driver's colour.
+// cars traced from top-view references the user picked (2026-10-06), a generic GT3 for the others.
+// Each traced car: its body as a symmetric profile (half-width along the length, metres; traced per
+// slice as the narrower side, median-filtered, so mirrors and the pictures' watermarks drop out)
+// and its windows (polygons by the windows' colour in the picture, made convex, side windows
+// mirrored when one was missed; the 992's cockpit set by hand: its drawing has no glass colour).
+// Scaled to each car's real length; front towards +x, y towards the driver's right. Only the
+// shapes are kept, not the pictures. Regenerate: tools/car_shapes/ (trace_cars2.py, make_shapes.py).
 
-type Profile = [x: number, halfWidth: number][];
-type Spec = {
-  length: number;
-  body: Profile;          // nose to tail
-  cabin: Profile;         // windscreen to rear window
-  screen: number;         // the windscreen ends (roof starts) here
-  axles: [number, number];
-  wing: { x: number; depth: number; span: number };
-  details?: (color: string) => React.ReactNode;
+type Point = [number, number];
+type Traced = { length: number; profile: Point[]; windows: Point[][]; screen: number; vents: Point[][] };
+
+const TRACED: Record<string, Traced> = {
+  m4: {
+    length: 5.02,
+    profile: [[2.495, 0.261], [2.423, 0.624], [2.35, 0.835], [2.277, 0.958], [2.204, 1.003], [2.131, 1.01], [2.058, 1.012], [1.986, 1.015], [1.913, 1.015], [1.84, 1.015], [1.767, 1.015], [1.694, 1.015], [1.622, 1.015], [1.549, 1.012], [1.476, 1.01], [1.403, 1.01], [1.33, 1.01], [1.257, 1.01], [1.189, 1.01], [1.117, 1.01], [1.044, 1.01], [0.971, 1.01], [0.898, 0.972], [0.825, 0.966], [0.753, 0.966], [0.68, 0.966], [0.607, 0.98], [0.534, 1.033], [0.461, 1.028], [0.388, 0.966], [0.316, 0.966], [0.243, 0.966], [0.17, 0.966], [0.097, 0.966], [0.024, 0.966], [-0.044, 0.966], [-0.117, 0.966], [-0.189, 0.966], [-0.262, 0.966], [-0.335, 0.966], [-0.408, 0.966], [-0.481, 0.966], [-0.553, 0.971], [-0.626, 0.972], [-0.699, 0.983], [-0.772, 0.995], [-0.845, 1.008], [-0.918, 1.014], [-0.99, 1.015], [-1.063, 1.015], [-1.136, 1.015], [-1.209, 1.015], [-1.277, 1.015], [-1.35, 1.015], [-1.422, 1.015], [-1.495, 1.013], [-1.568, 1.012], [-1.641, 1.015], [-1.714, 1.014], [-1.787, 0.996], [-1.859, 0.979], [-1.932, 0.961], [-2.005, 0.941], [-2.078, 0.965], [-2.151, 1.01], [-2.224, 1.01], [-2.296, 1.01], [-2.369, 1.01], [-2.442, 1.01], [-2.51, 1.015]],
+    windows: [[[-0.452, 0.66], [-0.398, 0.631], [0.087, 0.641], [0.505, 0.738], [0.524, 0.772], [-0.403, 0.767]], [[-1.568, -0.568], [-1.141, -0.359], [-1.141, 0.359], [-1.549, 0.568], [-1.709, 0.568], [-1.767, 0.51], [-1.83, 0.257], [-1.835, -0.223], [-1.753, -0.534], [-1.704, -0.568]], [[0.748, -0.675], [0.83, -0.626], [0.888, -0.456], [0.932, -0.228], [0.942, 0.078], [0.913, 0.354], [0.85, 0.583], [0.786, 0.665], [0.709, 0.67], [0.481, 0.612], [0.485, -0.612]], [[0.524, -0.772], [0.51, -0.738], [0.049, -0.636], [-0.427, -0.631], [-0.452, -0.655], [-0.403, -0.767]]],
+    screen: 2,
+    vents: [],
+  },
+  p992: {
+    length: 4.619,
+    profile: [[2.283, 0.292], [2.217, 0.55], [2.151, 0.722], [2.085, 0.788], [2.019, 0.859], [1.953, 0.915], [1.887, 0.959], [1.821, 0.981], [1.755, 0.983], [1.689, 0.983], [1.623, 0.983], [1.557, 0.983], [1.491, 0.983], [1.425, 0.983], [1.359, 0.983], [1.293, 0.983], [1.227, 0.983], [1.161, 0.983], [1.095, 0.983], [1.029, 0.983], [0.963, 0.983], [0.897, 0.983], [0.831, 0.975], [0.765, 0.957], [0.699, 0.957], [0.633, 0.957], [0.567, 0.957], [0.501, 0.957], [0.436, 0.957], [0.37, 0.973], [0.304, 0.983], [0.238, 0.952], [0.172, 0.944], [0.106, 0.944], [0.04, 0.944], [-0.026, 0.944], [-0.092, 0.944], [-0.158, 0.944], [-0.224, 0.952], [-0.29, 0.957], [-0.356, 0.957], [-0.422, 0.957], [-0.488, 0.967], [-0.554, 0.97], [-0.62, 0.97], [-0.686, 0.975], [-0.752, 0.983], [-0.818, 0.983], [-0.884, 0.983], [-0.95, 0.983], [-1.016, 0.983], [-1.082, 0.983], [-1.148, 0.983], [-1.214, 0.983], [-1.28, 0.983], [-1.346, 0.983], [-1.412, 0.983], [-1.478, 0.983], [-1.544, 0.983], [-1.61, 0.965], [-1.676, 0.933], [-1.742, 0.901], [-1.808, 0.867], [-1.874, 0.862], [-1.94, 0.904], [-2.006, 0.904], [-2.072, 0.904], [-2.138, 0.904], [-2.204, 0.904], [-2.27, 0.548]],
+    windows: [[[0.86, -0.47], [0.3, -0.58], [-0.6, -0.56], [-1.05, -0.42], [-1.05, 0.42], [-0.6, 0.56], [0.3, 0.58], [0.86, 0.47]]],
+    screen: 0,
+    vents: [[[1.386, 0.191], [1.359, 0.191], [1.307, 0.231], [1.293, 0.297], [1.32, 0.323], [1.386, 0.323], [1.425, 0.284], [1.425, 0.244]], [[1.61, -0.271], [1.61, 0.231], [1.702, 0.284], [1.768, 0.231], [1.768, -0.218]]],
+  },
+  m720s: {
+    length: 4.543,
+    profile: [[2.176, 0.264], [2.11, 0.462], [2.044, 0.581], [1.978, 0.675], [1.912, 0.749], [1.853, 0.801], [1.787, 0.842], [1.721, 0.868], [1.655, 0.884], [1.589, 0.892], [1.53, 0.907], [1.464, 0.91], [1.398, 0.91], [1.332, 0.91], [1.273, 0.91], [1.207, 0.91], [1.141, 0.913], [1.075, 0.917], [1.009, 0.917], [0.95, 0.917], [0.884, 0.912], [0.818, 0.907], [0.752, 0.906], [0.694, 0.916], [0.628, 0.917], [0.561, 0.932], [0.495, 0.995], [0.429, 1.017], [0.371, 0.966], [0.305, 0.918], [0.239, 0.917], [0.172, 0.917], [0.106, 0.917], [0.048, 0.917], [-0.018, 0.917], [-0.084, 0.917], [-0.15, 0.914], [-0.209, 0.91], [-0.275, 0.91], [-0.341, 0.91], [-0.407, 0.91], [-0.473, 0.91], [-0.532, 0.903], [-0.598, 0.903], [-0.664, 0.903], [-0.73, 0.896], [-0.789, 0.895], [-0.855, 0.895], [-0.921, 0.895], [-0.987, 0.895], [-1.053, 0.9], [-1.112, 0.903], [-1.178, 0.903], [-1.244, 0.903], [-1.31, 0.91], [-1.376, 0.91], [-1.435, 0.91], [-1.501, 0.91], [-1.567, 0.903], [-1.633, 0.903], [-1.692, 0.903], [-1.758, 0.903], [-1.824, 0.899], [-1.89, 0.894], [-1.956, 0.885], [-2.015, 0.87], [-2.081, 0.827], [-2.147, 0.822], [-2.213, 0.822], [-2.272, 0.822]],
+    windows: [[[-0.312, 0.536], [-0.224, 0.521], [0.158, 0.58], [0.202, 0.594], [0.261, 0.646], [0.261, 0.668], [0.128, 0.683], [-0.268, 0.624], [-0.305, 0.594]], [[0.459, -0.521], [0.576, -0.492], [0.98, -0.051], [0.98, 0.059], [0.906, 0.338], [0.804, 0.528], [0.723, 0.602], [0.65, 0.558], [0.51, 0.404]], [[-0.312, -0.536], [-0.224, -0.521], [0.158, -0.58], [0.202, -0.594], [0.261, -0.646], [0.261, -0.668], [0.128, -0.683], [-0.268, -0.624], [-0.305, -0.594]]],
+    screen: 1,
+    vents: [[[-1.523, -0.191], [-1.552, -0.183], [-1.589, -0.059], [-1.545, 0.205], [-1.398, 0.161], [-1.354, 0.088], [-1.369, -0.117]], [[1.347, -0.264], [1.317, 0.198], [1.376, 0.22], [1.332, 0.264], [1.508, 0.264], [1.516, -0.228]]],
+  },
+  f296: {
+    length: 4.6,
+    profile: [[2.214, 0.282], [2.142, 0.598], [2.077, 0.693], [2.012, 0.768], [1.947, 0.83], [1.882, 0.884], [1.818, 0.929], [1.753, 0.959], [1.688, 0.971], [1.623, 0.972], [1.559, 0.972], [1.494, 0.972], [1.422, 0.972], [1.357, 0.972], [1.292, 0.972], [1.227, 0.972], [1.163, 0.972], [1.098, 0.974], [1.033, 0.977], [0.968, 0.979], [0.903, 0.984], [0.839, 0.99], [0.774, 0.985], [0.709, 0.975], [0.637, 0.972], [0.572, 0.957], [0.508, 0.954], [0.443, 1.018], [0.378, 1.081], [0.313, 1.026], [0.248, 0.958], [0.184, 0.943], [0.119, 0.943], [0.054, 0.945], [-0.011, 0.948], [-0.083, 0.95], [-0.148, 0.953], [-0.212, 0.973], [-0.277, 0.984], [-0.342, 0.961], [-0.407, 0.944], [-0.472, 0.943], [-0.536, 0.943], [-0.601, 0.944], [-0.666, 0.948], [-0.731, 0.95], [-0.795, 0.95], [-0.867, 0.954], [-0.932, 0.957], [-0.997, 0.96], [-1.062, 0.965], [-1.127, 0.97], [-1.191, 0.976], [-1.256, 0.982], [-1.321, 0.989], [-1.386, 0.988], [-1.451, 0.981], [-1.515, 0.979], [-1.587, 0.979], [-1.652, 0.979], [-1.717, 0.979], [-1.782, 0.979], [-1.846, 0.979], [-1.911, 0.975], [-1.976, 0.97], [-2.041, 0.96], [-2.106, 0.948], [-2.17, 0.943], [-2.235, 0.943], [-2.3, 0.943]],
+    windows: [[[0.292, 0.741], [-0.061, 0.734], [-0.45, 0.684], [-0.472, 0.655], [-0.479, 0.605], [-0.378, 0.59], [-0.032, 0.59], [0.277, 0.713]], [[-1.04, -0.497], [-0.947, -0.418], [-0.918, -0.158], [-0.932, 0.331], [-0.99, 0.475], [-1.285, 0.554], [-1.537, 0.554], [-1.774, 0.432], [-1.969, 0.259], [-2.005, 0.158], [-2.005, -0.158], [-1.976, -0.245], [-1.846, -0.374], [-1.53, -0.554], [-1.242, -0.547]], [[0.659, -0.684], [0.788, -0.612], [0.932, -0.439], [1.019, -0.209], [1.04, 0.043], [1.004, 0.266], [0.896, 0.497], [0.738, 0.655], [0.601, 0.684], [0.371, 0.475], [0.349, -0.497], [0.385, -0.605]], [[0.299, -0.734], [0.284, -0.713], [-0.047, -0.583], [-0.479, -0.597], [-0.464, -0.669], [-0.414, -0.691], [-0.025, -0.734]]],
+    screen: 2,
+    vents: [],
+  },
+  mustang: {
+    length: 4.9,
+    profile: [[1.694, 0.318], [1.631, 0.37], [1.568, 0.811], [1.505, 0.822], [1.442, 0.827], [1.394, 0.832], [1.331, 0.859], [1.268, 0.859], [1.205, 0.864], [1.158, 0.874], [1.095, 0.885], [1.032, 0.89], [0.969, 1.016], [0.922, 1.037], [0.859, 1.048], [0.796, 1.048], [0.733, 1.048], [0.67, 1.048], [0.622, 1.048], [0.559, 1.048], [0.496, 1.053], [0.433, 1.064], [0.386, 1.064], [0.323, 1.064], [0.26, 1.042], [0.197, 1.032], [0.15, 1.032], [0.087, 1.016], [0.024, 1.016], [-0.039, 1.016], [-0.102, 1.016], [-0.15, 1.011], [-0.213, 1], [-0.276, 1.006], [-0.339, 1.027], [-0.386, 1.032], [-0.449, 1.032], [-0.512, 1.032], [-0.575, 0.995], [-0.622, 0.927], [-0.685, 0.906], [-0.748, 0.906], [-0.811, 0.911], [-0.874, 0.922], [-0.922, 0.922], [-0.985, 0.922], [-1.048, 0.922], [-1.111, 0.922], [-1.158, 0.922], [-1.221, 0.922], [-1.284, 0.906], [-1.347, 0.906], [-1.394, 0.895], [-1.457, 0.864], [-1.52, 0.811], [-1.583, 0.796], [-1.646, 0.785], [-1.694, 0.764], [-1.757, 0.764], [-1.82, 0.764], [-1.883, 0.764], [-1.93, 0.958], [-1.993, 0.969], [-2.056, 0.969], [-2.119, 0.969], [-2.166, 0.969], [-2.229, 0.969], [-2.292, 0.964], [-2.355, 0.953], [-2.403, 0.953]],
+    windows: [[[-1.3, -0.37], [-0.843, -0.323], [-0.78, -0.276], [-0.748, -0.197], [-0.748, 0.433], [-0.78, 0.544], [-1.316, 0.607], [-1.426, 0.496], [-1.505, 0.213], [-1.489, -0.102], [-1.426, -0.276]], [[0.512, -0.544], [0.985, -0.559], [1.032, -0.465], [1.079, -0.087], [1.064, 0.496], [1.016, 0.748], [0.922, 0.843], [0.575, 0.78], [0.418, 0.717], [0.418, -0.496]]],
+    screen: 1,
+    vents: [],
+  },
 };
 
 /** A closed, smooth outline through the profile (right side nose to tail, then the left side back). */
-function outline(profile: Profile): string {
+function outline(profile: Point[]): string {
   const pts = [...profile.map(([x, w]) => [x, w]), ...[...profile].reverse().map(([x, w]) => [x, -w])]
     .filter((p, i, a) => i === 0 || p[0] !== a[i - 1][0] || p[1] !== a[i - 1][1]);
   const n = pts.length, at = (i: number) => pts[(i + n) % n];
@@ -30,138 +62,50 @@ function outline(profile: Profile): string {
   }
   return `${d}Z`;
 }
+const polygon = (pts: Point[]) => `M${pts.map(([x, y]) => `${x} ${y}`).join("L")}Z`;
 
-/** The half-width of a profile at x (linear between its points). */
-function widthAt(p: Profile, x: number) {
-  for (let i = 0; i + 1 < p.length; i++) {
-    const [x0, w0] = p[i], [x1, w1] = p[i + 1];
-    if ((x <= x0 && x >= x1) || (x >= x0 && x <= x1)) return x0 === x1 ? w0 : w0 + ((w1 - w0) * (x - x0)) / (x1 - x0);
-  }
-  return p[0][1];
-}
-
-const DARK = "#0b0b0d";
-const slats = (x0: number, x1: number, w: number, n: number) =>
-  Array.from({ length: n }, (_, k) => {
-    const x = x0 + ((x1 - x0) * k) / (n - 1);
-    return <rect key={`s${k}`} x={x - 0.035} y={-w} width={0.07} height={2 * w} rx={0.03} fill="#000" opacity={0.5} />;
-  });
-
-const SPECS: Record<string, Spec> = {
-  // Front engine, long bonnet with louvres, cabin set back, long fastback rear window
-  mustang: {
-    length: 4.9,
-    body: [[2.45, 0], [2.43, 0.55], [2.3, 0.86], [2.0, 0.99], [1.45, 1.02], [0.95, 0.92], [0.2, 0.86], [-0.65, 0.92], [-1.27, 1.02], [-1.9, 0.99], [-2.36, 0.86], [-2.45, 0.6], [-2.45, 0]],
-    cabin: [[0.2, 0.6], [-0.4, 0.6], [-1.1, 0.55], [-1.75, 0.42]],
-    screen: -0.32,
-    axles: [1.45, -1.27],
-    wing: { x: -2.22, depth: 0.3, span: 1.96 },
-    details: () => (
-      <>
-        {slats(0.85, 1.55, 0.36, 6)}
-        <rect x={1.7} y={-0.16} width={0.55} height={0.32} rx={0.06} fill="#000" opacity={0.35} />
-      </>
-    ),
-  },
-  // Front engine, the longest: square nose with the two kidney grilles, cabin set back, short rear glass
-  m4: {
-    length: 5.02,
-    body: [[2.51, 0], [2.5, 0.72], [2.42, 0.95], [2.05, 1.02], [1.55, 1.02], [1.05, 0.94], [0.2, 0.88], [-0.65, 0.93], [-1.35, 1.02], [-2.0, 1.0], [-2.45, 0.92], [-2.51, 0.7], [-2.51, 0]],
-    cabin: [[0.4, 0.62], [-0.25, 0.61], [-1.0, 0.58], [-1.45, 0.5]],
-    screen: -0.1,
-    axles: [1.55, -1.35],
-    wing: { x: -2.35, depth: 0.3, span: 1.98 },
-    details: () => (
-      <>
-        <rect x={2.28} y={-0.42} width={0.2} height={0.33} rx={0.07} fill={DARK} />
-        <rect x={2.28} y={0.09} width={0.2} height={0.33} rx={0.07} fill={DARK} />
-        {slats(1.0, 1.75, 0.3, 5)}
-      </>
-    ),
-  },
-  // Mid engine: short nose with a big central vent, cabin forward, slatted engine cover behind it
-  f296: {
-    length: 4.59,
-    body: [[2.3, 0], [2.27, 0.55], [2.12, 0.88], [1.75, 1.01], [1.35, 1.0], [0.85, 0.86], [0.1, 0.85], [-0.6, 0.97], [-1.25, 1.03], [-1.85, 1.0], [-2.22, 0.88], [-2.3, 0.6], [-2.3, 0]],
-    cabin: [[0.95, 0.55], [0.25, 0.56], [-0.35, 0.5], [-0.75, 0.36]],
-    screen: 0.4,
-    axles: [1.35, -1.25],
-    wing: { x: -2.12, depth: 0.3, span: 1.94 },
-    details: () => (
-      <>
-        <path d="M2.0 -0.32L1.45 -0.22L1.45 0.22L2.0 0.32Z" fill="#000" opacity={0.45} />
-        {slats(-0.95, -1.65, 0.42, 6)}
-      </>
-    ),
-  },
-  // Rear engine: round headlights on bulging front wings, cabin centred and sloping to the engine,
-  // wide rear haunches, big swan-neck wing
-  p992: {
-    length: 4.62,
-    body: [[2.31, 0], [2.28, 0.5], [2.15, 0.84], [1.85, 1.0], [1.42, 1.0], [0.85, 0.84], [0.1, 0.84], [-0.6, 0.98], [-1.15, 1.04], [-1.8, 1.02], [-2.22, 0.9], [-2.31, 0.6], [-2.31, 0]],
-    cabin: [[0.75, 0.55], [0.1, 0.57], [-0.55, 0.5], [-1.1, 0.36]],
-    screen: 0.2,
-    axles: [1.42, -1.15],
-    wing: { x: -1.95, depth: 0.38, span: 1.96 },
-    details: () => (
-      <>
-        {[-1, 1].map((s) => <ellipse key={s} cx={1.95} cy={s * 0.62} rx={0.2} ry={0.15} fill="#e4e4e7" stroke="#000" strokeWidth={0.04} />)}
-        {[-1, 1].map((s) => <path key={`c${s}`} d={`M2.2 ${s * 0.42}Q1.2 ${s * 0.48} 0.8 ${s * 0.56}`} fill="none" stroke="#000" strokeOpacity={0.35} strokeWidth={0.05} />)}
-        {slats(-1.35, -1.75, 0.38, 4)}
-      </>
-    ),
-  },
-  // Mid engine: narrow teardrop canopy forward, "eye socket" headlights, deep side intakes
-  m720s: {
-    length: 4.65,
-    body: [[2.33, 0], [2.29, 0.6], [2.1, 0.92], [1.7, 1.02], [1.35, 1.0], [0.8, 0.82], [0.0, 0.84], [-0.7, 0.98], [-1.32, 1.03], [-1.95, 1.0], [-2.28, 0.86], [-2.33, 0.55], [-2.33, 0]],
-    cabin: [[1.0, 0.5], [0.45, 0.55], [-0.2, 0.52], [-0.8, 0.38], [-1.3, 0.18]],
-    screen: 0.4,
-    axles: [1.35, -1.32],
-    wing: { x: -2.15, depth: 0.3, span: 1.96 },
-    details: () => (
-      <>
-        {[-1, 1].map((s) => <path key={s} d={`M2.15 ${s * 0.5}Q2.05 ${s * 0.85} 1.8 ${s * 0.82}Q1.85 ${s * 0.6} 2.15 ${s * 0.5}Z`} fill={DARK} />)}
-        {[-1, 1].map((s) => <path key={`i${s}`} d={`M0.5 ${s * 0.78}L-0.4 ${s * 0.8}L-0.4 ${s * 0.62}L0.35 ${s * 0.6}Z`} fill={DARK} opacity={0.8} />)}
-      </>
-    ),
-  },
-};
-
-/** The ACC car key → its drawing (null: the generic GT3). */
-function specFor(car: string | null | undefined): Spec | null {
+/** The ACC car key → its traced drawing (null: the generic GT3). */
+function tracedFor(car: string | null | undefined): Traced | null {
   const k = car ?? "";
-  if (k.startsWith("ford_mustang")) return SPECS.mustang;
-  if (k.startsWith("bmw_m4_gt3")) return SPECS.m4;
-  if (k.startsWith("ferrari_296")) return SPECS.f296;
-  if (k === "porsche_992_gt3_r") return SPECS.p992;
-  if (k.startsWith("mclaren_720s")) return SPECS.m720s;
+  if (k.startsWith("ford_mustang")) return TRACED.mustang;
+  if (k.startsWith("bmw_m4_gt3")) return TRACED.m4;
+  if (k.startsWith("ferrari_296")) return TRACED.f296;
+  if (k === "porsche_992_gt3_r") return TRACED.p992;
+  if (k.startsWith("mclaren_720s")) return TRACED.m720s;
   return null;
 }
 
 /** Where the ABS light goes: the front of the car. */
-export const noseOf = (car: string | null | undefined) => (specFor(car)?.length ?? 4.6) / 2;
+export const noseOf = (car: string | null | undefined) => (tracedFor(car)?.length ?? 4.6) / 2;
+
+const DARK = "#0b0b0d";
 
 export default function CarShape({ car, color }: { car?: string | null; color: string }) {
-  const s = specFor(car);
-  if (!s) return <GenericGT3 color={color} />;
-  const tyre = (x: number) => [-1, 1].map((side) => {
-    const w = widthAt(s.body, x);
-    return <rect key={`${x}${side}`} x={x - 0.36} y={side > 0 ? w - 0.2 : -w - 0.06} width={0.72} height={0.26} rx={0.08} fill={DARK} />;
-  });
-  const glass = [...s.cabin.filter(([x]) => x > s.screen), [s.screen, widthAt(s.cabin, s.screen)] as [number, number]];
-  const { wing } = s;
+  const t = tracedFor(car);
+  if (!t) return <GenericGT3 color={color} />;
+  // The rear wing (carbon on every one of them): across the tail, as wide as the rear of the car
+  const tail = t.profile[t.profile.length - 1][0];
+  const rear = Math.max(...t.profile.slice(-Math.ceil(t.profile.length * 0.15)).map(([, w]) => w));
   return (
     <g>
-      {tyre(s.axles[0])}
-      {tyre(s.axles[1])}
-      <path d={outline(s.body)} fill={color} stroke="#000" strokeWidth={0.06} strokeLinejoin="round" />
-      <path d={outline(s.cabin)} fill={DARK} opacity={0.82} />
-      <path d={outline(glass)} fill="#94a3b8" opacity={0.55} />
-      {s.details?.(color)}
-      <rect x={wing.x - wing.depth / 2} y={-wing.span / 2} width={wing.depth} height={wing.span} rx={0.06} fill="#111" />
-      <rect x={wing.x - wing.depth / 2 - 0.05} y={-wing.span / 2 - 0.04} width={wing.depth + 0.12} height={0.09} fill="#111" />
-      <rect x={wing.x - wing.depth / 2 - 0.05} y={wing.span / 2 - 0.05} width={wing.depth + 0.12} height={0.09} fill="#111" />
+      <defs>
+        {/* Rounded look: darker towards the sides, a highlight along the roof line */}
+        <linearGradient id="car-shade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#000" stopOpacity={0.45} />
+          <stop offset="0.28" stopColor="#000" stopOpacity={0} />
+          <stop offset="0.5" stopColor="#fff" stopOpacity={0.12} />
+          <stop offset="0.72" stopColor="#000" stopOpacity={0} />
+          <stop offset="1" stopColor="#000" stopOpacity={0.45} />
+        </linearGradient>
+      </defs>
+      <path d={outline(t.profile)} fill={color} stroke="#000" strokeWidth={0.07} strokeLinejoin="round" />
+      <path d={outline(t.profile)} fill="url(#car-shade)" />
+      <rect x={tail} y={-rear} width={0.32} height={2 * rear} rx={0.06} fill="#111" />
+      {t.vents.map((v, i) => <path key={`v${i}`} d={polygon(v)} fill="#000" opacity={0.55} strokeLinejoin="round" />)}
+      {t.windows.map((w, i) => (
+        <path key={i} d={polygon(w)} fill={i === t.screen ? "#64748b" : DARK} opacity={i === t.screen ? 0.85 : 0.82}
+              stroke="#000" strokeOpacity={0.5} strokeWidth={0.03} strokeLinejoin="round" />
+      ))}
     </g>
   );
 }

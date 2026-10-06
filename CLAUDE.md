@@ -295,12 +295,14 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Replay HUD: per car, a rolling graph of the last 4 s of throttle (green) and brake (red, blue
   with ABS) above the bars. Charts: values under the cursor in each chart's title (both laps).
 - Like Racemake (user's request): the replay's cars are seen from above (`components/CarShapes.tsx`):
-  the team's five most driven cars with their own shape (Mustang GT3, M4 GT3, 296 GT3, 992 GT3 R,
-  720S GT3 / Evo; ACC key prefixes), drawn from real length, axles, a body outline and a cockpit
-  outline (half-widths along the length, Catmull-Rom smoothed), the windscreen, the wing and their
-  signature details (Mustang louvres, M4 kidneys, 296 vent and engine slats, 992 round headlights,
-  720S eye sockets and side intakes); every other car = the generic GT3; in the driver's colour,
-  ABS light on the nose (`noseOf`). The laps'
+  the team's five most driven cars (Mustang GT3, M4 GT3, 296 GT3, 992 GT3 R, 720S GT3 / Evo; ACC key
+  prefixes) traced from top-view references the user sent (the first, hand-drawn version "looked
+  completely different"): symmetric body profile (per slice the narrower side, median-filtered:
+  mirrors and watermarks drop out), windows by their colour in the picture (convex, side windows
+  mirrored; the 992's cockpit by hand), a few dark vents, scaled to the real length; shaded across
+  (darker sides, roof highlight) with a dark rear wing. Only shapes are kept, not the pictures
+  (partly watermarked commercial templates); scripts in `tools/car_shapes/`. Every other car = the
+  generic GT3. In the driver's colour, ABS light on the nose (`noseOf`). The laps'
   traces on the charts have a light fill under them (series `area`, colour at ~6 % opacity).
 - Electronics (app 0.1.3): graphics `tcLevel`, `tcCutLevel` (TC2), `absLevel`, `engineMap` (0-based,
   +1 stored) held per metre → bundle `tc_level`, `tc2_level`, `abs_level`, `engine_map`; TC intervention
