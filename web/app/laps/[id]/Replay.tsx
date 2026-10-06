@@ -32,7 +32,32 @@ type Car = {
 const RATES = [0.25, 0.5, 1, 2, 4];
 const MIN_VIEW_M = 70;   // view width at 100 % zoom: about one corner
 const BOARDS_VIEW_M = 500;   // distance boards show once the view is this narrow (zoomed in)
-const CAR_L = 4.6, CAR_W = 2.0;                                    // GT3 footprint (m)
+// A GT3 car seen from above (user's request, like Racemake: instead of a rectangle), 4.6 × 2.0 m,
+// front towards +x: shaped body with wheel arches, tyres showing at the arches, cockpit with a
+// lighter windscreen, bonnet vents and the rear wing; in the driver's colour.
+function GT3Car({ color }: { color: string }) {
+  const body = "M2.3 0C2.3 -0.45 2.2 -0.8 1.95 -0.9Q1.4 -1.02 0.95 -0.94Q0.1 -0.86 -0.75 -0.94Q-1.35 -1.03 -2 -0.96Q-2.3 -0.93 -2.3 -0.7"
+    + "L-2.3 0.7Q-2.3 0.93 -2 0.96Q-1.35 1.03 -0.75 0.94Q0.1 0.86 0.95 0.94Q1.4 1.02 1.95 0.9C2.2 0.8 2.3 0.45 2.3 0Z";
+  return (
+    <g>
+      {/* tyres, under the body: only their outer edges show at the arches */}
+      {[[1.05, 1.75], [-1.75, -0.95]].map(([a, b]) => [-1, 1].map((s) => (
+        <rect key={`${a}${s}`} x={a} y={s > 0 ? 0.8 : -1.06} width={b - a} height={0.26} rx={0.08} fill="#0b0b0d" />
+      )))}
+      <path d={body} fill={color} stroke="#000" strokeWidth={0.1} strokeLinejoin="round" />
+      {/* cockpit: roof and rear window dark, windscreen lighter */}
+      <path d="M0.78 -0.56L-0.75 -0.5L-1.2 -0.4L-1.2 0.4L-0.75 0.5L0.78 0.56Q0.95 0 0.78 -0.56Z" fill="#0b0b0d" opacity={0.82} />
+      <path d="M0.78 -0.56Q0.95 0 0.78 0.56L0.32 0.5Q0.42 0 0.32 -0.5Z" fill="#94a3b8" opacity={0.55} />
+      {/* bonnet vents */}
+      <rect x={1.25} y={-0.42} width={0.42} height={0.12} rx={0.05} fill="#000" opacity={0.45} />
+      <rect x={1.25} y={0.3} width={0.42} height={0.12} rx={0.05} fill="#000" opacity={0.45} />
+      {/* rear wing and its endplates */}
+      <rect x={-2.36} y={-1.0} width={0.28} height={2.0} rx={0.06} fill="#111" />
+      <rect x={-2.4} y={-1.04} width={0.42} height={0.09} fill="#111" />
+      <rect x={-2.4} y={0.95} width={0.42} height={0.09} fill="#111" />
+    </g>
+  );
+}
 const INPUT_COLORS = { brake: "#ef4444", abs: "#2563eb", full: "#22c55e", coast: "#71717a" };
 const ABS_ON = 5;   // % of the time with ABS working, per metre
 const DEFAULT_HALF_LOCK = 240;   // cars without a known steering lock (steering_deg missing): 480° lock to lock
@@ -407,10 +432,9 @@ export default function Replay({ laps, edges, corners, boards = [], checkpoints,
         {viewW <= BOARDS_VIEW_M && <Boards boards={boards} size={Math.max(1.6, viewW / 70)} />}
         {cars.map((c, k) => ({ c, k })).reverse().map(({ c, k }) => (
           <g key={k} ref={(el) => { carEls.current[k] = el; }}>
-            <rect x={-CAR_L / 2} y={-CAR_W / 2} width={CAR_L} height={CAR_W} rx={0.6} fill={c.color} stroke="#000" strokeWidth={0.2} />
-            <rect x={0.2} y={-CAR_W / 2 + 0.25} width={1.1} height={CAR_W - 0.5} rx={0.2} fill="#000" opacity={0.6} />
-            <rect ref={(el) => { absEls.current[k] = el; }} x={CAR_L / 2 - 0.55} y={-CAR_W / 2 + 0.1} width={0.5} height={CAR_W - 0.2} rx={0.15}
-                  fill="#1d4ed8" stroke="#93c5fd" strokeWidth={0.12} opacity={0} />
+            <GT3Car color={c.color} />
+            <rect ref={(el) => { absEls.current[k] = el; }} x={1.92} y={-0.45} width={0.3} height={0.9} rx={0.12}
+                  fill="#1d4ed8" stroke="#93c5fd" strokeWidth={0.1} opacity={0} />
           </g>
         ))}
       </svg>

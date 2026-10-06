@@ -310,7 +310,7 @@ function CornerChips({ zones, by, onBy, range, onSelect }: {
 type Panel = {
   title: string;
   height: number;
-  series: { data: ArrayLike<number | null>; color: string; readout?: boolean; label?: string; dash?: number[] }[];
+  series: { data: ArrayLike<number | null>; color: string; readout?: boolean; label?: string; dash?: number[]; area?: boolean }[];
   range?: uPlot.Scale["range"];
   stepped?: boolean;
   format?: (v: number) => string;   // value shown in the title while hovering
@@ -346,10 +346,10 @@ function Charts({ laps, boards, onCursor, onRange, zoomRef, cursorRef }: {
     };
     // Reference lap drawn first, so this lap stays on top
     const both = (name: string, f = 1) =>
-      traces.map((t, i) => ({ data: ch(t, name, f), color: COLORS[i], readout: true })).filter((s) => s.data).reverse() as Panel["series"];
+      traces.map((t, i) => ({ data: ch(t, name, f), color: COLORS[i], readout: true, area: true })).filter((s) => s.data).reverse() as Panel["series"];
     const gears = traces.map((t, i) => {
       const g = ch(t, "gear");
-      return g ? { data: smoothGear(g), color: COLORS[i], readout: true } : null;
+      return g ? { data: smoothGear(g), color: COLORS[i], readout: true, area: true } : null;
     }).filter((s) => s !== null).reverse();
     const steerDeg = traces.every((t) => t.channels.steering_deg);
     // ABS / TC intervention (recorded from app 0.1.1 / 0.1.3): the brake / throttle trace drawn again
@@ -431,7 +431,8 @@ function Charts({ laps, boards, onCursor, onRange, zoomRef, cursorRef }: {
           { stroke: "#71717a", grid: { stroke: "#ffffff0d" }, ticks: { stroke: "#ffffff1a" }, size: 46 },
         ],
         series: [{}, ...p.series.map((s) => ({
-          stroke: s.color, width: 1.25, ...(s.dash ? { dash: s.dash } : {}),
+          // The laps' traces with a light fill under them (user's request, like Racemake)
+          stroke: s.color, width: 1.25, ...(s.dash ? { dash: s.dash } : {}), ...(s.area ? { fill: `${s.color}10` } : {}),
           ...(p.stepped ? { paths: uPlot.paths.stepped!({ align: 1 }) } : {}),
         }))],
         hooks: {
