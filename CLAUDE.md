@@ -699,15 +699,18 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Fuel: per lap = mean of the last 3 non-pit laps (game estimate before); timed race: laps left =
   ceil((time left − rest of this lap) / avg lap) + 1; needed = (laps left + margin) × per lap;
   to add capped at the tank; stops; longest stint on a full tank.
-- Pressures (team: 26.9 psi hot on all four): average hot pressure at > 50 km/h over the last lap;
-  advice after 10 km in the stint (ACC Drive: 20, the user found it too much): set = pit-menu
-  pressure + (target − measured).
+- Pressures (team: 26.9 psi hot on all four): average hot pressure and core temperature at > 50
+  km/h per lap. Reference = the first lap completed past 15 km in the stint (user: 10 too short,
+  ACC Drive uses 20); reset at each pit exit. Pressure loss (kerbs, contact; user: like ACC Drive's
+  yellow number) = gas-law pressure from the reference at the lap's core temperature − measured.
+  Advice uses the pressure without loss (so end-of-stint leaks do not push it up): set = pit-menu
+  pressure + (target − (measured + loss)). Fuel-only stops keep the tyres but reset the reference.
 - Tyre wear %: fuel-corrected lap time trend (Theil–Sen) over the stint's valid flying laps (first
   one left out), from 4 laps; 100 % = `tyre_worn_pct` (2.8 %: team, ~3 s at Spa) slower than the
   stint's best early lap. Brakes %: 90 × (new − now) / (new − `pad_worn_mm`): new pads (29 mm) 0 %,
   10 mm = 90 % (an ACC dev: the HUD shows a red dot on the disc under 10 mm, risk of failure below);
   new = highest seen since a jump up (new pads at a stop); mm per lap, laps to 10 mm, warnings.
-- Settings defaults (`DEFAULT_SETTINGS`, the team's values): target 26.9 psi, advice after 10 km,
+- Settings defaults (`DEFAULT_SETTINGS`, the team's values): target 26.9 psi, advice after 15 km,
   100 % tyre wear = 2.8 % slower, pads at risk under 10 mm (= 90 %), fuel margin 1 lap. Damage
   scale still to check on a recording with contact.
 - Fuel weight table duplicated from web/lib/fuel.ts (keep in sync).
