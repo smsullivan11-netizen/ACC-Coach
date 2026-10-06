@@ -139,7 +139,12 @@ export default function Replay({ laps, edges, corners, checkpoints, by, onBy, on
   onTurn?: (c: Checkpoint) => void;     // a checkpoint was clicked: the charts zoom on that corner or section
 }) {
   const cars = useMemo(() => laps.map(prepare).filter((c): c is Car => c !== null), [laps]);
-  const maxT = Math.max(...cars.map((c) => c.end));
+  // Neck and neck (like Racemake): after a checkpoint click, each car runs on its own clock shifted
+  // so both reach that corner or section together; the gap then only shows what happens from there.
+  // The clock is the first car's; "Real gap" (or back to the start) puts them back on elapsed time.
+  const [level, setLevel] = useState<{ label: string; offsets: number[] } | null>(null);
+  const offsets = useMemo(() => cars.map((_, k) => level?.offsets[k] ?? 0), [cars, level]);
+  const maxT = Math.max(...cars.map((c, k) => c.end - offsets[k]));
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
   const [camera, setCamera] = useState(0);               // index of the followed car
@@ -214,9 +219,12 @@ export default function Replay({ laps, edges, corners, checkpoints, by, onBy, on
   const turnTimes = useMemo(() => (cars[0] ? checkpoints.map((c) => timeAt(cars[0], Math.max(0, c.start_m))) : []), [cars, checkpoints]);
   useEffect(() => { activeTurn.current = -2; dirty.current = true; }, [checkpoints]);   // new buttons: highlight again
   const jumpTo = (i: number) => {
-    elapsed.current = Math.min(maxT, turnTimes[i] + 0.02);
+    const c = checkpoints[i];
+    const at = cars.map((car) => timeAt(car, Math.max(0, c.start_m)));   // when each car gets there
+    if (cars.length > 1) setLevel({ label: c.label, offsets: at.map((x) => x - at[0]) });
+    elapsed.current = at[0] + 0.02;
     dirty.current = true;
-    onTurn?.(checkpoints[i]);
+    onTurn?.(c);
   };
   const clock = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 
@@ -248,7 +256,7 @@ export default function Replay({ laps, edges, corners, checkpoints, by, onBy, on
 
   const draw = useCallback(() => {
     const t = elapsed.current;
-    const states = cars.map((c) => carState(c, t));
+    const states = cars.map((c, k) => carState(c, t + offsets[k]));
     states.forEach((s, k) => {
       carEls.current[k]?.setAttribute("transform", `translate(${s.x} ${s.z}) rotate(${s.angle}) scale(${carScale})`);
       const h = hud.current, car = cars[k];
@@ -294,10 +302,12 @@ export default function Replay({ laps, edges, corners, checkpoints, by, onBy, on
     if (h.gap && cars.length === 2) {
       const [a, b] = states;
       const lead = a.d >= b.d ? 0 : 1, back = 1 - lead;
-      const gapS = t - timeAt(cars[lead], states[back].d);
-      const done = t >= cars[0].end && t >= cars[1].end;
+      // On the clock: when the leader was where the other car is now
+      const gapS = t + offsets[lead] - timeAt(cars[lead], states[back].d);
+      const fin = cars.map((c, k) => c.end - offsets[k]);   // finish on the clock
+      const done = t >= fin[0] && t >= fin[1];
       h.gap.textContent = done
-        ? `Finished: ${cars[cars[0].end <= cars[1].end ? 0 : 1].driver} by ${Math.abs(cars[0].end - cars[1].end).toFixed(3)} s`
+        ? `Finished: ${cars[fin[0] <= fin[1] ? 0 : 1].driver} by ${Math.abs(fin[0] - fin[1]).toFixed(3)} s`
         : `${cars[lead].driver} ahead by ${Math.max(0, gapS).toFixed(3)} s · ${Math.round(Math.abs(a.d - b.d))} m`;
       (h.gap as HTMLElement).style.color = cars[lead].color;
     }
@@ -313,7 +323,8 @@ export default function Replay({ laps, edges, corners, checkpoints, by, onBy, on
       activeTurn.current = current;
       turnEls.current.forEach((el, i) => el?.setAttribute("data-active", String(i === current)));
     }
-  }, [cars, carScale, bbox, camera, viewW, followShare, checkpoints, maxT, onDistance, aspect, lapLength]);
+  }, [cars, carScale, bbox, camera, viewW, followShare, checkpoints, maxT, onDistance, aspect, lapLength, offsets]);
+  useEffect(() => { dirty.current = true; }, [offsets]);
 
   useEffect(() => {
     let raf = 0, last = performance.now();
@@ -353,7 +364,7 @@ export default function Replay({ laps, edges, corners, checkpoints, by, onBy, on
   return (
     <section ref={section} className={full ? "fixed inset-0 z-[60] flex flex-col bg-ink p-3" : "card card-red rise mt-4 p-3"}>
       <div className="flex flex-wrap items-center gap-2">
-        <button onClick={() => { elapsed.current = 0; dirty.current = true; }} title="Back to the start"
+        <button onClick={() => { setLevel(null); elapsed.current = 0; dirty.current = true; }} title="Back to the start"
                 className="btn btn-ghost px-2.5 py-1">⏮</button>
         <button onClick={toggle} className="btn btn-primary w-24 justify-center py-1">
           {playing ? "Pause" : "Play"}
@@ -414,10 +425,19 @@ export default function Replay({ laps, edges, corners, checkpoints, by, onBy, on
           ))}
         </div>
       )}
-      {/* Gap between the cars */}
+      {/* Gap between the cars; below it, while they are put neck and neck, from where and the way back */}
       {cars.length === 2 && (
-        <div className="pointer-events-none absolute left-1/2 top-11 -translate-x-1/2 whitespace-nowrap rounded-md sm:top-2 border border-white/10 bg-black/65 px-3 py-1 backdrop-blur">
-          <span ref={(el) => { hud.current.gap = el; }} className="tabular text-xs font-semibold sm:text-sm" />
+        <div className="pointer-events-none absolute left-1/2 top-11 flex -translate-x-1/2 flex-col items-center gap-1 sm:top-2">
+          <div className="whitespace-nowrap rounded-md border border-white/10 bg-black/65 px-3 py-1 backdrop-blur">
+            <span ref={(el) => { hud.current.gap = el; }} className="tabular text-xs font-semibold sm:text-sm" />
+          </div>
+          {level && (
+            <div className="pointer-events-auto flex items-center gap-2 whitespace-nowrap rounded-md border border-accent/40 bg-black/70 px-2.5 py-0.5 text-[11px] text-zinc-300 backdrop-blur"
+                 title="Both cars start this corner or section together, so you only see the difference from there">
+              <span>Neck and neck from <strong className="text-white">{level.label}</strong></span>
+              <button onClick={() => setLevel(null)} className="font-semibold text-accent hover:underline">Real gap</button>
+            </div>
+          )}
         </div>
       )}
       {/* Zoom (mouse wheel, or these buttons) and fullscreen */}

@@ -309,6 +309,11 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Corner checkpoints: "Turn N" (or "Turns 8–10" in Sections mode) boxes on the left of the player
   (name below, time the first car enters it); click = jump there and zoom the charts; the one the
   first car is in is highlighted (data-active).
+- Neck and neck (user's request, like Racemake): a checkpoint click also puts both cars level at its
+  start: each car runs on the first car's clock shifted by when it got there (`level.offsets`), so
+  the gap only shows that corner or section even when the lap gap is big. A tag under the gap says
+  "Neck and neck from Turn 13" with a "Real gap" button; back to the start also clears it. Gap and
+  "Finished" use the shifted clocks; the timeline ends when the last car finishes on it.
 - Replay lines, "brake / throttle" (user's request, like Racemake): grey with nothing pressed, mixed
   towards green in proportion to the throttle, towards red to the brake, blue with ABS; every metre,
   10 colour steps so consecutive equal segments merge (~950 polylines for two laps).
