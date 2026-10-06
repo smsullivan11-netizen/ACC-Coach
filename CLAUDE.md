@@ -567,11 +567,13 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   dropped it when the -webkit- line was there too).
 - Same video behind the YouTube page (`.glass` + `BackgroundVideo`). Dashboard welcome
   (`components/WelcomeHero.tsx`, user's request): a random quote per visit (`lib/quotes.ts`, picked
-  server-side; brief: motivating, not "boomer", aura / cold lines; `*word*` in yellow) under a small
-  "day · name" line; big (6xl), with room under it so the blocks start lower and the video shows on
-  arrival. Words slide in one by one out of a blur (`.word-in`, 75 ms apart, played even with reduce
-  motion); scrolling blurs, fades (smoothstep) and lifts it over the first 320 px. Heading font:
-  no colons, and curly apostrophes (’: the straight one sits too high).
+  server-side; the user's own list since 2026-10-06; `*word*` yellow, `~word~` red, `^word^` purple)
+  under a small "day · name" line; big (6xl, 5xl past 70 characters), with room under it so the
+  blocks start lower and the video shows on arrival. Words slide in one by one out of a blur
+  (`.word-in`, 75 ms apart, played even with reduce motion; a word split by colours stays one unit,
+  so it never wraps inside); scrolling blurs, fades (smoothstep) and lifts it over the first 320 px.
+  Heading font: no colons; apostrophes drawn in the regular font (the heading font's sit far above
+  the letters and land between the lines).
 - Redesign done page by page with the user's feedback (they like Racemake's dark look and
   animations, but want simplicity for learning). Round 1: header, sign-in page, dashboard (new
   home for signed-in drivers), sessions list. Next: lap comparison, leaderboards, profiles, rest.
