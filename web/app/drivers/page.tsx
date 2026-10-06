@@ -1,12 +1,13 @@
-import { Swords, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { Swords, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Avatar, Chip, delay, PageTitle, Position, RankBadge, RankIcon, RankScale } from "@/components/ui";
+import { PageTitle, RankScale } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { allTimeBest, PROVISIONAL_SESSIONS } from "@/lib/ratings";
+import { allTimeBest, formParts, PROVISIONAL_SESSIONS } from "@/lib/ratings";
+import DriversTable, { type DriverRow } from "./DriversTable";
 
-type Row = { id: string; display_name: string; avatar_url: string | null; rating: number | null; change: number | null; sessions: number };
+type Row = { id: string; display_name: string; avatar_url: string | null; rating: number | null; change: number | null; sessions: number; km: number };
 
 export const metadata: Metadata = { title: "Drivers" };
 
@@ -17,79 +18,28 @@ export default async function DriversPage() {
                       count(*) over (partition by driver_id) as sessions
                from driver_rating)
     select d.id, d.display_name, d.avatar_url, cur.rating, cur.rating - prev.rating as change,
-           coalesce(cur.sessions, 0)::int as sessions
+           coalesce(cur.sessions, 0)::int as sessions,
+           coalesce((select sum(l.distance_m) from lap l join session s on s.id = l.session_id where s.driver_id = d.id), 0)::float8 / 1000 as km
     from driver d
     left join r cur on cur.driver_id = d.id and cur.n = 1
     left join r prev on prev.driver_id = d.id and prev.n = 2
     order by cur.rating desc nulls last, d.display_name`;
   const best = await allTimeBest(sql);
-  let rank = 0;
+  const parts = await Promise.all(rows.map((r) => (r.rating != null ? formParts(sql, r.id) : null)));
+  const table: DriverRow[] = rows.map((r, i) => ({
+    id: r.id, name: r.display_name, avatar: r.avatar_url, rating: r.rating, best: best.get(r.id) ?? null, change: r.change,
+    sessions: r.sessions, provisional: r.rating != null && r.sessions < PROVISIONAL_SESSIONS, km: r.km,
+    pace: parts[i]?.pace ?? null, consistency: parts[i]?.consistency ?? null, clean: parts[i]?.clean ?? null, smoothness: parts[i]?.smoothness ?? null,
+  }));
 
   return (
-    <div>
+    <div className="bleed bleed-lg">
       <PageTitle icon={Users} sub="Rating: current form / all-time best, out of 100.">
         Drivers
       </PageTitle>
       <Link href="/drivers/compare" className="btn btn-ghost -mt-2 mb-5"><Swords size={15} /> Head to head</Link>
       <div className="mb-5"><RankScale /></div>
-      <div className="card card-red rise overflow-x-auto">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th className="w-12">#</th>
-              <th>Driver</th>
-              <th className="w-1/3">Rating</th>
-              <th className="text-right">Last session</th>
-              <th className="text-right">Sessions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => {
-              const n = r.rating != null ? ++rank : null;
-              return (
-                <tr key={r.id} className={r.id === me.id ? "bg-accent/[0.06]" : ""}>
-                  <td>{n != null ? <Position n={n} /> : null}</td>
-                  <td>
-                    <Link href={`/drivers/${r.id}`} className="flex items-center gap-3 text-white hover:underline">
-                      <Avatar url={r.avatar_url} name={r.display_name} size={32} />
-                      <span className="font-medium">{r.display_name}</span>
-                      <RankIcon rating={r.rating} size={16} />
-                    </Link>
-                  </td>
-                  <td>
-                    {r.rating != null ? (
-                      <div className="flex items-center gap-3">
-                        <span className="tabular w-28 whitespace-nowrap text-lg font-bold text-accent" title="Current rating / all-time best">
-                          {r.rating.toFixed(1)}
-                          {best.has(r.id) && <span className="text-sm font-semibold text-zinc-500">/{best.get(r.id)!.toFixed(1)}</span>}
-                        </span>
-                        <div className="h-1.5 w-40 shrink-0 overflow-hidden rounded-full bg-white/5">
-                          <div className="fill h-full rounded-full bg-gradient-to-r from-race to-accent" style={{ width: `${r.rating}%`, ...delay(150 + i * 50) }} />
-                        </div>
-                        <RankBadge rating={r.rating} />
-                        {r.sessions < PROVISIONAL_SESSIONS && <Chip>provisional</Chip>}
-                      </div>
-                    ) : (
-                      <span className="text-zinc-500">not rated yet</span>
-                    )}
-                  </td>
-                  <td className="text-right">
-                    {r.change == null ? <span className="text-zinc-600">–</span>
-                      : Math.abs(r.change) < 0.05 ? <span className="text-zinc-500">0.0</span>
-                      : (
-                        <span className={`inline-flex items-center gap-1 ${r.change > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                          {r.change > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                          {r.change > 0 ? "+" : ""}{r.change.toFixed(1)}
-                        </span>
-                      )}
-                  </td>
-                  <td className="text-right text-zinc-400">{r.sessions}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <DriversTable rows={table} me={me.id} />
     </div>
   );
 }

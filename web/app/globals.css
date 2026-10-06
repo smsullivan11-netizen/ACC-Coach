@@ -51,8 +51,10 @@ body {
 
 /* Wider than the page column (lap analysis: replay and charts use the screen's width), centred;
    never narrower than the column. 3rem keeps room for the scrollbar and the page's margins. */
+/* .bleed-lg: a bit wider than the column only (Drivers leaderboard) */
+.bleed-lg { --bleed-max: 1440px; }
 .bleed {
-  --bleed-w: max(100%, min(1840px, calc(100vw - 3rem)));
+  --bleed-w: max(100%, min(var(--bleed-max, 1840px), calc(100vw - 3rem)));
   width: var(--bleed-w);
   margin-left: calc((100% - var(--bleed-w)) / 2);
 }

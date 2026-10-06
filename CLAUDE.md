@@ -454,7 +454,11 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   steering, gear) with shared cursor and zoom, SVG track map (ACC x/z: z points down like SVG's y,
   so no flip needed) with both racing lines and the cursor position, corner table (click = zoom).
   Traces are fetched from `/api/laps/<id>` and decoded in the browser (`web/lib/trace.ts`).
-- Drivers (`/drivers`: ranking by rating, change at the last session) and profiles
+- Drivers (`/drivers`, `DriversTable.tsx`, a bit wider than the page column: `.bleed.bleed-lg`):
+  rating "current/best" with its bar beneath, then each part of the current form (pace,
+  consistency, clean driving, smoothness), Trend (change at the last session) and Distance (km,
+  all uploaded laps); every column sorts (click its title) and has an "i" with its description;
+  P1-P3 colours follow the sort. Profiles
   (`/drivers/<id>`: avatar, rating, driving style, rating breakdown and history, best laps with
   position, recent sessions). Admin section in Settings (admins, "Recompute all ratings"); admins
   set target lap times on each leaderboard (`POST /api/targets`, `1:24.500`, empty = remove).
