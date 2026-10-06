@@ -1,5 +1,6 @@
 import { Activity, Crown, Gauge, Medal, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Link from "next/link";
+import BackgroundVideo from "@/components/BackgroundVideo";
 import TrendChart from "@/components/TrendChart";
 import { ratingDomain } from "@/lib/chart";
 import { Avatar, Chip, delay, NextRank, PartBar, Position, RankBadge, RankIcon, ScaleNumber, SectionTitle } from "@/components/ui";
@@ -33,9 +34,11 @@ export default async function Dashboard({ me }: { me: Driver }) {
   const first = me.display_name.split(/\s+/)[0];
 
   return (
-    <div>
+    // The team video behind the page; the cards turn to frosted glass over it (globals.css .glass)
+    <div className="glass">
+      <BackgroundVideo src="/media/dashboard-bg.mp4" poster="/media/dashboard-bg.jpg" />
       <div className="rise mb-6">
-        <p className="text-sm text-zinc-500">{dayLabel(new Date())}</p>
+        <p className="text-sm text-zinc-400">{dayLabel(new Date())}</p>
         <h1 className="display mt-1 text-3xl text-white">Welcome back, <span className="text-accent">{first}</span></h1>
       </div>
 

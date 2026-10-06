@@ -552,6 +552,14 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   (`app/icon.png`, `app/apple-icon.png`, `public/team-helmet.jpg`).
 - The name "PCGR" is always written "PC" white + "GR" pure red #ff0000 (user's request):
   `<Pcgr />` / `PCGR_RED` in components/ui.tsx (footer, home, credits, both Discord cards).
+- Dashboard background video (user's request: the team's `Videos\1006.mp4`, 54 s, 3456×2160 60 fps,
+  790 MB): letterbox cropped (3456×1596 from y 282), 1280 px, 30 fps, H.264 CRF 31, no audio,
+  faststart → `public/media/dashboard-bg.mp4` (6 MB) + `dashboard-bg.jpg` poster (made with a
+  portable ffmpeg, imageio-ffmpeg in the scratchpad). `components/BackgroundVideo.tsx`: fixed behind
+  the page, darkened (gradient + vignette), loads and plays only on screens ≥ 768 px without data
+  saver or reduced motion (else the still). Cards over it are frosted glass (`.glass .card` in
+  globals.css: 72 % panel + backdrop blur; write only the standard `backdrop-filter`, the CSS build
+  dropped it when the -webkit- line was there too).
 - Redesign done page by page with the user's feedback (they like Racemake's dark look and
   animations, but want simplicity for learning). Round 1: header, sign-in page, dashboard (new
   home for signed-in drivers), sessions list. Next: lap comparison, leaderboards, profiles, rest.
