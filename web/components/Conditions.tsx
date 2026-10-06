@@ -17,7 +17,9 @@ export default function Conditions({ c, compact = false }: { c: SessionCondition
   if (compact)
     return (
       <span className="inline-flex items-center gap-2 text-xs text-zinc-500">
-        {c.track_c && <span className={item}><Thermometer size={12} /> {Math.round(c.track_c[0])}°</span>}
+        {/* Both temperatures, labelled (user's request: one unlabelled number was ambiguous) */}
+        {c.air_c && <span className={item} title="Air temperature"><Thermometer size={12} /> Air {Math.round(c.air_c[0])}°</span>}
+        {c.track_c && <span className={item} title="Track temperature"><Thermometer size={12} className="text-race" /> Track {Math.round(c.track_c[0])}°</span>}
         {wet ? <CloudRain size={13} className="text-sky-400" /> : <Sun size={13} className="text-accent/80" />}
       </span>
     );
