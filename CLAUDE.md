@@ -526,7 +526,7 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   compare, 1 s wait on failure) signs in username `store-reviewer` as the "Store Reviewer" driver
   (`discord_id` `review-store`, not admin); "Use the test account" links on `/` and `/link` (keeps
   `next`). Its sessions are never announced on Discord. Credentials go only in Partner Center's
-  certification notes (`agent\store\listing.md`). Unset = everything 404s / links hidden.
+  Additional Testing Info > Credentials table, never its description (`agent\store\listing.md`). Unset = everything 404s / links hidden.
 - Upload tokens (Settings page, `agent_token`, sha256 only) for `upload.py` and the future app:
   `Authorization: Bearer acc_…`. API: `POST /api/upload` (raw .json.gz body), `GET /api/corner-maps/<track>`,
   `/api/tokens`.

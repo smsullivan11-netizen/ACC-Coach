@@ -57,20 +57,20 @@ racing coach, motorsport, driving analysis, racing team
 packaged as MSIX). It shows an icon in the notification area and reads the shared memory that
 Assetto Corsa Competizione publishes for telemetry apps.
 
-**Notes for certification** (the first version was refused under 10.3.1 "App Is Testable - Test
-Account": no credentials; replace `<password>` with the REVIEW_PASSWORD set in Vercel):
+**Notes for certification** (Additional Testing Info page; the first version was refused under
+10.3.1 "App Is Testable - Test Account"). The test account goes in that page's **Credentials**
+table (name `store-reviewer`, value = the REVIEW_PASSWORD set in Vercel), never in the
+Description: Partner Center refuses to save a description containing credentials. Description:
 
 ACC Coach is a companion app for a private sim-racing team. It records while Assetto Corsa
 Competizione (Steam) is running and uploads the sessions to the team's site,
-https://acc-coach.vercel.app. Team members sign in with Discord; for testing, use this test account
-instead (no Discord needed):
-  Username: store-reviewer
-  Password: <password>
+https://acc-coach.vercel.app. Team members sign in with Discord; for testing, use the test account
+given in the credentials section of this page instead (no Discord needed).
 Steps: 1) Start ACC Coach: its icon appears next to the clock (status "Waiting for ACC") and the
 browser opens the "Link this PC" page. 2) Click "Use the test account" under the Discord button,
-sign in with the credentials above, then click "Link this PC as Store Reviewer": the app shows
-a notification "Linked to Store Reviewer" and its menu says so. 3) The site (team's laps, lap comparison, leaderboards, driver ratings) is now open to
-this account; the app's other functions are in the icon's right-click menu. Recording itself needs
-the game: without ACC running the app stays in "Waiting for ACC", which is the expected state.
-It reads the game's documented shared memory (Local\acpmf_physics, graphics, static) and makes no
-other changes to the system.
+sign in with the test account, then click "Link this PC as Store Reviewer": the app shows a
+notification "Linked to Store Reviewer" and its menu says so. 3) The site (team's laps, lap
+comparison, leaderboards, driver ratings) is now open to this account; the app's other functions
+are in the icon's right-click menu. Recording itself needs the game: without ACC running the app
+stays in "Waiting for ACC", which is the expected state. It reads the game's documented shared
+memory (Local\acpmf_physics, graphics, static) and makes no other changes to the system.
