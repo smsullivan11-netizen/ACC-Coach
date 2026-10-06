@@ -17,6 +17,14 @@ export function validCardSignature(lapId: string, sig: string | null) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+/** Public link to a rank promotion card (Discord post): signed over the driver and both ratings. */
+export const rankCardUrl = (driverId: string, prev: number, rating: number) => {
+  const key = `rank:${driverId}:${prev.toFixed(1)}:${rating.toFixed(1)}`;
+  return `${appUrl()}/api/cards/rank/${driverId}.png?from=${prev.toFixed(1)}&to=${rating.toFixed(1)}&s=${cardSignature(key)}`;
+};
+export const validRankSignature = (driverId: string, from: string, to: string, sig: string | null) =>
+  validCardSignature(`rank:${driverId}:${from}:${to}`, sig);
+
 /** Public link to a lap's card. `v` busts Discord's image cache when the lap's data changes. */
 export const lapCardUrl = (lapId: string, v?: string | number) =>
   `${appUrl()}/api/cards/lap/${lapId}.png?s=${cardSignature(lapId)}${v != null ? `&v=${v}` : ""}`;

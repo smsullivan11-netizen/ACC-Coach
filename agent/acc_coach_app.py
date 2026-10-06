@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # project modu
 import acc_shm as shm
 import corners as cn
 import upload
-from engineer_server import LiveEngineer
+from engineer_server import LiveEngineer, open_window
 from recorder import Recorder
 from version import __version__
 
@@ -370,7 +370,7 @@ def run_tray(agent: Agent):
         Menu.SEPARATOR,
         Item(lambda _: f"Linked to {agent.config.get('driver')}" if agent.linked() else "Link this PC to my account…",
              lambda: agent.link(), enabled=lambda _: not agent.linked()),
-        Item("Race engineer (live)", lambda: webbrowser.open(agent.engineer.url), enabled=lambda _: bool(agent.engineer.port)),
+        Item("Race engineer (live)", lambda: open_window(agent.engineer.url), enabled=lambda _: bool(agent.engineer.port)),
         Item("Share the engineer on my network", lambda: agent.share_engineer(not agent.engineer.shared),
              checked=lambda _: agent.engineer.shared),
         Menu.SEPARATOR,

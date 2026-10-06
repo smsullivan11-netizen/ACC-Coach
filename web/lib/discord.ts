@@ -1,6 +1,6 @@
 import "server-only";
 import { appUrl, env } from "./auth";
-import { lapCardUrl } from "./cards";
+import { lapCardUrl, rankCardUrl } from "./cards";
 import { sql } from "./db";
 import { rankFor, rankLevel } from "./ranks";
 import { carShortName, lapTime } from "./format";
@@ -76,9 +76,10 @@ const promotion = (driver: string, driverId: string, rating: number, prev: numbe
   const rank = rankFor(rating);
   return {
     color: parseInt(rank.color.slice(1), 16),
-    title: `🎖️ ${driver} is now ${rank.title}`,
-    description: `Overall Driver Rating ${rating.toFixed(1)} (from ${rankFor(prev).title}).`,
+    title: `🎖️ ${driver} ranks up: ${rankFor(prev).title} → ${rank.title}`,
+    description: `Overall Driver Rating **${rating.toFixed(1)}** (from ${prev.toFixed(1)}).`,
     url: `${appUrl()}/drivers/${driverId}`,
+    image: { url: rankCardUrl(driverId, prev, rating) },
   };
 };
 

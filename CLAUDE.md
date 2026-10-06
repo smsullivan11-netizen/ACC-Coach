@@ -593,6 +593,9 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Overall Driver Rating 0-100, computed by the site after each upload (`rateSession`), never by
   the app. Session score = weighted pace / consistency / clean / smoothness (formulas in the header
   of `ratings.ts`; a part that cannot be measured is left out). Provisional until 3 sessions.
+- Discord rank-up post (user: "dull"): title "X ranks up: A → B", bold rating, and an image
+  `/api/cards/rank/<driver>.png?from&to&s` (signed, lib/cards.ts `rankCardUrl`): old rank gauge →
+  new rank gauge in their colours, glow, gradient stripe, driver and rating (next/og).
 - Rank symbols (user: the Drivers text was too long, then "a gauge, not icons"): `RankSymbol` in
   components/ui.tsx = a gauge whose needle climbs with the rank (Rookie nearly empty, Expert maxed
   out), Alien = an alien head. Rank colours = weather-map temperature scale (lib/ranks.ts): Rookie
@@ -722,6 +725,10 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   → close 1; cold pressure compensation = clicks × `duct_psi_per_click` (0.2 psi: Trinacria;
   Coach Dave: ducts have minimal effect on tyre temps since 1.8, hence a setting). Real Brands
   Hatch recording: fronts peak ~610-650 °C (keep), rears ~507 °C (open 1). Pad compound shown.
+- Own window (app 0.1.9, user's request: "why a website?"): the tray item opens the page in a
+  Chromium app window (`--app=URL`: no tabs or address bar, own taskbar entry) of Chrome, Edge or
+  Brave (`app_browser`: App Paths in the registry, else the usual folders; Edge is NOT on the
+  user's PC, Chrome is), else the default browser. No extra dependency (pywebview not needed).
 - Fuel weight table duplicated from web/lib/fuel.ts (keep in sync).
 - Test: `python tests/test_engineer.py` (fake session replay, the real recording when present,
   live fake ACC + the page's /state). fake_acc fills pads, discs, pressures, temps, race clock.

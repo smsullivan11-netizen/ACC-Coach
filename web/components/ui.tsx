@@ -72,7 +72,7 @@ export function Position({ n }: { n: number }) {
 
 /** A rank's symbol: a gauge whose needle climbs with the rank (Rookie nearly empty, Expert maxed
  *  out), and an alien head for Alien; in the rank's colour (lib/ranks.ts). */
-export function RankSymbol({ rank, size = 16 }: { rank: Rank; size?: number }) {
+export function RankSymbol({ rank, size = 16, track = "currentColor" }: { rank: Rank; size?: number; track?: string }) {
   if (rank.title === "Alien")
     return (
       <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
@@ -88,7 +88,7 @@ export function RankSymbol({ rank, size = 16 }: { rank: Rank; size?: number }) {
   const needle = start + sweep * f;
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} fill="none" strokeLinecap="round" aria-hidden>
-      <path d={arc(start + sweep)} stroke="currentColor" strokeOpacity={0.22} strokeWidth={2.6} />
+      <path d={arc(start + sweep)} stroke={track} strokeOpacity={0.22} strokeWidth={2.6} />
       <path d={arc(needle)} stroke={rank.color} strokeWidth={2.6} />
       <path d={`M${cx} ${cy} L${at(needle, R - 2.6)}`} stroke="#f4f4f5" strokeWidth={1.9} />
       <circle cx={cx} cy={cy} r={1.7} fill="#f4f4f5" />

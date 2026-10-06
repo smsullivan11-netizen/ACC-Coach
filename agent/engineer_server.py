@@ -16,6 +16,50 @@ from engineer import DEFAULT_SETTINGS, Engineer
 PORTS = (8780, 8781, 8782)
 
 
+BROWSERS = {   # Chromium browsers with an app mode (--app=URL): their exe and usual install folders
+    "chrome.exe": [r"Google\Chrome\Application"],
+    "msedge.exe": [r"Microsoft\Edge\Application"],
+    "brave.exe": [r"BraveSoftware\Brave-Browser\Application"],
+}
+
+
+def app_browser() -> str | None:
+    """A browser that can show a page as an app window: Chrome, Edge or Brave (registered app path,
+    else the usual folders, per user or for all users)."""
+    import os
+    import winreg
+    for exe, folders in BROWSERS.items():
+        for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            try:
+                with winreg.OpenKey(root, rf"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exe}") as k:
+                    path = winreg.QueryValue(k, None).strip('"')
+                    if path and os.path.exists(path):
+                        return path
+            except OSError:
+                pass
+        for base in (os.environ.get("LOCALAPPDATA"), os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")):
+            for folder in folders:
+                path = os.path.join(base or "", folder, exe)
+                if base and os.path.exists(path):
+                    return path
+    return None
+
+
+def open_window(url: str):
+    """The engineer page in its own window (app mode of Chrome, Edge or Brave: no tabs or address
+    bar, its own taskbar entry), else in the default browser."""
+    import subprocess
+    import webbrowser
+    browser = app_browser()
+    if browser:
+        try:
+            subprocess.Popen([browser, f"--app={url}", "--window-size=1280,860"], close_fds=True)
+            return
+        except OSError:
+            pass
+    webbrowser.open(url)
+
+
 def lan_address() -> str | None:
     """This PC's address on the local network (a UDP 'connection' sends nothing)."""
     try:
