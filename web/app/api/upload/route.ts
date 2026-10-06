@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { driverFromRequest } from "@/lib/auth";
 import { awardAchievements } from "@/lib/achievements";
 import { afterUpload } from "@/lib/corner-maps";
+import { refreshCornerRefsForSession } from "@/lib/corner-refs";
 import { announceSession } from "@/lib/discord";
 import { sql } from "@/lib/db";
 import { importBundle, Rejected, type Bundle } from "@/lib/import-bundle";
@@ -45,6 +46,8 @@ export async function POST(request: Request) {
   await compressOldTraces(10).catch((e) => console.error("compress traces", e));   // older traces, a few per upload
   // Track surface on the maps, recomputed with the new laps once the app has its answer
   after(() => refreshOutlineForSession(result.sessionId).catch((e) => console.error("track outline", e)));
+  // Corner reference points (distances before each corner, virtual boards), with the new laps
+  after(() => refreshCornerRefsForSession(result.sessionId).catch((e) => console.error("corner refs", e)));
   return Response.json({
     ok: true,
     session_id: result.sessionId,

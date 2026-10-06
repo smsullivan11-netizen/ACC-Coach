@@ -51,6 +51,21 @@ function edgeDistance(edge: EdgeLine) {
   };
 }
 
+/** Turn-in point of a corner on a lap (1 m grid): back from the steering peak before the apex, the
+ *  first point under a quarter of it. Also each corner's reference point (lib/corner-refs.ts).
+ *  `from`: where the corner starts on the lap, so a corner taken flat right after another one does
+ *  not pick up that one's steering. */
+export function turnInAt(steer: ArrayLike<number>, apex: number, from = -Infinity): number | null {
+  const n = steer.length, a = Math.round(apex);
+  if (a <= 0 || a >= n) return null;
+  let peak = a;
+  for (let i = Math.max(0, a - 150, Math.round(from)); i <= Math.min(n - 1, a + 20); i++) if (Math.abs(steer[i]) > Math.abs(steer[peak])) peak = i;
+  if (Math.abs(steer[peak]) < 0.02) return null;   // no steering to speak of
+  const sign = Math.sign(steer[peak]), limit = Math.abs(steer[peak]) * TURN_IN_SHARE;
+  for (let i = peak; i > Math.max(0, a - 250); i--) if (steer[i] * sign < limit) return i;
+  return null;
+}
+
 /** The line through one corner of a lap, or null (kink, or no positions there). apex_m: the lap's
  *  apex (slowest point) in its metres; the lap's grid is 1 m. `side`: the inside, when already known
  *  from the other lap (both laps must be measured against the same line). */
@@ -67,14 +82,7 @@ export function cornerLine(lap: LineLap, edges: { left: EdgeLine; right: EdgeLin
   const side = known ?? (cross > 0 ? "right" : "left");
   const inside = edgeDistance(edges[side]), outside = edgeDistance(edges[side === "right" ? "left" : "right"]);
 
-  // Turn-in: back from the steering peak before the apex, the first point under a quarter of it
-  let turnIn: number | null = null;
-  if (lap.steer) {
-    let peak = a;
-    for (let i = Math.max(0, a - 150); i <= Math.min(n - 1, a + 20); i++) if (Math.abs(lap.steer[i]) > Math.abs(lap.steer[peak])) peak = i;
-    const sign = Math.sign(lap.steer[peak]), limit = Math.abs(lap.steer[peak]) * TURN_IN_SHARE;
-    for (let i = peak; i > Math.max(0, a - 250); i--) if (lap.steer[i] * sign < limit) { turnIn = i; break; }
-  }
+  const turnIn = lap.steer ? turnInAt(lap.steer, a) : null;
   const from = turnIn ?? Math.max(0, a - 60);
   const to = Math.min(n - 1, a + 60 + EXIT_SPAN_M, Math.max(end_m, a + 100));
   // Signed room to each line (wheels inside the track > 0): the distances alone cannot tell a car

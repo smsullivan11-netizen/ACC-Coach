@@ -348,6 +348,21 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   point, peak brake, apex speed, coasting, throttle pickup, full throttle, exit speed), strongest
   sections, "recurring" when the same section was the worst in ≥ 2 of the driver's last 3 sessions
   there. Links open the comparison zoomed on the corner or section (`&corner=N` or `&corner=8-10`).
+- Distances before the corner and virtual boards (user's request: "brake at 799 m" meant nothing
+  to drivers; like a track's 50/100/150 m boards): each corner's reference point = the team's median
+  turn-in point on the map (`lib/corner-refs.ts`, table `corner_ref`, migration 0012; turn-in from
+  the steering, `turnInAt` in lib/line.ts, searched within the corner's own part of the lap so a
+  flat corner after another one keeps its own). Refreshed after each upload (`after()`), computed on
+  first use for older maps, and only moved when the new median is more than 2 m away (the absolute
+  figures stay put; comparisons use the same point for both laps, so their differences never move).
+  `brakes` (most laps brake before it) and `brake_m` (median braking distance: boards every 100 m
+  from 150 m, else every 50 m). Shown: coach ("Bob brakes 56 m before T9, you 62 m"; throttle as
+  metres before/after the apex), lap-page table (braking "117 m (ref 116 m)", "9 m after" when the
+  brake comes after the turn-in; throttle and full throttle ±m from the apex), boards
+  (`components/Boards.tsx`, white with black numbers, 7 m off the line on the corner's outside) on
+  the lap page's map and as dashed lines on the charts when zoomed to ≤ 1,500 m, and in the replay
+  when zoomed in (view ≤ 500 m). Without migration 0012 or steering data everything falls back to
+  metres from the line.
 - Racing line (`web/lib/line.ts`, user's pick among coach improvements): for the corner each loss is
   coached on, both laps' positions against the track's white lines (`trackEdges`: edge laps, else the
   automatic outline). Per corner: inside from the reference's heading change (same side for both

@@ -2,6 +2,7 @@
 
 import { Maximize2, Minimize2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Boards, { type Board } from "@/components/Boards";
 import TrackSurface, { type Edges } from "@/components/TrackSurface";
 import { Segmented, ZONE_OPTIONS } from "@/components/ui";
 import { lapTime } from "@/lib/format";
@@ -30,6 +31,7 @@ type Car = {
 
 const RATES = [0.25, 0.5, 1, 2, 4];
 const MIN_VIEW_M = 70;   // view width at 100 % zoom: about one corner
+const BOARDS_VIEW_M = 500;   // distance boards show once the view is this narrow (zoomed in)
 const CAR_L = 4.6, CAR_W = 2.0;                                    // GT3 footprint (m)
 const INPUT_COLORS = { brake: "#ef4444", abs: "#2563eb", full: "#22c55e", coast: "#71717a" };
 const ABS_ON = 5;   // % of the time with ABS working, per metre
@@ -127,10 +129,11 @@ function linePaths(car: Car, byInputs: boolean) {
   return out;
 }
 
-export default function Replay({ laps, edges, corners, checkpoints, by, onBy, onDistance, onClose, onTurn }: {
+export default function Replay({ laps, edges, corners, boards = [], checkpoints, by, onBy, onDistance, onClose, onTurn }: {
   laps: ReplayLap[];
   edges: Edges;
   corners: Corner[];                    // labels on the map
+  boards?: Board[];                     // virtual distance boards before corners (shown zoomed in)
   checkpoints: Checkpoint[];            // buttons on the side: corners or sections (by)
   by: ZoneMode;
   onBy: (v: ZoneMode) => void;
@@ -401,6 +404,7 @@ export default function Replay({ laps, edges, corners, checkpoints, by, onBy, on
         {labels.map((l) => (
           <text key={l.n} x={l.x} y={l.z} fontSize={viewW / 60} fill="#a1a1aa" textAnchor="middle" dominantBaseline="central">T{l.n}</text>
         ))}
+        {viewW <= BOARDS_VIEW_M && <Boards boards={boards} size={Math.max(1.6, viewW / 70)} />}
         {cars.map((c, k) => ({ c, k })).reverse().map(({ c, k }) => (
           <g key={k} ref={(el) => { carEls.current[k] = el; }}>
             <rect x={-CAR_L / 2} y={-CAR_W / 2} width={CAR_L} height={CAR_W} rx={0.6} fill={c.color} stroke="#000" strokeWidth={0.2} />

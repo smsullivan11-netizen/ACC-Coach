@@ -1,4 +1,5 @@
 import { driverFromRequest } from "@/lib/auth";
+import { cornerRefs } from "@/lib/corner-refs";
 import { sql } from "@/lib/db";
 import { trackEdges } from "@/lib/track-edges";
 import { unpackChannels } from "@/lib/trace-store";
@@ -31,9 +32,9 @@ export async function GET(request: Request, ctx: RouteContext<"/api/laps/[id]">)
     where l.id = ${id}`;
   if (!lap) return Response.json({ error: "not found" }, { status: 404 });
 
-  const corners = lap.corner_map_id
-    ? await sql`
-        select k.number, k.name,
+  const rows = lap.corner_map_id
+    ? await sql<{ number: number; scale: number }[]>`
+        select k.number, k.name, t.k as scale,
                k.start_m * t.k as start_m, k.apex_m * t.k as apex_m, k.end_m * t.k as end_m,
                r.time_s, r.entry_speed_kmh, r.lift_point_m, r.braking_point_m, r.brake_release_m,
                r.max_brake_pct, r.min_speed_kmh, r.apex_m as lap_apex_m, r.throttle_pickup_m,
@@ -46,6 +47,13 @@ export async function GET(request: Request, ctx: RouteContext<"/api/laps/[id]">)
         where k.corner_map_id = ${lap.corner_map_id}
         order by k.number`
     : [];
+  // Each corner's reference point (lib/corner-refs.ts) on this lap's grid: distances before the
+  // corner and the virtual boards (brakes: the team brakes there; brake_m: its usual braking distance)
+  const refs = await cornerRefs(lap.corner_map_id);
+  const corners = rows.map(({ scale, ...c }) => {
+    const r = refs.find((x) => x.corner_number === c.number);
+    return { ...c, zero_m: r ? r.zero_m * scale : null, brakes: r?.brakes ?? false, brake_m: r?.brake_m ?? null };
+  });
 
   const { step_m, length, channels, track_id, ...header } = lap;
   const edges = await trackEdges(track_id, lap.track);

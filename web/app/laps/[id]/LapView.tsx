@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
+import Boards, { type Board } from "@/components/Boards";
 import Conditions, { type SessionConditions } from "@/components/Conditions";
 import TrackSurface, { type Edges } from "@/components/TrackSurface";
 import { Segmented, ZONE_OPTIONS } from "@/components/ui";
@@ -33,7 +34,29 @@ type CornerRow = {
   full_throttle_m: number | null;
   coasting_s: number | null;
   exit_speed_kmh: number | null;
+  zero_m: number | null;      // the corner's reference point (team turn-in, lib/corner-refs.ts)
+  brakes: boolean;            // the team brakes for it: virtual boards
+  brake_m: number | null;     // its usual braking distance: boards every 50 m, or 100 m for long ones
 };
+// Virtual distance boards (components/Boards.tsx): a few metres outside the line, on the corner's outside
+const BOARD_OFFSET_M = 7;
+
+function boardsOf(c: CornerRow, x: ArrayLike<number>, z: ArrayLike<number>): Board[] {
+  if (!c.brakes || c.zero_m == null) return [];
+  const n = Math.min(x.length, z.length), a = Math.round(c.apex_m);
+  if (a < 26 || a > n - 26) return [];
+  // The corner's outside: opposite to the way the line turns around its apex
+  const cross = (x[a] - x[a - 25]) * (z[a + 25] - z[a]) - (z[a] - z[a - 25]) * (x[a + 25] - x[a]);
+  const out = cross > 0 ? -1 : 1;   // right turn → boards on the left (seen from above, z down)
+  const step = (c.brake_m ?? 0) >= 150 ? 100 : 50;
+  return [1, 2, 3].flatMap((k) => {
+    const d = c.zero_m! - k * step, i = Math.round(d);
+    if (i < 3 || i > n - 4) return [];
+    const tx = x[i + 3] - x[i - 3], tz = z[i + 3] - z[i - 3], len = Math.hypot(tx, tz) || 1;
+    // the driver's right is (-dz, dx)
+    return [{ corner: c.number, label: String(k * step), d, x: x[i] + (out * -tz * BOARD_OFFSET_M) / len, z: z[i] + (out * tx * BOARD_OFFSET_M) / len }];
+  });
+}
 /** What the Turn buttons, the replay's checkpoints and the table work on: one corner, or a section
  *  (corners driven as one, lib/sections.ts). */
 export type Zone = { key: string; label: string; numbers: number[]; name: string | null; start_m: number; end_m: number };
@@ -92,7 +115,7 @@ function alignTo(l: Loaded, a: Loaded): Loaded {
   return {
     ...l, t: { dist: a.t.dist, channels },
     corners: l.corners.map((c) => ({
-      ...c, start_m: c.start_m / k, apex_m: c.apex_m / k, end_m: c.end_m / k, lift_point_m: m(c.lift_point_m),
+      ...c, start_m: c.start_m / k, apex_m: c.apex_m / k, end_m: c.end_m / k, zero_m: m(c.zero_m), lift_point_m: m(c.lift_point_m),
       braking_point_m: m(c.braking_point_m), lap_apex_m: m(c.lap_apex_m), throttle_pickup_m: m(c.throttle_pickup_m),
       full_throttle_m: m(c.full_throttle_m),
     })),
@@ -123,6 +146,11 @@ export default function LapView({ lapId, vsId, candidates, otherHref, corner, by
     time: l.t.channels.time_s,
     corners: l.corners.map((c) => ({ corner_number: c.number, lift_point_m: c.lift_point_m, full_throttle_m: c.full_throttle_m, apex_m: c.lap_apex_m, time_s: c.time_s })),
   }] : [])), [laps]);
+  // Virtual distance boards before the corners the team brakes for (on this lap's line)
+  const boards = useMemo(() => {
+    const a = laps?.[0], x = a?.t?.channels.pos_x_m, z = a?.t?.channels.pos_z_m;
+    return a && x && z ? a.corners.flatMap((c) => boardsOf(c, x, z)) : [];
+  }, [laps]);
   const zones = useMemo<Zone[]>(() => {
     const cs = laps?.[0].corners ?? [];
     return (by === "sections" ? sections : cs.map((c) => [c.number])).flatMap((g) => {
@@ -220,7 +248,7 @@ export default function LapView({ lapId, vsId, candidates, otherHref, corner, by
 
       {a.t && replay && (
         <Replay laps={laps.flatMap((l, i) => (l.t ? [{ driver: `${l.driver} L${l.number}`, color: COLORS[i], t: l.t }] : []))}
-                edges={a.edges} corners={a.corners} checkpoints={zones} by={by} onBy={pickBy} onDistance={followCar} onClose={closeReplay}
+                edges={a.edges} corners={a.corners} boards={boards} checkpoints={zones} by={by} onBy={pickBy} onDistance={followCar} onClose={closeReplay}
                 onTurn={(z) => zoom.current(cornerRange(z))} />
       )}
       {a.t && <CornerChips zones={zones} by={by} onBy={pickBy} range={range} onSelect={(r) => zoom.current(r)} />}
@@ -230,10 +258,10 @@ export default function LapView({ lapId, vsId, candidates, otherHref, corner, by
         // With the replay open, the charts take the whole width under it (the small map would repeat it)
         <div className={`mt-4 grid gap-4 ${replay ? "" : "lg:grid-cols-[minmax(0,1fr)_380px]"}`}>
           <div className="card min-w-0 px-3 pb-3 pt-1">
-            <Charts laps={laps} onCursor={(i) => moveDots.current(i)} onRange={setRange} zoomRef={zoom} cursorRef={cursor} />
+            <Charts laps={laps} boards={boards} onCursor={(i) => moveDots.current(i)} onRange={setRange} zoomRef={zoom} cursorRef={cursor} />
           </div>
           <div className={`lg:sticky lg:top-20 lg:self-start ${replay ? "hidden" : ""}`}>
-            <TrackMap laps={laps} range={range} moveRef={moveDots} />
+            <TrackMap laps={laps} boards={boards} range={range} moveRef={moveDots} />
             <div className="mt-2 flex items-center gap-4">
               {positions && !replay && (
                 <button onClick={() => setReplay(true)} className="btn btn-primary">
@@ -288,8 +316,11 @@ type Panel = {
   format?: (v: number) => string;   // value shown in the title while hovering
 };
 
-function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
+const BOARDS_ON_CHARTS_M = 1500;   // the boards' lines show on the charts when zoomed in to this much track
+
+function Charts({ laps, boards, onCursor, onRange, zoomRef, cursorRef }: {
   laps: Loaded[];
+  boards: Board[];
   onCursor: (i: number | null) => void;
   onRange: (r: Range) => void;
   zoomRef: React.RefObject<(r: Range) => void>;
@@ -404,6 +435,28 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
           ...(p.stepped ? { paths: uPlot.paths.stepped!({ align: 1 }) } : {}),
         }))],
         hooks: {
+          // Virtual boards: a dashed line at each one when zoomed in, its distance on the top chart
+          draw: [(u) => {
+            const { min, max } = u.scales.x;
+            if (min == null || max == null || max - min > BOARDS_ON_CHARTS_M) return;
+            const ctx = u.ctx, r = devicePixelRatio || 1;
+            ctx.save();
+            ctx.strokeStyle = "#ffffff38";
+            ctx.setLineDash([4 * r, 4 * r]);
+            ctx.fillStyle = "#e4e4e7";
+            ctx.font = `600 ${10 * r}px sans-serif`;
+            ctx.textAlign = "center";
+            for (const b of boards) {
+              if (b.d < min || b.d > max) continue;
+              const px = u.valToPos(b.d, "x", true);
+              ctx.beginPath();
+              ctx.moveTo(px, u.bbox.top);
+              ctx.lineTo(px, u.bbox.top + u.bbox.height);
+              ctx.stroke();
+              if (k === 0) ctx.fillText(b.label, px, u.bbox.top + 11 * r);
+            }
+            ctx.restore();
+          }],
           setCursor: [(u) => {
             const i = u.cursor.idx;
             for (const { span, j, label } of values) {
@@ -436,14 +489,16 @@ function Charts({ laps, onCursor, onRange, zoomRef, cursorRef }: {
       resize.disconnect();
       plots.forEach((p) => p.destroy());
     };
-  }, [laps, zoomRef, cursorRef]);
+  }, [laps, boards, zoomRef, cursorRef]);
 
   return <div ref={box} className="min-w-0" />;
 }
 
 // --- Track map: racing lines, corner labels, cursor position --------------------------------------
 
-function TrackMap({ laps, range, moveRef }: { laps: Loaded[]; range: Range; moveRef: React.RefObject<(i: number | null) => void> }) {
+function TrackMap({ laps, boards, range, moveRef }: {
+  laps: Loaded[]; boards: Board[]; range: Range; moveRef: React.RefObject<(i: number | null) => void>;
+}) {
   const lines = useMemo(
     () => laps.map((l) => (l.t?.channels.pos_x_m && l.t.channels.pos_z_m ? { x: l.t.channels.pos_x_m, z: l.t.channels.pos_z_m } : null)),
     [laps],
@@ -512,6 +567,8 @@ function TrackMap({ laps, range, moveRef }: { laps: Loaded[]; range: Range; move
         );
       })}
       <rect x={a.x[0] - size / 120} y={a.z[0] - size / 120} width={size / 60} height={size / 60} fill="#e5e7eb" />
+      {/* Distance boards when zoomed on a corner (the whole lap would be crowded with them) */}
+      {range && range[1] - range[0] <= BOARDS_ON_CHARTS_M && <Boards boards={boards} size={size / 34} from={range[0]} to={range[1]} />}
       {lines.map((l, k) => l && (
         <circle key={k} ref={(el) => { dots.current[k] = el; }} r={size / 90} fill={COLORS[k]} stroke="#000" strokeWidth={size / 400} visibility="hidden" />
       ))}
@@ -525,6 +582,16 @@ const num = (v: number | null | undefined, digits = 0, unit = "") => (v == null 
 const diff = (x: number | null | undefined, y: number | null | undefined, digits = 0, unit = "") =>
   x == null || y == null ? "–" : `${x - y > 0 ? "+" : ""}${(x - y).toFixed(digits)}${unit}`;
 
+/** A braking point as drivers count it: metres before the corner's reference point (the team's
+ *  turn-in, where the boards count down to); metres from the line when the corner has none yet. */
+const brakeAt = (c: CornerRow, v: number | null | undefined) =>
+  v == null ? "–" : c.zero_m == null ? `at ${Math.round(v)} m` : c.zero_m - v >= -0.5 ? `${Math.round(c.zero_m - v)} m` : `${Math.round(v - c.zero_m)} m after`;
+/** A throttle point from the corner's apex: + after it, − before it. */
+const fromApex = (c: CornerRow, v: number | null | undefined) => {
+  if (v == null) return "–";
+  const m = Math.round(v - c.apex_m);
+  return `${m > 0 ? "+" : m < 0 ? "−" : ""}${Math.abs(m)} m`;
+};
 const gapClass = (gap: number | null) => (gap == null ? "" : gap > 0.02 ? "text-red-400" : gap < -0.02 ? "text-emerald-400" : "text-zinc-400");
 const gapText = (gap: number | null, digits = 3) => (gap == null ? "–" : `${gap > 0 ? "+" : ""}${gap.toFixed(digits)}`);
 
@@ -539,10 +606,9 @@ function CornerTable({ laps, zones, by, onSelect }: { laps: Loaded[]; zones: Zon
       <div className="px-5 pt-4">
       <h2 className="display text-sm uppercase tracking-wider text-white">Corners</h2>
       <p className="mt-1 text-sm text-zinc-500">
-        {compare
-          ? "Differences are this lap minus the reference. Distances: + = later on track."
-          : "Distances are metres from the start/finish line."}{" "}
-        Click a row to zoom on the corner.
+        {compare ? "Time and speed: this lap minus the reference. " : ""}
+        Braking: metres before each corner&apos;s turn-in point (the team&apos;s, where the boards count down to). Throttle: metres
+        from the apex, + after it. Click a row to zoom on the corner.
       </p>
       </div>
       <div className="overflow-x-auto">
@@ -555,18 +621,18 @@ function CornerTable({ laps, zones, by, onSelect }: { laps: Loaded[]; zones: Zon
                 <th className="text-right">Time</th>
                 <th className="text-right">Gap</th>
                 <th className="text-right">Min speed</th>
-                <th className="text-right">Braking point</th>
-                <th className="text-right">Throttle pickup</th>
-                <th className="text-right">Full throttle</th>
+                <th className="text-right">Braking (before)</th>
+                <th className="text-right">Throttle (apex)</th>
+                <th className="text-right">Full throttle (apex)</th>
               </>
             ) : (
               <>
                 <th className="text-right">Time</th>
                 <th className="text-right">Entry speed</th>
-                <th className="text-right">Braking at</th>
+                <th className="text-right">Braking (before)</th>
                 <th className="text-right">Min speed</th>
-                <th className="text-right">Throttle at</th>
-                <th className="text-right">Full throttle at</th>
+                <th className="text-right">Throttle (apex)</th>
+                <th className="text-right">Full throttle (apex)</th>
                 <th className="text-right">Coasting</th>
               </>
             )}
@@ -587,18 +653,18 @@ function CornerTable({ laps, zones, by, onSelect }: { laps: Loaded[]; zones: Zon
                     <td className="text-right">
                       {num(c.min_speed_kmh)} <span className="text-zinc-500">({diff(c.min_speed_kmh, r?.min_speed_kmh)})</span>
                     </td>
-                    <td className="text-right">{diff(c.braking_point_m, r?.braking_point_m, 0, " m")}</td>
-                    <td className="text-right">{diff(c.throttle_pickup_m, r?.throttle_pickup_m, 0, " m")}</td>
-                    <td className="text-right">{diff(c.full_throttle_m, r?.full_throttle_m, 0, " m")}</td>
+                    <td className="whitespace-nowrap text-right">{brakeAt(c, c.braking_point_m)} <span className="text-zinc-500">(ref {brakeAt(c, r?.braking_point_m)})</span></td>
+                    <td className="whitespace-nowrap text-right">{fromApex(c, c.throttle_pickup_m)} <span className="text-zinc-500">(ref {fromApex(c, r?.throttle_pickup_m)})</span></td>
+                    <td className="whitespace-nowrap text-right">{fromApex(c, c.full_throttle_m)} <span className="text-zinc-500">(ref {fromApex(c, r?.full_throttle_m)})</span></td>
                   </>
                 ) : (
                   <>
                     <td className="text-right">{num(c.time_s, 2, " s")}</td>
                     <td className="text-right">{num(c.entry_speed_kmh, 0, " km/h")}</td>
-                    <td className="text-right">{num(c.braking_point_m, 0, " m")}</td>
+                    <td className="text-right">{brakeAt(c, c.braking_point_m)}</td>
                     <td className="text-right">{num(c.min_speed_kmh, 0, " km/h")}</td>
-                    <td className="text-right">{num(c.throttle_pickup_m, 0, " m")}</td>
-                    <td className="text-right">{num(c.full_throttle_m, 0, " m")}</td>
+                    <td className="text-right">{fromApex(c, c.throttle_pickup_m)}</td>
+                    <td className="text-right">{fromApex(c, c.full_throttle_m)}</td>
                     <td className="text-right">{num(c.coasting_s, 2, " s")}</td>
                   </>
                 )}

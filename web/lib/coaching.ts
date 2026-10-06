@@ -3,6 +3,7 @@ import { sql } from "./db";
 import { lapTime, prettyKey } from "./format";
 import { paceReference } from "./targets";
 import { trackEdges } from "./track-edges";
+import { cornerRefs } from "./corner-refs";
 import { cornerLine, lineAdvice, type LineLap } from "./line";
 import { sectionLabel, sectionsOf } from "./sections";
 import { sectionTables } from "./sections-db";
@@ -51,7 +52,9 @@ type CR = {
   lift_point_m: number | null; max_brake_pct: number | null; min_speed_kmh: number | null; apex_m: number | null;
   throttle_pickup_m: number | null; full_throttle_m: number | null; coasting_s: number | null; exit_speed_kmh: number | null;
 };
-type MapCR = CR & { name: string | null; start_m: number; end_m: number };
+// A corner of the reference lap, on its grid: map boundaries and apex, and the corner's reference
+// point (lib/corner-refs.ts; null before migration 0012 or without steering data)
+type MapCR = CR & { name: string | null; start_m: number; end_m: number; map_apex_m: number; zero_m?: number | null };
 // One corner of the best lap against the reference: time lost (s) from its braking point to its apex
 // (entry) and from its apex to the next corner's braking point (exit)
 type Row = { r: MapCR; y: CR; entry: number; exit: number };
@@ -85,12 +88,22 @@ function timeAt(time: Float64Array, d: number) {
 }
 
 /** What to change in a corner: the driver's corner results against the reference's. */
-function cornerAdvice(you: CR, ref: CR, refName: string, entryLoss: number, exitLoss: number): string[] {
+function cornerAdvice(you: CR, ref: MapCR, refName: string, entryLoss: number, exitLoss: number): string[] {
   const entry: [number, string][] = [], exit: [number, string][] = [];
   const d = (a: number | null, b: number | null) => (a == null || b == null ? null : a - b);
+  // Distances drivers can use: before the corner's reference point (the team's turn-in, like a
+  // track's boards) and around its apex; metres from the line only without a reference point
+  const T = `T${ref.corner_number}`, zero = ref.zero_m ?? null;
+  const before = (x: number) => `${Math.round(zero! - x)} m before ${T}`;
+  const vsApex = (x: number) => {
+    const m = Math.round(x - ref.map_apex_m);
+    return m === 0 ? "at the apex" : m > 0 ? `${m} m after the apex` : `${-m} m before the apex`;
+  };
   const bp = d(you.braking_point_m, ref.braking_point_m);
   if (bp != null && bp < -5)
-    entry.push([-bp, `Brake about ${Math.round(-bp)} m later: ${refName} brakes at ${Math.round(ref.braking_point_m!)} m, you at ${Math.round(you.braking_point_m!)} m.`]);
+    entry.push([-bp, zero != null
+      ? `Brake about ${Math.round(-bp)} m later: ${refName} brakes ${before(ref.braking_point_m!)}, you ${Math.round(zero - you.braking_point_m!)} m.`
+      : `Brake about ${Math.round(-bp)} m later: ${refName} brakes at ${Math.round(ref.braking_point_m!)} m, you at ${Math.round(you.braking_point_m!)} m.`]);
   if (bp != null && bp > 5 && entryLoss > MIN_CORNER_LOSS_S)
     entry.push([bp, `You brake ${Math.round(bp)} m later than ${refName} but still lose time before the apex: the entry is overdriven. Brake a touch earlier and aim for a cleaner apex.`]);
   if (you.braking_point_m == null && ref.braking_point_m != null && entryLoss > MIN_CORNER_LOSS_S)
@@ -108,7 +121,7 @@ function cornerAdvice(you: CR, ref: CR, refName: string, entryLoss: number, exit
     entry.push([coast * 40, `You coast ${coast.toFixed(2)} s longer between brake and throttle: keep a little brake into the turn-in, then go straight to the throttle.`]);
   const pickup = d(you.throttle_pickup_m, ref.throttle_pickup_m);
   if (pickup != null && pickup > 8)
-    exit.push([pickup, `Back on the throttle about ${Math.round(pickup)} m earlier (you at ${Math.round(you.throttle_pickup_m!)} m, ${refName} at ${Math.round(ref.throttle_pickup_m!)} m).`]);
+    exit.push([pickup, `Back on the throttle about ${Math.round(pickup)} m earlier (you ${vsApex(you.throttle_pickup_m!)}, ${refName} ${vsApex(ref.throttle_pickup_m!)}).`]);
   const full = d(you.full_throttle_m, ref.full_throttle_m);
   if (full != null && full > 12)
     exit.push([full, `Full throttle ${Math.round(full)} m earlier: a later apex and opening the steering sooner let you commit earlier.`]);
@@ -187,13 +200,20 @@ export async function coachSession(sessionId: string): Promise<Coaching | null> 
       order by 4 limit 1` : [];
     if (map && mine?.time) {
       const tYou = decodeStored(mine.time), tRef = ref ? decodeStored(ref.time) : null;
-      const corners = await sql<(MapCR & { side: "you" | "ref"; trace_m: number })[]>`
+      const corners = await sql<(MapCR & { side: "you" | "ref"; trace_m: number; map_m: number })[]>`
         select k.name, k.start_m * (tr.length * tr.step_m / m.length_m) as start_m, k.end_m * (tr.length * tr.step_m / m.length_m) as end_m,
+               k.apex_m * (tr.length * tr.step_m / m.length_m) as map_apex_m, m.length_m as map_m,
                case when cr.lap_id = ${best.id} then 'you' else 'ref' end as side, tr.length * tr.step_m as trace_m, cr.*
         from corner_result cr join corner k on k.corner_map_id = cr.corner_map_id and k.number = cr.corner_number
         join corner_map m on m.id = cr.corner_map_id join lap_trace tr on tr.lap_id = cr.lap_id
         where cr.lap_id in (${best.id}, ${ref?.id ?? best.id}) order by cr.corner_number`;
       const yours = corners.filter((c) => c.side === "you"), them = corners.filter((c) => c.side === "ref");
+      // Each corner's reference point on the reference lap's grid (distances "before T1")
+      const refs = ref ? await cornerRefs(map) : [];
+      for (const r of them) {
+        const z = refs.find((x) => x.corner_number === r.corner_number);
+        r.zero_m = z ? z.zero_m * (r.trace_m / r.map_m) : null;
+      }
       // Corners linked on this lap or on the reference are judged together
       sections = sectionsOf(yours.map((c) => c.corner_number), [{ time: tYou, corners: yours }, ...(tRef ? [{ time: tRef, corners: them }] : [])]);
 
