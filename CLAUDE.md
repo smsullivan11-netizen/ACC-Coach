@@ -348,6 +348,19 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   point, peak brake, apex speed, coasting, throttle pickup, full throttle, exit speed), strongest
   sections, "recurring" when the same section was the worst in ≥ 2 of the driver's last 3 sessions
   there. Links open the comparison zoomed on the corner or section (`&corner=N` or `&corner=8-10`).
+- Racing line (`web/lib/line.ts`, user's pick among coach improvements): for the corner each loss is
+  coached on, both laps' positions against the track's white lines (`trackEdges`: edge laps, else the
+  automatic outline). Per corner: inside from the reference's heading change (same side for both
+  laps; kinks under 12° skipped), turn-in = back from the steering peak to 25 % of it, entry room to
+  the outside line there, apex = closest to the inside line (middle of the stretch within 0.3 m),
+  exit room = closest to the outside line within 150 m after it. Rooms are signed (past a line < 0:
+  off the track when the two distances add up to more than the usual width + 1 m). Advice states
+  only differences between the two cars (estimated lines can be off by a metre, the error cancels):
+  run wide (car fully past the outside line) first, turn-in ≥ 8 m earlier, entry room +1.2 m,
+  apex +0.8 m wider, apex 10-40 m earlier (both cars within 1.2 m of the inside), exit room +1.2 m;
+  nothing else when either car left the track. The top line advice comes second in the corner's
+  advice (replacing the generic "compare in the replay"). Checked on famas/So at Misano (T2: famas
+  turns in 2.6 m closer to the outside) and Hugo's T13 off at Hungaroring.
 - Session: no valid lap, track limits (≥ 25 % of flying laps), consistency (median gap > 1 %, or
   very consistent < 0.4 %), laps > 7 % off (mistakes), progress from the first valid lap, gap to the
   car's target with the session's optimal lap (sum of the best section times over its valid laps,

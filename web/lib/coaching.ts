@@ -2,6 +2,8 @@ import "server-only";
 import { sql } from "./db";
 import { lapTime, prettyKey } from "./format";
 import { paceReference } from "./targets";
+import { trackEdges } from "./track-edges";
+import { cornerLine, lineAdvice, type LineLap } from "./line";
 import { sectionLabel, sectionsOf } from "./sections";
 import { sectionTables } from "./sections-db";
 import type { EncodedChannel } from "./trace";
@@ -124,31 +126,37 @@ function cornerAdvice(you: CR, ref: CR, refName: string, entryLoss: number, exit
   return out;
 }
 
-/** What to change in a section where time is lost: the advice of the corner losing the most and,
- *  when time is traded between its corners, whether the trade pays (the reference's or the driver's). */
-function sectionAdvice(part: Row[], refName: string): string[] {
+/** What to change in a section where time is lost: the advice of the corner losing the most (from
+ *  its corner results, then its racing line when `line` can tell) and, when time is traded between
+ *  its corners, whether the trade pays (the reference's or the driver's). */
+function sectionAdvice(part: Row[], refName: string, line?: (x: Row) => string | null): string[] {
   let worst = part.reduce((a, b) => (rowLoss(b) > rowLoss(a) ? b : a));
   // A corner taken flat out is the previous corner's exit carried on: advise on that exit
   const i = part.indexOf(worst);
   const flat = i > 0 && worst.r.lift_point_m == null && worst.y.lift_point_m == null;
   if (flat) worst = part[i - 1];
   const advice = flat ? cornerAdvice(worst.y, worst.r, refName, 0, 1) : cornerAdvice(worst.y, worst.r, refName, worst.entry, worst.exit);
-  if (part.length === 1) return advice;
-  const tagged = advice.map((a) => `T${worst.r.corner_number}: ${a}`);
+  const onLine = line?.(worst);
+  // The line comes second (the inputs explain most losses), replacing the generic "compare in the replay"
+  const generic = advice.length === 1 && /in the replay|^The time goes after the apex/.test(advice[0]);
+  const own = onLine ? (generic ? [onLine] : [advice[0], onLine]) : advice;
+  if (part.length === 1) return own;
+  const tagged = own.map((a) => `T${worst.r.corner_number}: ${a}`);
   const t = tradeOf(part);
   if (!t) return tagged;
   return [t.lossFirst
     ? `You lose ${s2(t.lost)} at ${t.lostAt} and get only ${s2(t.gained)} back at ${t.gainedAt}: if the slower ${t.lostAt} is meant to set up ${t.gainedAt}, it does not pay off yet.`
     : `You are ${s2(t.gained)} quicker at ${t.gainedAt} but lose ${s2(t.lost)} at ${t.lostAt}: ${refName} gives up time at ${t.gainedAt} to be faster through ${t.lostAt}. Try a slower ${t.gainedAt} that sets you up for ${t.lostAt}.`,
-    tagged[0]];
+    ...tagged.slice(0, 2)];
 }
 
 export async function coachSession(sessionId: string): Promise<Coaching | null> {
-  const [s] = await sql<{ driver_id: string; driver: string; track_id: string; car_class: string | null; type: string | null;
+  const [s] = await sql<{ driver_id: string; driver: string; track_id: string; track: string; car_class: string | null; type: string | null;
                           start: Date | null; uploaded: Date }[]>`
-    select s.driver_id, d.display_name as driver, s.track_id, c.class as car_class, s.session_type as type,
+    select s.driver_id, d.display_name as driver, s.track_id, t.key as track, c.class as car_class, s.session_type as type,
            s.recorded_at as start, s.uploaded_at as uploaded
-    from session s join driver d on d.id = s.driver_id left join car c on c.id = s.car_id where s.id = ${sessionId}`;
+    from session s join driver d on d.id = s.driver_id join track t on t.id = s.track_id left join car c on c.id = s.car_id
+    where s.id = ${sessionId}`;
   if (!s) return null;
   const laps = await sql<LapRow[]>`
     select id, number, coalesce(official_lap_time_ms, game_lap_time_ms, lap_time_ms) as t, comparable, excluded_reasons, distance_m
@@ -230,7 +238,34 @@ export async function coachSession(sessionId: string): Promise<Coaching | null> 
           return [{ part, out, s: i }];
         });
         const lost = all.filter((c) => c.out.loss_s >= MIN_CORNER_LOSS_S).sort((a, b) => b.out.loss_s - a.out.loss_s).slice(0, 3);
-        losses = lost.map(({ part, out }) => ({ ...out, advice: sectionAdvice(part, refName) }));
+        // Racing line (lib/line.ts): both laps' positions against the track's white lines, for the
+        // corners being coached (laps from the recorder; tracks with both edges known)
+        let lineOf: ((x: Row) => string | null) | undefined;
+        if (lost.length) {
+          const [edges, pos] = await Promise.all([
+            trackEdges(s.track_id, s.track),
+            sql<{ lap_id: string; x: EncodedChannel | null; z: EncodedChannel | null; steer: EncodedChannel | null }[]>`
+              select lap_id, channels->'pos_x_m' as x, channels->'pos_z_m' as z, channels->'steering_norm' as steer
+              from lap_trace where lap_id in (${best.id}, ${ref.id})`,
+          ]);
+          const lapLine = (id: string): LineLap | null => {
+            const p = pos.find((q) => String(q.lap_id) === String(id));
+            return p?.x && p.z ? { x: decodeStored(p.x), z: decodeStored(p.z), steer: p.steer ? decodeStored(p.steer) : null } : null;
+          };
+          const lineYou = lapLine(best.id), lineRef = lapLine(ref.id);
+          if (edges?.left && edges.right && lineYou && lineRef) {
+            const white = { left: edges.left, right: edges.right };
+            const raw = new Map(yours.map((c) => [c.corner_number, c]));   // the driver's own metres
+            lineOf = (x) => {
+              const yc = raw.get(x.r.corner_number);
+              if (yc?.apex_m == null || x.r.apex_m == null) return null;
+              const b = cornerLine(lineRef, white, x.r.apex_m, x.r.end_m);   // the reference decides the inside
+              const a = b && cornerLine(lineYou, white, yc.apex_m, yc.end_m, b.side);
+              return a && b ? lineAdvice(a, b, refName, kY)[0]?.[1] ?? null : null;
+            };
+          }
+        }
+        losses = lost.map(({ part, out }) => ({ ...out, advice: sectionAdvice(part, refName, lineOf) }));
         // Mentor: per weak section, the teammate with the best time through all of it (same map and class)
         if (lost.length) {
           const mentors = await sql<{ s: number; driver: string; lap_id: string; gain: number }[]>`
