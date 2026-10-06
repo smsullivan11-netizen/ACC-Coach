@@ -713,6 +713,15 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Settings defaults (`DEFAULT_SETTINGS`, the team's values): target 26.9 psi, advice after 15 km,
   100 % tyre wear = 2.8 % slower, pads at risk under 10 mm (= 90 %), fuel margin 1 lap. Damage
   scale still to check on a recording with contact.
+- Temperatures & brake ducts (app 0.1.8, user's request): tyre core (live, lap average) and brake
+  temperatures (live, lap peak, lap average) per wheel; tyreTempI/M/O stay 0 in ACC (no surface
+  temps). Windows from ACC 1.8+ guides (Coach Dave v1.8 FAQ, The Pit Crew, Trinacria): tyre core
+  optimal 75-90 °C (working 70-100, overheating above); brake lap peaks front 450-700 °C, rear
+  300-500 °C (guides: front ≤ 650, occasionally 700; rear ≤ 450, occasionally 500). Duct advice per
+  axle from the median of the last 3 laps' peaks: above → open 1 click (2 if > 75 °C over), below
+  → close 1; cold pressure compensation = clicks × `duct_psi_per_click` (0.2 psi: Trinacria;
+  Coach Dave: ducts have minimal effect on tyre temps since 1.8, hence a setting). Real Brands
+  Hatch recording: fronts peak ~610-650 °C (keep), rears ~507 °C (open 1). Pad compound shown.
 - Fuel weight table duplicated from web/lib/fuel.ts (keep in sync).
 - Test: `python tests/test_engineer.py` (fake session replay, the real recording when present,
   live fake ACC + the page's /state). fake_acc fills pads, discs, pressures, temps, race clock.

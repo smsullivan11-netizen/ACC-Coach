@@ -33,6 +33,12 @@
   .tyre .sub { font-size: 12px; color: var(--dim); }
   .advice { margin-top: 6px; font-size: 13px; font-weight: 700; }
   .loss { margin-left: 8px; font-size: 15px; font-weight: 700; color: var(--yellow); }
+  .t-cold { color: var(--blue); } .t-warming { color: #67e8f9; } .t-optimal { color: var(--green); } .t-warm { color: var(--yellow); } .t-hot { color: var(--red); }
+  .temps { display: grid; grid-template-columns: auto repeat(4, 1fr); gap: 4px 10px; font-variant-numeric: tabular-nums; font-size: 14px; align-items: baseline; }
+  .temps .h { color: var(--faint); font-size: 11px; letter-spacing: .1em; font-weight: 700; text-align: right; }
+  .temps .k { color: var(--dim); font-size: 12px; }
+  .temps .v { text-align: right; font-weight: 700; }
+  .duct { margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: var(--raised); border: 1px solid var(--line); font-size: 14px; }
   .ok { color: var(--green); } .warn { color: var(--yellow); } .bad { color: var(--red); } .info { color: var(--blue); }
   .bar { height: 10px; background: rgba(255,255,255,.06); border-radius: 99px; overflow: hidden; margin-top: 6px; }
   .bar > div { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--green), var(--yellow), var(--red)); }
@@ -64,6 +70,7 @@
   <section class="card"><h2>Tyre pressures</h2><div class="quad" id="tyres"></div><div class="note" id="tyreNote"></div></section>
   <section class="card"><h2>Tyre wear</h2><div id="wear"></div></section>
   <section class="card"><h2>Brakes</h2><div class="quad" id="brakes"></div><div class="note" id="brakeNote"></div></section>
+  <section class="card"><h2>Temperatures & brake ducts</h2><div id="temps"></div></section>
   <section class="card"><h2>Damage</h2><div id="damage"></div></section>
   <section class="card"><h2>Laps</h2><table><thead><tr><th>Lap</th><th>Time</th><th>Fuel</th><th></th></tr></thead><tbody id="laps"></tbody></table></section>
 </main>
@@ -75,6 +82,7 @@
     <label>100 % tyre wear = slower per lap by (%) <input name="tyre_worn_pct" type="number" step="0.5"></label>
     <label>Brake pads at risk below (mm, = 90 % worn) <input name="pad_worn_mm" type="number" step="0.5"></label>
     <label>Fuel margin (laps) <input name="fuel_margin_laps" type="number" step="0.5"></label>
+    <label>Pressure change per brake duct click (psi) <input name="duct_psi_per_click" type="number" step="0.05"></label>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
       <button class="btn" value="cancel" formmethod="dialog">Cancel</button>
       <button class="btn" style="border-color:var(--yellow);color:var(--yellow)" type="submit">Save</button>
@@ -153,6 +161,31 @@ function render(s) {
       ${b.at_risk ? `<div class="advice bad">Under ${n(s.settings.pad_worn_mm, 0)} mm: risk of brake failure</div>` : ""}</div>`).join("");
   $("brakeNote").textContent = `New pads 0 %, ${n(s.settings.pad_worn_mm, 0)} mm = 90 % (ACC shows a red dot on the brake disc below 10 mm).` +
     (s.fuel.laps_left != null && s.brakes.some((b) => b.laps_left != null && b.laps_left < s.fuel.laps_left) ? " ⚠ The pads will not last to the finish." : "");
+
+  // Temperatures and brake ducts
+  const T = s.temps, cls = (st) => (st ? `t-${st}` : "");
+  const row = (label, cells) => `<span class="k">${label}</span>${cells.join("")}`;
+  const cell = (v, st, unit = "°") => `<span class="v ${cls(st)}">${v == null ? "–" : Math.round(v) + unit}</span>`;
+  const ductLine = (axle, d) => {
+    const name = axle === "front" ? "Front" : "Rear";
+    if (d.peak == null) return `<div class="duct"><b>${name} ducts</b> · after a lap</div>`;
+    const where = `peak ${Math.round(d.peak)} °C (window ${d.window[0]}-${d.window[1]} °C, pads ${d.pads})`;
+    if (!d.clicks) return `<div class="duct"><b>${name} ducts</b> <span class="ok">keep</span> · ${where}</div>`;
+    const open = d.clicks > 0;
+    return `<div class="duct"><b>${name} ducts</b> <span class="${open ? "bad" : "info"}">${open ? "open" : "close"} ${Math.abs(d.clicks)} click${Math.abs(d.clicks) > 1 ? "s" : ""}</span>
+      · ${where}<br><span class="sub">${open ? "Brakes too hot" : "Brakes too cold"}: then ${d.psi > 0 ? "add" : "remove"} ${n(Math.abs(d.psi), 1)} psi cold on the ${axle} tyres to keep their hot pressure.</span></div>`;
+  };
+  $("temps").innerHTML = `<div class="temps">
+      <span></span>${T.tyres.map((t) => `<span class="h">${t.wheel}</span>`).join("")}
+      ${row("Tyre core, live", T.tyres.map((t) => cell(t.live, null)))}
+      ${row("Tyre core, last lap", T.tyres.map((t) => cell(t.lap_avg, t.state)))}
+      ${row("Brake, live", T.brakes.map((b) => cell(b.live, null)))}
+      ${row("Brake peak, last lap", T.brakes.map((b) => cell(b.lap_peak, b.state)))}
+      ${row("Brake average, last lap", T.brakes.map((b) => cell(b.lap_avg, null)))}
+    </div>
+    ${ductLine("front", T.ducts.front)}${ductLine("rear", T.ducts.rear)}
+    <div class="note">Tyre core: <span class="t-cold">cold &lt; ${T.window_tyre[0]}</span> · <span class="t-optimal">optimal ${T.window_tyre[1]}-${T.window_tyre[2]}</span> · <span class="t-warm">warm ≤ ${T.window_tyre[3]}</span> · <span class="t-hot">overheating above</span>.
+      Brake ducts mainly control the brakes: since ACC 1.8 their effect on tyre temperatures is small, the pressure advice of the next stint corrects any error.</div>`;
 
   // Damage
   const d = s.damage;

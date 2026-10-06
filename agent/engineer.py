@@ -40,7 +40,12 @@ DEFAULT_SETTINGS = {
     "tyre_worn_pct": 2.8,      # 100 % tyre wear = this much slower per lap than on fresh tyres (team: ~3 s at Spa)
     "pad_worn_mm": 10.0,       # pads at risk below this (ACC dev: red dot in the HUD under 10 mm) = 90 % worn
     "fuel_margin_laps": 1.0,   # extra fuel on top of what the race needs
+    "duct_psi_per_click": 0.2, # hot pressure change per brake duct click (opening lowers it; small since ACC 1.8)
 }
+# Temperature windows (ACC 1.8+ guides: Coach Dave, The Pit Crew, Trinacria; checked against the real
+# Brands Hatch recording: front brake peaks 580-650 °C, rear 460-530 °C, tyre cores 70-92 °C)
+TYRE_CORE_C = (70, 75, 90, 100)          # cold < 70 ≤ warming < 75 ≤ optimal ≤ 90 < warm ≤ 100 < overheating
+BRAKE_PEAK_C = {"front": (450, 700), "rear": (300, 500)}   # lap peak: below = too cold, above = overheating
 WHEELS = ("FL", "FR", "RL", "RR")
 DAMAGE_ZONES = ("front", "rear", "left", "right", "centre")
 MIN_FLYING = 4                  # laps in a stint before a tyre wear trend
@@ -58,6 +63,8 @@ class Lap:
     km: float
     pressure: list            # average hot pressure per wheel while moving (psi)
     core: list = None         # average tyre core temperature per wheel while moving (°C)
+    brake_avg: list = None    # average brake temperature per wheel while moving (°C)
+    brake_peak: list = None   # hottest brake temperature per wheel over the lap (°C)
     corrected_s: float = 0.0  # lap time without the cost of the fuel above minimum fuel
 
 
@@ -103,7 +110,7 @@ class Engineer:
 
     def _new_lap(self, fuel: float):
         self._lap = {"fuel0": fuel, "fuel_sum": 0.0, "n": 0, "valid": True, "pit": False, "km": 0.0,
-                     "p_sum": [0.0] * 4, "c_sum": [0.0] * 4, "p_t": 0.0}
+                     "p_sum": [0.0] * 4, "c_sum": [0.0] * 4, "p_t": 0.0, "b_sum": [0.0] * 4, "b_max": [0.0] * 4}
 
     # --- input --------------------------------------------------------------------------------
 
@@ -151,7 +158,10 @@ class Engineer:
             for i in range(4):
                 lap["p_sum"][i] += pressures[i] * dt
                 lap["c_sum"][i] += float(p["tyreCoreTemp"][i]) * dt
+                lap["b_sum"][i] += float(p["brakeTemp"][i]) * dt
             lap["p_t"] += dt
+        for i in range(4):
+            lap["b_max"][i] = max(lap["b_max"][i], float(p["brakeTemp"][i]))
 
         if self.completed is not None and completed == self.completed + 1 and int(g["iLastTime"]) > 0:
             self._close_lap(completed, int(g["iLastTime"]) / 1000, fuel)
@@ -159,7 +169,8 @@ class Engineer:
 
         self.live = {
             "fuel": fuel, "speed": speed, "pressures": pressures, "in_pit": in_pit,
-            "core_temps": [float(x) for x in p["tyreCoreTemp"]],
+            "core_temps": [float(x) for x in p["tyreCoreTemp"]], "brake_temps": [float(x) for x in p["brakeTemp"]],
+            "pad_compound": [int(p["frontBrakeCompound"]) + 1, int(p["rearBrakeCompound"]) + 1],
             "pads": [float(x) for x in p["padLife"]], "discs": [float(x) for x in p["discLife"]],
             "damage": [float(x) for x in p["carDamage"]], "suspension": [float(x) for x in p["suspensionDamage"]],
             "mfd_pressures": [float(g[f"mfdTyrePressure{w}"]) for w in ("LF", "RF", "LR", "RR")],
@@ -172,8 +183,10 @@ class Engineer:
         used = lap["fuel0"] - fuel_end
         pressure = [s / lap["p_t"] for s in lap["p_sum"]] if lap["p_t"] > 10 else None
         core = [s / lap["p_t"] for s in lap["c_sum"]] if lap["p_t"] > 10 else None
+        brake_avg = [s / lap["p_t"] for s in lap["b_sum"]] if lap["p_t"] > 10 else None
         out = Lap(number, time_s, used, lap["fuel_sum"] / max(1, lap["n"]), lap["valid"],
-                  lap["pit"] or used < 0, lap["km"], pressure, core)
+                  lap["pit"] or used < 0, lap["km"], pressure, core, brake_avg,
+                  list(lap["b_max"]) if any(lap["b_max"]) else None)
         if (self.stint.ref_p is None and pressure and not out.pit
                 and self.stint.km >= self.settings["advice_min_km"]):
             self.stint.ref_p, self.stint.ref_t = pressure, core
@@ -248,14 +261,49 @@ class Engineer:
                          "per_lap_mm": used / laps_done if self.stint.laps else None,
                          "laps_left": (live["pads"][i] - s["pad_worn_mm"]) / (used / laps_done) if self.stint.laps and used > 0 else None})
 
+        temps = self._temperatures(s, live)
+
         return {
-            "active": True, "track": self.track, "car": self.car, "settings": s,
+            "active": True, "track": self.track, "temps": temps, "car": self.car, "settings": s,
             "stint": {"number": self.stints + 1, "laps": len(self.stint.laps), "km": self.stint.km, "in_pit": live["in_pit"]},
             "fuel": fuel, "tyres": tyres, "pressure_ready": ready, "wear": wear, "brakes": pads,
             "damage": {"zones": dict(zip(DAMAGE_ZONES, live["damage"])), "suspension": dict(zip(WHEELS, live["suspension"])),
                        "any": any(x > 0 for x in live["damage"] + live["suspension"])},
             "laps": [{"n": l.number, "time": l.time_s, "fuel": l.fuel_used, "valid": l.valid, "pit": l.pit} for l in self.laps[-12:]],
         }
+
+    def _temperatures(self, s: dict, live: dict) -> dict:
+        """Tyre core and brake temperatures (live and last lap), and brake duct advice per axle from
+        the brake peaks of the last 3 laps, with the cold pressure change that keeps the hot pressures."""
+        last = next((l for l in reversed(self.laps) if not l.pit and l.core and l.brake_peak), None)
+        lo, warm, hi, over = TYRE_CORE_C
+
+        def tyre_state(c):
+            return None if c is None else "cold" if c < lo else "warming" if c < warm else "optimal" if c <= hi else "warm" if c <= over else "hot"
+
+        tyres = [{"wheel": w, "live": live["core_temps"][i], "lap_avg": last.core[i] if last else None,
+                  "state": tyre_state(last.core[i] if last else live["core_temps"][i])} for i, w in enumerate(WHEELS)]
+        brakes, ducts = [], {}
+        for axle, idx in (("front", (0, 1)), ("rear", (2, 3))):
+            cold, hot = BRAKE_PEAK_C[axle]
+            for i in idx:
+                peak = last.brake_peak[i] if last else None
+                brakes.append({"wheel": WHEELS[i], "live": live["brake_temps"][i], "lap_peak": peak,
+                               "lap_avg": last.brake_avg[i] if last else None,
+                               "state": None if peak is None else "cold" if peak < cold else "hot" if peak > hot else "optimal"})
+            # axle peak: median over the last 3 laps (one lap with a late braking does not flip the advice)
+            recent = [l for l in self.laps if not l.pit and l.brake_peak][-3:]
+            peak = statistics.median(max(l.brake_peak[i] for i in idx) for l in recent) if recent else None
+            clicks = 0
+            if peak is not None and peak > hot:
+                clicks = 1 if peak <= hot + 75 else 2          # open: more cooling
+            elif peak is not None and peak < cold:
+                clicks = -1                                    # close: brakes (and tyres) warmer
+            ducts[axle] = {"peak": peak, "window": [cold, hot], "clicks": clicks,
+                           # opening lowers the hot pressures: add the same amount cold to keep them
+                           "psi": round(clicks * s["duct_psi_per_click"], 2),
+                           "pads": live["pad_compound"][0 if axle == "front" else 1]}
+        return {"tyres": tyres, "brakes": brakes, "ducts": ducts, "window_tyre": [lo, warm, hi, over]}
 
 
 def _text(chars) -> str:

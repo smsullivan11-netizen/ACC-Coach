@@ -21,9 +21,13 @@ sys.path[:0] = [str(ROOT / "agent"), str(ROOT), str(ROOT / "tests")]
 import accrec  # noqa: E402
 import fake_acc  # noqa: E402
 from engineer import Engineer  # noqa: E402
+import engineer_server  # noqa: E402
 from engineer_server import LiveEngineer  # noqa: E402
 
-PF = ["fuel", "speedKmh", "wheelPressure", "tyreCoreTemp", "padLife", "discLife", "carDamage", "suspensionDamage"]
+engineer_server.PORTS = (18790, 18791)   # never the installed app's page (8780), which may be running
+
+PF = ["fuel", "speedKmh", "wheelPressure", "tyreCoreTemp", "padLife", "discLife", "carDamage", "suspensionDamage",
+      "brakeTemp", "frontBrakeCompound", "rearBrakeCompound"]
 GF = ["isInPitLane", "completedLaps", "iLastTime", "isValidLap", "sessionTimeLeft", "fuelXLap", "iCurrentTime",
       "mfdTyrePressureLF", "mfdTyrePressureRF", "mfdTyrePressureLR", "mfdTyrePressureRR", "status"]
 
@@ -65,6 +69,12 @@ def main():
     assert 0.4 < fl["loss"] < 0.8 and abs(fl["loss"] - leak) < 0.2, (fl["loss"], leak)   # loss seen (last lap's average)
     assert abs(fl["advice"] - 25.2) < 0.06, fl     # 25.5 set, 0.3 psi too high: the leak does not change the advice
     assert abs(rr["lap_psi"] - 26.9) < 0.05 and rr["loss"] < 0.05 and abs(rr["change"]) < 0.06, rr
+    # Temperatures and brake ducts: fake fronts peak at 800 °C (too hot), rears at 470 °C (in the window)
+    temps = s2["temps"]
+    print("ducts", temps["ducts"], "tyres", [round(t["lap_avg"], 1) for t in temps["tyres"]])
+    assert temps["ducts"]["front"]["clicks"] == 2 and temps["ducts"]["front"]["psi"] == 0.4, temps["ducts"]
+    assert temps["ducts"]["rear"]["clicks"] == 0, temps["ducts"]
+    assert all(t["state"] == "optimal" for t in temps["tyres"]), temps["tyres"]
     assert s["brakes"][2]["pad_pct"] > s["brakes"][0]["pad_pct"] > 0, "rear pads wear faster in fake ACC"
     assert not s["damage"]["any"]
     print("replay: OK", json.dumps({k: s[k] for k in ("fuel", "wear", "stint")}, default=float)[:300])
@@ -75,6 +85,8 @@ def main():
         r = replay(real, "brands_hatch", "ford_mustang_gt3").state()
         assert [round(l["time"], 3) for l in r["laps"][1:3]] == [85.87, 85.15], r["laps"]
         assert 2.0 < r["fuel"]["per_lap"] < 2.5 and 26.0 < r["tyres"][0]["lap_psi"] < 27.0, r["fuel"]
+        print("real ducts", r["temps"]["ducts"], "brake peaks", [round(b["lap_peak"]) for b in r["temps"]["brakes"]])
+        assert r["temps"]["ducts"]["front"]["clicks"] == 0, "real front peaks 580-650 °C: in the window"
         print("real Brands Hatch recording: OK")
 
     # Live: fake ACC in shared memory, the reader thread and the web page
