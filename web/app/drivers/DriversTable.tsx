@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, Info, TrendingDown, TrendingUp } from "lucide-react
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, Position, RankIcon } from "@/components/ui";
-import { rankFor } from "@/lib/ranks";
+import { rankFor, SCALE_GRADIENT, scaleColor } from "@/lib/ranks";
 
 export type DriverRow = {
   id: string; name: string; avatar: string | null; rating: number | null; best: number | null; change: number | null;
@@ -49,14 +49,23 @@ function InfoTip({ text, edge = false }: { text: string; edge?: boolean }) {
   );
 }
 
-const partColor = (v: number) => (v >= 75 ? "#4ade80" : v >= 50 ? "#facc15" : v >= 25 ? "#fb923c" : "#f87171");
+/** A bar on the rank scale's colours: the whole 0-100 gradient, cut off at the value, so it blends
+ *  through every rank colour below it (a 92 runs from blue to purple). */
+function ScaleBar({ v, className }: { v: number; className: string }) {
+  const cut = 100 - Math.max(0, Math.min(100, v));
+  return (
+    <div className={`overflow-hidden rounded-full bg-white/5 ${className}`}>
+      <div className="h-full" style={{ background: SCALE_GRADIENT, clipPath: `inset(0 ${cut}% 0 0 round 9999px)` }} />
+    </div>
+  );
+}
 
 function Part({ v }: { v: number | null }) {
   if (v == null) return <span className="text-zinc-600">–</span>;
   return (
     <div className="ml-auto w-16">
-      <div className="tabular text-right font-semibold" style={{ color: partColor(v) }}>{Math.round(v)}</div>
-      <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full" style={{ width: `${v}%`, background: partColor(v) }} /></div>
+      <div className="tabular text-right font-semibold" style={{ color: scaleColor(v) }}>{Math.round(v)}</div>
+      <ScaleBar v={v} className="mt-1 h-1" />
     </div>
   );
 }
@@ -125,9 +134,7 @@ export default function DriversTable({ rows, me }: { rows: DriverRow[]; me: stri
                           {r.rating.toFixed(1)}{r.best != null && <span className="text-sm font-semibold text-zinc-500">/{r.best.toFixed(1)}</span>}
                         </span>
                       </div>
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/5">
-                        <div className="h-full rounded-full" style={{ width: `${r.rating}%`, background: `linear-gradient(90deg, #e10600, ${rank.color})` }} />
-                      </div>
+                      <ScaleBar v={r.rating} className="mt-1 h-1.5" />
                       <div className="mt-1 flex gap-2 text-[10px] font-semibold uppercase tracking-wider">
                         <span style={{ color: rank.color }}>{rank.title}</span>
                         {r.provisional && <span className="text-zinc-500">provisional</span>}
