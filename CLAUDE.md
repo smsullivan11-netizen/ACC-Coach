@@ -682,10 +682,11 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   the current rank's floor to the next, on the dashboard's rating card and the profile header.
   Idea on hold (user will think about it): a track only counts in the rating after a couple of
   sessions there, so learning a new track does not lower it.
-- Bars and numbers in the rank scale's colours everywhere (components/ui.tsx): `RatingBar` (the
-  whole 0-100 gradient cut at the value: ratings on the Drivers table and the dashboard's team
-  ranking), `PartBar` (zoomed in, the last 20 points: sub-ratings on the Drivers table, dashboard
-  and profile), `ScaleNumber` (a 0-100 value in its colour). Dashboard block titles are the links
+- Bars and numbers in the rank scale's colours everywhere (components/ui.tsx): `PartBar` (zoomed
+  in, the last 20 points below the value: ratings on the Drivers table and the dashboard's team
+  ranking too, since the full spectrum showed mostly blue; user's request), `ScaleNumber` (a 0-100
+  value in its colour; ratings use their rank's colour), `RatingBar` (the whole gradient cut at the
+  value, now unused). Drivers table: the rank's name in a pill (rank colour border and tint). Dashboard block titles are the links
   (`SectionTitle href`, small arrow; user's request, no grey corner links): rating → profile,
   progression → /progress, team ranking → /drivers, team activity → /sessions.
 - Progression (`/progress`, user's request, opened from the dashboard's "Your progression" and the

@@ -3,7 +3,7 @@
 import { ArrowDown, ArrowUp, Info, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Avatar, PartBar, Position, RankIcon, RatingBar, ScaleNumber } from "@/components/ui";
+import { Avatar, PartBar, Position, RankIcon, ScaleNumber } from "@/components/ui";
 import { rankFor } from "@/lib/ranks";
 
 export type DriverRow = {
@@ -120,13 +120,17 @@ export default function DriversTable({ rows, me }: { rows: DriverRow[]; me: stri
                   {r.rating != null && rank ? (
                     <div className="w-44">
                       <div className="flex items-baseline gap-2 whitespace-nowrap">
-                        <span className="tabular text-lg font-bold text-accent" title="Current rating / all-time best">
+                        {/* The rating in its rank's colour (user's request), the all-time best after it */}
+                        <span className="tabular text-lg font-bold" style={{ color: rank.color }} title="Current rating / all-time best">
                           {r.rating.toFixed(1)}{r.best != null && <span className="text-sm font-semibold text-zinc-500">/{r.best.toFixed(1)}</span>}
                         </span>
                       </div>
-                      <RatingBar v={r.rating} className="mt-1 h-1.5" />
-                      <div className="mt-1 flex gap-2 text-[10px] font-semibold uppercase tracking-wider">
-                        <span style={{ color: rank.color }}>{rank.title}</span>
+                      <PartBar v={r.rating} className="mt-1 h-1.5" />
+                      <div className="mt-1.5 flex items-center gap-2 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider">
+                        <span className="rounded-full border px-2 py-0.5 leading-none"
+                              style={{ color: rank.color, borderColor: `${rank.color}80`, background: `${rank.color}1a` }}>
+                          {rank.title}
+                        </span>
                         {r.provisional && <span className="text-zinc-500">provisional</span>}
                       </div>
                     </div>

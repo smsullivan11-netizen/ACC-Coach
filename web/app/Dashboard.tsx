@@ -2,11 +2,11 @@ import { Activity, Crown, Gauge, Medal, TrendingDown, TrendingUp, Trophy } from 
 import Link from "next/link";
 import TrendChart from "@/components/TrendChart";
 import { ratingDomain } from "@/lib/chart";
-import { Avatar, Chip, delay, NextRank, PartBar, Position, RankBadge, RankIcon, RatingBar, ScaleNumber, SectionTitle } from "@/components/ui";
+import { Avatar, Chip, delay, NextRank, PartBar, Position, RankBadge, RankIcon, ScaleNumber, SectionTitle } from "@/components/ui";
 import type { Driver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
-import { scaleColor } from "@/lib/ranks";
+import { rankFor } from "@/lib/ranks";
 import { formParts, PROVISIONAL_SESSIONS, WEIGHTS } from "@/lib/ratings";
 import { recentSessions, timeOfDay, dayLabel, type SessionRow } from "@/lib/sessions";
 
@@ -112,8 +112,8 @@ export default async function Dashboard({ me }: { me: Driver }) {
                   <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-white"><span className="truncate">{d.display_name}</span><RankIcon rating={d.rating} size={14} /></span>
                   <span className="hidden md:inline"><RankBadge rating={d.rating} /></span>
                   {d.sessions < PROVISIONAL_SESSIONS && <span className="hidden text-[11px] text-zinc-500 sm:inline">provisional</span>}
-                  <RatingBar v={d.rating} className="hidden h-1.5 w-24 sm:block" style={delay(200 + i * 50)} />
-                  <span className="tabular w-10 text-right text-sm font-semibold" style={{ color: scaleColor(d.rating) }}>{d.rating.toFixed(1)}</span>
+                  <PartBar v={d.rating} className="hidden h-1.5 w-24 sm:block" style={delay(200 + i * 50)} />
+                  <span className="tabular w-10 text-right text-sm font-semibold" style={{ color: rankFor(d.rating).color }}>{d.rating.toFixed(1)}</span>
                 </Link>
               </li>
             ))}
