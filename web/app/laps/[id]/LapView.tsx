@@ -247,7 +247,7 @@ export default function LapView({ lapId, vsId, candidates, otherHref, corner, by
       </p>
 
       {a.t && replay && (
-        <Replay laps={laps.flatMap((l, i) => (l.t ? [{ driver: `${l.driver} L${l.number}`, color: COLORS[i], t: l.t }] : []))}
+        <Replay laps={laps.flatMap((l, i) => (l.t ? [{ driver: `${l.driver} L${l.number}`, color: COLORS[i], t: l.t, car: l.car }] : []))}
                 edges={a.edges} corners={a.corners} boards={boards} checkpoints={zones} by={by} onBy={pickBy} onDistance={followCar} onClose={closeReplay}
                 onTurn={(z) => zoom.current(cornerRange(z))} />
       )}

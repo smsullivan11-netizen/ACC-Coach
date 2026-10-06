@@ -294,9 +294,13 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   follows the first car (every chart, `setCursor`). Drawing runs outside React (rAF + refs).
 - Replay HUD: per car, a rolling graph of the last 4 s of throttle (green) and brake (red, blue
   with ABS) above the bars. Charts: values under the cursor in each chart's title (both laps).
-- Like Racemake (user's request): the replay's cars are a GT3 seen from above (`GT3Car` in
-  Replay.tsx: shaped body with arches, tyres, cockpit and windscreen, bonnet vents, rear wing; one
-  generic shape for every model, in the driver's colour; ABS light on the nose), and the laps'
+- Like Racemake (user's request): the replay's cars are seen from above (`components/CarShapes.tsx`):
+  the team's five most driven cars with their own shape (Mustang GT3, M4 GT3, 296 GT3, 992 GT3 R,
+  720S GT3 / Evo; ACC key prefixes), drawn from real length, axles, a body outline and a cockpit
+  outline (half-widths along the length, Catmull-Rom smoothed), the windscreen, the wing and their
+  signature details (Mustang louvres, M4 kidneys, 296 vent and engine slats, 992 round headlights,
+  720S eye sockets and side intakes); every other car = the generic GT3; in the driver's colour,
+  ABS light on the nose (`noseOf`). The laps'
   traces on the charts have a light fill under them (series `area`, colour at ~6 % opacity).
 - Electronics (app 0.1.3): graphics `tcLevel`, `tcCutLevel` (TC2), `absLevel`, `engineMap` (0-based,
   +1 stored) held per metre → bundle `tc_level`, `tc2_level`, `abs_level`, `engine_map`; TC intervention

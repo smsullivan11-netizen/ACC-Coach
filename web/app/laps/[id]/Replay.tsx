@@ -3,6 +3,7 @@
 import { Maximize2, Minimize2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Boards, { type Board } from "@/components/Boards";
+import CarShape, { noseOf } from "@/components/CarShapes";
 import TrackSurface, { type Edges } from "@/components/TrackSurface";
 import { Segmented, ZONE_OPTIONS } from "@/components/ui";
 import { lapTime } from "@/lib/format";
@@ -18,12 +19,12 @@ import { smoothGear, type Trace } from "@/lib/trace";
 // blue braking on the lines and the brake bar.
 // Drawing happens outside React on every animation frame (refs and setAttribute).
 
-export type ReplayLap = { driver: string; color: string; t: Trace };
+export type ReplayLap = { driver: string; color: string; t: Trace; car?: string | null };
 type Corner = { number: number; apex_m: number; start_m: number; name: string | null };
 /** A checkpoint button: one corner, or a section (several corners driven as one). */
 type Checkpoint = { key: string; label: string; name: string | null; start_m: number; end_m: number };
 type Car = {
-  driver: string; color: string; n: number; step: number; end: number;
+  driver: string; color: string; model: string | null; n: number; step: number; end: number;
   time: Float64Array; x: Float64Array; z: Float64Array; v: Float64Array;
   thr: Float64Array | null; brk: Float64Array | null; gear: Float64Array | null; abs: Float64Array | null;
   steer: Float64Array | null;   // steering wheel angle (°, positive = right)
@@ -32,32 +33,6 @@ type Car = {
 const RATES = [0.25, 0.5, 1, 2, 4];
 const MIN_VIEW_M = 70;   // view width at 100 % zoom: about one corner
 const BOARDS_VIEW_M = 500;   // distance boards show once the view is this narrow (zoomed in)
-// A GT3 car seen from above (user's request, like Racemake: instead of a rectangle), 4.6 × 2.0 m,
-// front towards +x: shaped body with wheel arches, tyres showing at the arches, cockpit with a
-// lighter windscreen, bonnet vents and the rear wing; in the driver's colour.
-function GT3Car({ color }: { color: string }) {
-  const body = "M2.3 0C2.3 -0.45 2.2 -0.8 1.95 -0.9Q1.4 -1.02 0.95 -0.94Q0.1 -0.86 -0.75 -0.94Q-1.35 -1.03 -2 -0.96Q-2.3 -0.93 -2.3 -0.7"
-    + "L-2.3 0.7Q-2.3 0.93 -2 0.96Q-1.35 1.03 -0.75 0.94Q0.1 0.86 0.95 0.94Q1.4 1.02 1.95 0.9C2.2 0.8 2.3 0.45 2.3 0Z";
-  return (
-    <g>
-      {/* tyres, under the body: only their outer edges show at the arches */}
-      {[[1.05, 1.75], [-1.75, -0.95]].map(([a, b]) => [-1, 1].map((s) => (
-        <rect key={`${a}${s}`} x={a} y={s > 0 ? 0.8 : -1.06} width={b - a} height={0.26} rx={0.08} fill="#0b0b0d" />
-      )))}
-      <path d={body} fill={color} stroke="#000" strokeWidth={0.1} strokeLinejoin="round" />
-      {/* cockpit: roof and rear window dark, windscreen lighter */}
-      <path d="M0.78 -0.56L-0.75 -0.5L-1.2 -0.4L-1.2 0.4L-0.75 0.5L0.78 0.56Q0.95 0 0.78 -0.56Z" fill="#0b0b0d" opacity={0.82} />
-      <path d="M0.78 -0.56Q0.95 0 0.78 0.56L0.32 0.5Q0.42 0 0.32 -0.5Z" fill="#94a3b8" opacity={0.55} />
-      {/* bonnet vents */}
-      <rect x={1.25} y={-0.42} width={0.42} height={0.12} rx={0.05} fill="#000" opacity={0.45} />
-      <rect x={1.25} y={0.3} width={0.42} height={0.12} rx={0.05} fill="#000" opacity={0.45} />
-      {/* rear wing and its endplates */}
-      <rect x={-2.36} y={-1.0} width={0.28} height={2.0} rx={0.06} fill="#111" />
-      <rect x={-2.4} y={-1.04} width={0.42} height={0.09} fill="#111" />
-      <rect x={-2.4} y={0.95} width={0.42} height={0.09} fill="#111" />
-    </g>
-  );
-}
 const INPUT_COLORS = { brake: "#ef4444", abs: "#2563eb", full: "#22c55e", coast: "#71717a" };
 const ABS_ON = 5;   // % of the time with ABS working, per metre
 const DEFAULT_HALF_LOCK = 240;   // cars without a known steering lock (steering_deg missing): 480° lock to lock
@@ -68,7 +43,7 @@ function prepare(l: ReplayLap): Car | null {
   if (!c.time_s || !c.pos_x_m || !c.pos_z_m || !c.speed_ms) return null;
   const n = Math.min(c.time_s.length, c.pos_x_m.length);
   return {
-    driver: l.driver, color: l.color, n, step: l.t.dist[1] - l.t.dist[0] || 1, end: c.time_s[n - 1],
+    driver: l.driver, color: l.color, model: l.car ?? null, n, step: l.t.dist[1] - l.t.dist[0] || 1, end: c.time_s[n - 1],
     time: c.time_s, x: c.pos_x_m, z: c.pos_z_m, v: c.speed_ms,
     thr: c.throttle_clean_pct ?? null, brk: c.brake_clean_pct ?? null, gear: c.gear ? smoothGear(c.gear) : null, abs: c.abs_pct ?? null,
     steer: c.steering_deg ?? (c.steering_norm ? c.steering_norm.map((v) => v * DEFAULT_HALF_LOCK) : null),
@@ -432,8 +407,8 @@ export default function Replay({ laps, edges, corners, boards = [], checkpoints,
         {viewW <= BOARDS_VIEW_M && <Boards boards={boards} size={Math.max(1.6, viewW / 70)} />}
         {cars.map((c, k) => ({ c, k })).reverse().map(({ c, k }) => (
           <g key={k} ref={(el) => { carEls.current[k] = el; }}>
-            <GT3Car color={c.color} />
-            <rect ref={(el) => { absEls.current[k] = el; }} x={1.92} y={-0.45} width={0.3} height={0.9} rx={0.12}
+            <CarShape car={c.model} color={c.color} />
+            <rect ref={(el) => { absEls.current[k] = el; }} x={noseOf(c.model) - 0.42} y={-0.45} width={0.3} height={0.9} rx={0.12}
                   fill="#1d4ed8" stroke="#93c5fd" strokeWidth={0.1} opacity={0} />
           </g>
         ))}
