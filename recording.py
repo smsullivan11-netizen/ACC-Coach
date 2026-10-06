@@ -46,8 +46,15 @@ def game_clock(pid: np.ndarray, t_s: np.ndarray, g: dict | None = None):
         # around the timer reset)
         at_frame = np.interp(g["t_ns"] / 1e9, t_s, count)
         slopes = []
-        for lap in np.unique(g["completedLaps"]):
-            m = (g["completedLaps"] == lap) & (g["iCurrentTime"] > 1000)
+        # laps = stretches between timer resets (hotlap mode does not count invalid laps in
+        # completedLaps), and only those without a pause: the packet counter keeps running while the
+        # game is paused but the lap timer stops, which skewed the step by 1.5-3 % on a real hotlap
+        # session (clean cycles: exactly 2.5000 ms per packet)
+        timer_lap = np.concatenate([[0], np.cumsum(np.diff(g["iCurrentTime"]) < -5000)])
+        for lap in np.unique(timer_lap):
+            if (g["status"][timer_lap == lap] != shm.STATUS_LIVE).any():
+                continue
+            m = (timer_lap == lap) & (g["iCurrentTime"] > 1000)
             if m.sum() > 200 and np.ptp(at_frame[m]) > 0:
                 slopes.append(np.polyfit(at_frame[m], g["iCurrentTime"][m], 1)[0] / 1000)
         slopes = [x for x in slopes if 0.5 * step < x < 2 * step]
@@ -76,14 +83,27 @@ def _position_source(p: dict, g: dict, p_tg: np.ndarray, g_tg: np.ndarray):
 
 def _crossings(g: dict, g_tg: np.ndarray) -> list[dict]:
     """Line crossings: frames where completedLaps increases. Exact instant = frame time − the
-    game's lap timer at that frame; official lap time = iLastTime once updated."""
+    game's lap timer at that frame; official lap time = iLastTime once updated.
+    Hotlap mode (and invalid laps there) does not count laps in completedLaps: a crossing is then the
+    frame where the car's track position wraps (≈1 → ≈0) while the lap timer resets; no official time
+    (the lap is timed from the recording). Partial laps (restarts) are left out later by distance."""
     laps = g["completedLaps"]
+    counted = list(np.flatnonzero(np.diff(laps) > 0) + 1)
+    npos, cur_all = g["normalizedCarPosition"], g["iCurrentTime"]
+    resets = np.flatnonzero(np.diff(cur_all) < -5000) + 1                 # lap timer back to ~0
+    wraps = [k for k in np.flatnonzero(np.diff(npos) < -0.5) + 1           # position ≈1 → ≈0 (a few frames apart)
+             if len(resets) and np.min(np.abs(resets - k)) <= 10]
+    # the crossing instant is the timer reset (the game's timing line), not the position wrap
+    extra = [int(resets[np.argmin(np.abs(resets - k))]) for k in wraps if not any(abs(int(k) - int(c)) <= 120 for c in counted)]
     out = []
-    for k in np.flatnonzero(np.diff(laps) > 0) + 1:
+    for k in sorted(counted + extra):
         cur = g["iCurrentTime"][k]
         t = g_tg[k] - cur / 1000 if 0 <= cur < 1000 else g_tg[k]
-        nxt = np.flatnonzero(g["iLastTime"][k:k + 60] != g["iLastTime"][k - 1])
-        last_ms = int(g["iLastTime"][k + nxt[0]]) if len(nxt) else int(g["iLastTime"][k])
+        if k in counted:
+            nxt = np.flatnonzero(g["iLastTime"][k:k + 60] != g["iLastTime"][k - 1])
+            last_ms = int(g["iLastTime"][k + nxt[0]]) if len(nxt) else int(g["iLastTime"][k])
+        else:
+            last_ms = 0
         out.append({"t": float(t), "frame": int(k), "official_ms": last_ms})
     return out
 
@@ -167,6 +187,9 @@ def load_recording(path: str, track_length: float | None = None, tol: float = 0.
             "ABS_PCT": 100 * ip(abs_share),
             "TC_PCT": 100 * ip(tc_share),
             "NPOS": np.interp(tq, g_tg, npos_u) % 1.0,
+            # 1 while the lap is still valid (the game's flag): the site uses where a lap was cut to
+            # place the white lines (app 0.2.0)
+            "VALID": (hold(tq, g_tg, g["isValidLap"]) > 0).astype(float),
         }
         if has_levels:   # electronics settings (graphics page): TC, TC2 (tcCutLevel), ABS, engine map (0-based)
             data.update(TC_LEVEL=hold(tq, g_tg, g["tcLevel"]).astype(float), TC2_LEVEL=hold(tq, g_tg, g["tcCutLevel"]).astype(float),
@@ -192,7 +215,12 @@ def load_recording(path: str, track_length: float | None = None, tol: float = 0.
     if not laps:
         return head, laps, 0.0
 
-    ref = track_length or TRACK_LENGTHS.get(track) or float(np.median([l.distance for l in laps]))
+    # Reference length: median of the laps that went all the way round (their track position covers
+    # 0-100 %); restarts and partial laps (hotlap mode) would pull a plain median down
+    def coverage(l):
+        return len(np.unique(np.floor(np.asarray(l.data["NPOS"]) * 100).astype(int) % 100)) / 100
+    full = [l.distance for l in laps if coverage(l) >= 0.97]
+    ref = track_length or TRACK_LENGTHS.get(track.lower()) or float(np.median(full or [l.distance for l in laps]))
     for l in laps:
         l.dist_ok = abs(l.distance - ref) / ref < tol
         clean_inputs(l)

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RATING_TYPE_LABELS, ratingType, WEIGHTS_BY_TYPE, type RatingType as RatingTypeKey } from "@/lib/ratings";
+import DeleteSession from "./DeleteSession";
 import RatingType from "./RatingType";
 import { fuelReference, fuelSeconds } from "@/lib/fuel";
 import { Avatar, Chip, delay, SectionTitle } from "@/components/ui";
@@ -43,7 +44,7 @@ type Lap = {
 export const metadata: Metadata = { title: "Session" };
 
 export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
-  await requireDriver();
+  const me = await requireDriver();
   const { id } = await props.params;
   if (!/^\d+$/.test(id)) notFound();
   // Picking a lap to compare with (lap page → "Choose another lap…" → this track's sessions)
@@ -198,6 +199,9 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
             </tbody>
           </table>
         </div>
+        {(me.is_admin || me.id === session.driver_id) && (
+          <div className="flex justify-end px-5 pt-3"><DeleteSession sessionId={id} /></div>
+        )}
         <p className="px-5 py-3 text-xs text-zinc-500">
           Lap times are the game&apos;s when recorded live ({session.source_kind === "shared_memory" ? "recorder" : "MoTeC"}, {session.source_file}).
         </p>

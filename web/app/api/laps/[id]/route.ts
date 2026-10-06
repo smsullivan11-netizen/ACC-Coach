@@ -5,8 +5,9 @@ import { unpackChannels } from "@/lib/trace-store";
 
 // One lap for the lap page: header, trace (1 m grid, encoded channels), corner results and the
 // track's edges (white lines: edge laps, else the automatic outline) for the map. Corners come from the lap's corner map, or the
-// track's latest one for laps without corner results; their boundaries are scaled to the track
-// length used for the lap's distance grid.
+// track's latest one for laps without corner results; their boundaries are scaled to the lap's own
+// distance grid (its trace length; the track's stored length only without a trace: a first session
+// with a broken lap once stored 13.8 km for Hungaroring and pushed every corner past the line).
 export async function GET(request: Request, ctx: RouteContext<"/api/laps/[id]">) {
   if (!(await driverFromRequest(request))) return Response.json({ error: "sign in" }, { status: 401 });
   const { id } = await ctx.params;
@@ -39,7 +40,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/laps/[id]">)
                r.full_throttle_m, r.coasting_s, r.exit_speed_kmh
         from corner k
         join corner_map m on m.id = k.corner_map_id
-        cross join lateral (select ${lap.track_length_m}::real / m.length_m as k) t
+        cross join lateral (select ${lap.length && lap.step_m ? lap.length * lap.step_m : lap.track_length_m}::real / m.length_m as k) t
         left join corner_result r on r.lap_id = ${id} and r.corner_map_id = k.corner_map_id
                                  and r.corner_number = k.number
         where k.corner_map_id = ${lap.corner_map_id}

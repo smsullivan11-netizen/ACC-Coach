@@ -732,3 +732,25 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Fuel weight table duplicated from web/lib/fuel.ts (keep in sync).
 - Test: `python tests/test_engineer.py` (fake session replay, the real recording when present,
   live fake ACC + the page's /state). fake_acc fills pads, discs, pressures, temps, race clock.
+
+## Hotlap laps, track lengths, outline from cuts (app 0.2.0, 2026-10-06)
+- Hotlap mode does not count invalid laps in `completedLaps` (user's Hungaroring hotlap session
+  became one 6:38 / 13.8 km "lap"): `_crossings` also splits where the track position wraps and the
+  lap timer resets (within 10 frames; instant = the timer reset). Reference length = median of the
+  laps covering 0-100 % of the track (`trackSplineLength` is 0 in ACC). Game clock calibration per
+  timer cycle, skipping cycles with a pause (the packet counter runs during pauses, the timer does
+  not: clean cycles are exactly 2.5000 ms per packet). Engineer: lap end = timer reset, time
+  corrected to iLastTime when completedLaps confirms it.
+- Track length: that session stored 13.8 km for Hungaroring, the lap API scaled corners by
+  track length / map length → corners past the line. The lap API now scales by the lap's own trace
+  length; uploads with valid laps correct a stored length > 3 % off; migration 0011 fixes stored
+  ones (median of valid laps).
+- ACC track keys can be capitalised ("Hungaroring", "Barcelona"): the TUM lookup is lowercase now.
+- Outline (VERSION 3): laps-only guess blends the band middle with an out-in-out model (curvature
+  ±15 m vs ±120 m: apex inside, entry/exit outside) by how much of the width the band covers
+  (Hungaroring vs TUM: 2.77 → 2.51 m median). Invalid laps (track limits only) with the app's
+  `valid` channel (0.2.0, per metre) count outside −50/+80 m around the cut, and the cut's farthest
+  point gives an edge bound (≥ 0.8 m inside it, never inside the laps' band).
+- Sessions can be deleted (admins or the driver; ratings replayed): to re-upload one cut by an older
+  app. The user's 2026-10-04 Hungaroring hotlap session, rebuilt with 0.2.0 (2 valid laps 1:46.695,
+  1:45.067), was put on their Desktop to upload after deleting the old one.

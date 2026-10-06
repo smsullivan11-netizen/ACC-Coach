@@ -107,6 +107,8 @@ class Engineer:
         self.pad_new = [0.0] * 4
         self.disc_new = [0.0] * 4
         self.in_pit = False
+        self.prev_cur = None
+        self.closed_at = None
 
     def _new_lap(self, fuel: float):
         self._lap = {"fuel0": fuel, "fuel_sum": 0.0, "n": 0, "valid": True, "pit": False, "km": 0.0,
@@ -163,9 +165,19 @@ class Engineer:
         for i in range(4):
             lap["b_max"][i] = max(lap["b_max"][i], float(p["brakeTemp"][i]))
 
-        if self.completed is not None and completed == self.completed + 1 and int(g["iLastTime"]) > 0:
-            self._close_lap(completed, int(g["iLastTime"]) / 1000, fuel)
+        # Lap end = the lap timer resets (hotlap mode does not count invalid laps in completedLaps).
+        # Time = the timer just before the reset; corrected to the game's iLastTime when completedLaps
+        # confirms the lap within 2 s
+        cur = int(g["iCurrentTime"])
+        if self.prev_cur is not None and cur < self.prev_cur - 5000:
+            self._close_lap(len(self.laps) + 1, (self.prev_cur + dt * 1000) / 1000, fuel)
+            self.closed_at = t
+        if (self.completed is not None and completed == self.completed + 1 and int(g["iLastTime"]) > 0
+                and self.laps and self.closed_at is not None and t - self.closed_at < 2):
+            self.laps[-1].time_s = int(g["iLastTime"]) / 1000
+            self.laps[-1].corrected_s = self.laps[-1].time_s - fuel_seconds(self.track, self.laps[-1].fuel_avg)
         self.completed = completed
+        self.prev_cur = cur
 
         self.live = {
             "fuel": fuel, "speed": speed, "pressures": pressures, "in_pit": in_pit,

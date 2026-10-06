@@ -44,6 +44,7 @@ TRACE_CHANNELS = {   # name in the bundle: (resampled channel, type, scale)
     "tc2_level": ("TC2_LEVEL", "int8", 1),
     "abs_level": ("ABS_LEVEL", "int8", 1),
     "engine_map": ("ENGINE_MAP", "int8", 1),
+    "valid": ("VALID", "int8", 1),                        # recorder (0.2.0): 1 while the lap is still valid
     "pos_x_m": ("POS_X", "int32", 0.01),                   # recorder: car position in game coordinates
     "pos_y_m": ("POS_Y", "int32", 0.01),
     "pos_z_m": ("POS_Z", "int32", 0.01),

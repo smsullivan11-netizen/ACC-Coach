@@ -52,7 +52,8 @@ def main():
     s = e.state()
     laps = s["laps"]
     print("laps", [(l["n"], round(l["time"], 3), round(l["fuel"], 3), l["valid"], l["pit"]) for l in laps])
-    assert [round(l["time"] * 1000) for l in laps] == expect["lap_ms"], ("lap times = the game's", expect["lap_ms"])
+    # the first segment (pit box to the first timer reset) is a lap of its own since laps end on timer resets
+    assert [round(l["time"] * 1000) for l in laps[-5:]] == expect["lap_ms"], ("lap times = the game's", expect["lap_ms"])
     per_lap = expect["track_length"] / 2000                       # fake ACC burns 1 L per 2 km
     assert abs(s["fuel"]["per_lap"] - per_lap) < 0.05, (s["fuel"]["per_lap"], per_lap)
     assert s["fuel"]["laps_left"] and s["fuel"]["needed"] > 0, s["fuel"]
@@ -83,7 +84,7 @@ def main():
     real = ROOT / "recordings" / "20261004-001243_brands_hatch_ford_mustang_gt3_practice.accrec"
     if real.exists():
         r = replay(real, "brands_hatch", "ford_mustang_gt3").state()
-        assert [round(l["time"], 3) for l in r["laps"][1:3]] == [85.87, 85.15], r["laps"]
+        assert [round(l["time"], 3) for l in r["laps"][2:4]] == [85.87, 85.15], r["laps"]
         assert 2.0 < r["fuel"]["per_lap"] < 2.5 and 26.0 < r["tyres"][0]["lap_psi"] < 27.0, r["fuel"]
         print("real ducts", r["temps"]["ducts"], "brake peaks", [round(b["lap_peak"]) for b in r["temps"]["brakes"]])
         assert r["temps"]["ducts"]["front"]["clicks"] == 0, "real front peaks 580-650 °C: in the window"

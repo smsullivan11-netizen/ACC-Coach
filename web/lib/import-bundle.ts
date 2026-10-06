@@ -76,6 +76,13 @@ export async function importBundle(b: Bundle, driverId: string): Promise<{ sessi
       insert into track (simulator, key, length_m) values (${b.simulator}, ${s.track}, ${s.track_length_m})
       on conflict (simulator, key) do update set key = excluded.key
       returning id`;
+    // The stored length comes from the track's first session: a session with valid laps corrects it
+    // when it is more than 3 % off (a broken first session must not stick)
+    const valid = b.laps.filter((l) => l.comparable).map((l) => l.distance_m).sort((x, y) => x - y);
+    if (valid.length) {
+      const len = valid[valid.length >> 1];
+      await tx`update track set length_m = ${len} where id = ${track.id} and abs(length_m - ${len}) > 0.03 * ${len}`;
+    }
 
     let carId: string | null = null;
     if (s.car) {
