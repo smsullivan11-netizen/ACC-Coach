@@ -199,7 +199,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
             </tbody>
           </table>
         </div>
-        {(me.is_admin || me.id === session.driver_id) && (
+        {me.is_admin && (
           <div className="flex justify-end px-5 pt-3"><DeleteSession sessionId={id} /></div>
         )}
         <p className="px-5 py-3 text-xs text-zinc-500">

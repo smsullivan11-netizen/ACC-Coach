@@ -4,7 +4,7 @@ import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-// Delete this session (admins, or the session's driver), after a confirmation.
+// Delete this session (admins only), after a confirmation.
 export default function DeleteSession({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);

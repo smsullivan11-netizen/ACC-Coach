@@ -751,6 +751,6 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   (Hungaroring vs TUM: 2.77 → 2.51 m median). Invalid laps (track limits only) with the app's
   `valid` channel (0.2.0, per metre) count outside −50/+80 m around the cut, and the cut's farthest
   point gives an edge bound (≥ 0.8 m inside it, never inside the laps' band).
-- Sessions can be deleted (admins or the driver; ratings replayed): to re-upload one cut by an older
+- Sessions can be deleted by admins only (user: drivers deleting their own bad sessions could manipulate their rating; ratings replayed): to re-upload one cut by an older
   app. The user's 2026-10-04 Hungaroring hotlap session, rebuilt with 0.2.0 (2 valid laps 1:46.695,
   1:45.067), was put on their Desktop to upload after deleting the old one.
