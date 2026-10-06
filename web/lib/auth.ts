@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "./db";
@@ -30,6 +30,20 @@ export const discordConfigured = () =>
   Boolean(env("DISCORD_CLIENT_ID") && env("DISCORD_CLIENT_SECRET") && env("DISCORD_GUILD_ID"));
 // Local development only: sign in without Discord (never available in production builds)
 export const devLoginEnabled = () => process.env.NODE_ENV !== "production" && env("DEV_LOGIN") === "1";
+
+// Microsoft Store certification (10.3.1 "App Is Testable"): the testers have no account on the
+// team's Discord server, so a test account signs in with a username and password instead. Only on
+// when REVIEW_PASSWORD is set (16+ characters); it signs in as the "Store Reviewer" driver, a
+// normal member (not admin) whose sessions are never announced on Discord.
+export const REVIEW_USERNAME = "store-reviewer";
+export const REVIEW_DISCORD_ID = "review-store";   // driver.discord_id of the test account
+export const reviewLoginEnabled = () => env("REVIEW_PASSWORD").length >= 16;
+export function reviewPasswordOk(username: string, password: string) {
+  if (!reviewLoginEnabled()) return false;
+  const a = Buffer.from(sha256(`${username.trim().toLowerCase()}\n${password}`));
+  const b = Buffer.from(sha256(`${REVIEW_USERNAME}\n${env("REVIEW_PASSWORD")}`));
+  return timingSafeEqual(a, b);
+}
 
 const cookieOptions = (maxAge: number) => ({
   httpOnly: true,

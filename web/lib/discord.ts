@@ -1,5 +1,5 @@
 import "server-only";
-import { appUrl, env } from "./auth";
+import { appUrl, env, REVIEW_DISCORD_ID } from "./auth";
 import { lapCardUrl, rankCardUrl } from "./cards";
 import { sql } from "./db";
 import { rankFor, rankLevel } from "./ranks";
@@ -35,6 +35,9 @@ export async function announceSession(sessionId: string) {
     from session s join driver d on d.id = s.driver_id join track t on t.id = s.track_id left join car c on c.id = s.car_id
     where s.id = ${sessionId}`;
   if (!s) return;
+  const [{ reviewer }] = await sql<{ reviewer: boolean }[]>`
+    select coalesce(discord_id = ${REVIEW_DISCORD_ID}, false) as reviewer from driver where id = ${s.driver_id}`;
+  if (reviewer) return;   // the Store's test account: never announced
   const track = trackInfo(s.track)?.name ?? s.track;
   const embeds: object[] = [];
 

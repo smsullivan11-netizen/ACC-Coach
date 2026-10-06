@@ -521,6 +521,12 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   `identify guilds`; only members of the team's Discord server (`DISCORD_GUILD_ID`) get in.
   Every signed-in member sees everyone's laps. Sessions: random cookie, sha256 in `web_session`.
   Local development: `DEV_LOGIN=1` adds `/auth/dev?name=Alice` (disabled in production builds).
+- Store test account (certification 10.3.1 refused 0.1.0 for lack of one, 2026-10-06): with
+  `REVIEW_PASSWORD` set in Vercel (16+ chars), `/auth/review` (form → `/auth/review/check`, constant-time
+  compare, 1 s wait on failure) signs in username `store-reviewer` as the "Store Reviewer" driver
+  (`discord_id` `review-store`, not admin); "Use the test account" links on `/` and `/link` (keeps
+  `next`). Its sessions are never announced on Discord. Credentials go only in Partner Center's
+  certification notes (`agent\store\listing.md`). Unset = everything 404s / links hidden.
 - Upload tokens (Settings page, `agent_token`, sha256 only) for `upload.py` and the future app:
   `Authorization: Bearer acc_…`. API: `POST /api/upload` (raw .json.gz body), `GET /api/corner-maps/<track>`,
   `/api/tokens`.

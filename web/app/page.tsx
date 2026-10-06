@@ -1,6 +1,6 @@
 import { BarChart3, Gauge, Route } from "lucide-react";
 import { delay, Pcgr } from "@/components/ui";
-import { currentDriver, devLoginEnabled, discordConfigured } from "@/lib/auth";
+import { currentDriver, devLoginEnabled, discordConfigured, reviewLoginEnabled } from "@/lib/auth";
 import Dashboard from "./Dashboard";
 
 const ERRORS: Record<string, string> = {
@@ -39,7 +39,10 @@ export default async function Home(props: PageProps<"/">) {
             <DiscordIcon /> Sign in with Discord
           </a>
         )}
-        <p className="mt-3 text-xs text-zinc-500">For members of the team&apos;s Discord server.</p>
+        <p className="mt-3 text-xs text-zinc-500">
+          For members of the team&apos;s Discord server.
+          {reviewLoginEnabled() && <> App reviewer? <a className="underline hover:text-white" href="/auth/review">Use the test account</a></>}
+        </p>
         {devLoginEnabled() && (
           <p className="mt-6 text-sm text-zinc-500">
             Development: <a className="underline" href="/auth/dev?name=Alice">sign in as Alice</a> or{" "}

@@ -1,4 +1,4 @@
-import { currentDriver } from "@/lib/auth";
+import { currentDriver, reviewLoginEnabled } from "@/lib/auth";
 
 // Opened by the desktop app ("Link this PC"): after one click, the browser goes back to the app on
 // this PC (http://127.0.0.1:<port>/callback) with a new upload token for the signed-in driver.
@@ -35,6 +35,11 @@ export default async function LinkPage(props: PageProps<"/link">) {
            className="btn btn-primary mt-8 px-5 py-2.5 text-base">
           Sign in with Discord
         </a>
+      )}
+      {!driver && reviewLoginEnabled() && (
+        <p className="mt-4 text-xs text-zinc-500">
+          App reviewer? <a className="underline hover:text-white" href={`/auth/review?next=${encodeURIComponent(here)}`}>Use the test account</a>
+        </p>
       )}
     </div>
   );
