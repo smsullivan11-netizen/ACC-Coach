@@ -36,7 +36,7 @@ def fuel_seconds(track: str, fuel_l: float) -> float:
 
 DEFAULT_SETTINGS = {
     "target_psi": 26.9,        # hot pressure aimed at, all four tyres (team's choice)
-    "advice_min_km": 10.0,     # running in the stint before pressure advice (ACC Drive: 20 km)
+    "advice_min_km": 15.0,     # running in the stint before pressure advice (team: 15 km; ACC Drive: 20 km)
     "tyre_worn_pct": 2.8,      # 100 % tyre wear = this much slower per lap than on fresh tyres (team: ~3 s at Spa)
     "pad_worn_mm": 10.0,       # pads at risk below this (ACC dev: red dot in the HUD under 10 mm) = 90 % worn
     "fuel_margin_laps": 1.0,   # extra fuel on top of what the race needs
@@ -44,6 +44,7 @@ DEFAULT_SETTINGS = {
 WHEELS = ("FL", "FR", "RL", "RR")
 DAMAGE_ZONES = ("front", "rear", "left", "right", "centre")
 MIN_FLYING = 4                  # laps in a stint before a tyre wear trend
+ATM_PSI, KELVIN = 14.7, 273.15
 
 
 @dataclass
@@ -56,6 +57,7 @@ class Lap:
     pit: bool
     km: float
     pressure: list            # average hot pressure per wheel while moving (psi)
+    core: list = None         # average tyre core temperature per wheel while moving (°C)
     corrected_s: float = 0.0  # lap time without the cost of the fuel above minimum fuel
 
 
@@ -63,6 +65,16 @@ class Lap:
 class Stint:
     laps: list = field(default_factory=list)
     km: float = 0.0
+    # Pressure reference: average hot pressure and core temperature of the first lap completed past
+    # advice_min_km (tyres warm, no air lost yet). With the gas law (absolute pressure ∝ absolute
+    # temperature) it gives the pressure each tyre should have at any temperature: less = air lost
+    # (kerbs, contact). Reset at each pit exit (new tyres).
+    ref_p: list = None
+    ref_t: list = None
+
+
+def expected_psi(ref_p: float, ref_t: float, core_t: float) -> float:
+    return (ref_p + ATM_PSI) * (core_t + KELVIN) / (ref_t + KELVIN) - ATM_PSI
 
 
 def theil_sen(xs, ys) -> float:
@@ -91,7 +103,7 @@ class Engineer:
 
     def _new_lap(self, fuel: float):
         self._lap = {"fuel0": fuel, "fuel_sum": 0.0, "n": 0, "valid": True, "pit": False, "km": 0.0,
-                     "p_sum": [0.0] * 4, "p_t": 0.0}
+                     "p_sum": [0.0] * 4, "c_sum": [0.0] * 4, "p_t": 0.0}
 
     # --- input --------------------------------------------------------------------------------
 
@@ -138,6 +150,7 @@ class Engineer:
         if speed > 50:                            # pressures settle at speed, not in the pit lane
             for i in range(4):
                 lap["p_sum"][i] += pressures[i] * dt
+                lap["c_sum"][i] += float(p["tyreCoreTemp"][i]) * dt
             lap["p_t"] += dt
 
         if self.completed is not None and completed == self.completed + 1 and int(g["iLastTime"]) > 0:
@@ -158,8 +171,12 @@ class Engineer:
         lap = self._lap
         used = lap["fuel0"] - fuel_end
         pressure = [s / lap["p_t"] for s in lap["p_sum"]] if lap["p_t"] > 10 else None
+        core = [s / lap["p_t"] for s in lap["c_sum"]] if lap["p_t"] > 10 else None
         out = Lap(number, time_s, used, lap["fuel_sum"] / max(1, lap["n"]), lap["valid"],
-                  lap["pit"] or used < 0, lap["km"], pressure)
+                  lap["pit"] or used < 0, lap["km"], pressure, core)
+        if (self.stint.ref_p is None and pressure and not out.pit
+                and self.stint.km >= self.settings["advice_min_km"]):
+            self.stint.ref_p, self.stint.ref_t = pressure, core
         out.corrected_s = time_s - fuel_seconds(self.track, out.fuel_avg)
         self.laps.append(out)
         self.stint.laps.append(out)
@@ -188,15 +205,24 @@ class Engineer:
             fuel.update(laps_left=laps_left, needed=needed, to_add=min(to_add, max(0.0, self.max_fuel - live["fuel"]) if self.max_fuel else to_add),
                         stops=math.ceil(to_add / (self.max_fuel - fpl)) if self.max_fuel > fpl and to_add > 0 else 0)
 
-        # Pressure advice: average hot pressure of the last lap at speed, once the stint is long enough
-        last = next((l for l in reversed(self.stint.laps) if l.pressure and not l.pit), None)
-        ready = self.stint.km >= s["advice_min_km"] and last is not None
+        # Pressure advice and pressure loss. Once the stint has its reference (first lap past
+        # advice_min_km), each lap's pressure "without loss" = what the gas law gives at that lap's
+        # core temperature; loss = that − the measured pressure. The advice uses the pressure without
+        # loss: it follows temperature changes (track cooling…) but air lost on kerbs does not push
+        # it up at the end of a stint.
+        st_ = self.stint
+        last = next((l for l in reversed(st_.laps) if l.pressure and l.core and not l.pit), None)
+        ready = st_.ref_p is not None and last is not None
         tyres = []
         for i, w in enumerate(WHEELS):
             hot = last.pressure[i] if last else None
-            delta = s["target_psi"] - hot if ready else None
+            loss = delta = None
+            if ready:
+                clean = expected_psi(st_.ref_p[i], st_.ref_t[i], last.core[i])
+                loss = max(0.0, clean - hot)
+                delta = s["target_psi"] - (hot + loss)
             tyres.append({"wheel": w, "live_psi": live["pressures"][i], "lap_psi": hot, "core_c": live["core_temps"][i],
-                          "change": delta, "set": live["mfd_pressures"][i],
+                          "loss": loss, "change": delta, "set": live["mfd_pressures"][i],
                           "advice": round((live["mfd_pressures"][i] + delta) * 10) / 10 if delta is not None else None})
 
         # Tyre wear: fuel-corrected lap time trend over the stint's flying laps (out-lap and first

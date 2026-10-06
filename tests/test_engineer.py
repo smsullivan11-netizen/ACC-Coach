@@ -52,10 +52,19 @@ def main():
     per_lap = expect["track_length"] / 2000                       # fake ACC burns 1 L per 2 km
     assert abs(s["fuel"]["per_lap"] - per_lap) < 0.05, (s["fuel"]["per_lap"], per_lap)
     assert s["fuel"]["laps_left"] and s["fuel"]["needed"] > 0, s["fuel"]
-    assert s["pressure_ready"], "pressure advice after 10 km"
-    fl, rr = s["tyres"][0], s["tyres"][3]
-    assert abs(fl["lap_psi"] - 27.2) < 0.05 and abs(fl["advice"] - 25.2) < 0.06, fl     # 25.5 set, 0.3 psi too high
-    assert abs(rr["lap_psi"] - 26.9) < 0.05 and abs(rr["change"]) < 0.06, rr            # on target
+    assert not s["pressure_ready"], "the short session (14 km) stays under the 15 km before advice"
+
+    # Long stint (~28 km): pressure reference past 15 km, then the front-left loses air from 18 km
+    long = fake_acc.write_session(out / "long.accrec", lap_factors=(1.0,) + (0.99,) * 9, invalid_laps=())
+    s2 = replay(out / "long.accrec", "fake_track", fake_acc.CAR).state()
+    assert s2["pressure_ready"], "pressure advice after 15 km"
+    fl, rr = s2["tyres"][0], s2["tyres"][3]
+    # last flying lap (before the in-lap) ends ~2.8 km before the end: its average leak is ~0.4-0.7 psi
+    leak = min(1.2, (s2["stint"]["km"] * 1000 - 18000 - 2 * 2787) / 1000 * 0.1) + 0.14
+    print("long stint: FL", {k: round(v, 2) for k, v in fl.items() if isinstance(v, float)}, "expected leak ~", round(leak, 2))
+    assert 0.4 < fl["loss"] < 0.8 and abs(fl["loss"] - leak) < 0.2, (fl["loss"], leak)   # loss seen (last lap's average)
+    assert abs(fl["advice"] - 25.2) < 0.06, fl     # 25.5 set, 0.3 psi too high: the leak does not change the advice
+    assert abs(rr["lap_psi"] - 26.9) < 0.05 and rr["loss"] < 0.05 and abs(rr["change"]) < 0.06, rr
     assert s["brakes"][2]["pad_pct"] > s["brakes"][0]["pad_pct"] > 0, "rear pads wear faster in fake ACC"
     assert not s["damage"]["any"]
     print("replay: OK", json.dumps({k: s[k] for k in ("fuel", "wear", "stint")}, default=float)[:300])

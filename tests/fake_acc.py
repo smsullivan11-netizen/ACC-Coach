@@ -173,7 +173,8 @@ class Pages:
         warm = min(1.0, c.distance / 8000)
         p.padLife[:] = [29.0 - c.distance / (40000 if w < 2 else 30000) for w in range(4)]
         p.discLife[:] = [32.0 - c.distance / 250000] * 4
-        p.wheelPressure[:] = [24.6 + (2.6 if w == 0 else 2.3) * warm for w in range(4)]
+        leak = min(1.2, max(0.0, (c.distance - 18000) / 1000 * 0.1))   # front-left loses air after 18 km (kerbs)
+        p.wheelPressure[:] = [24.6 + (2.6 if w == 0 else 2.3) * warm - (leak if w == 0 else 0.0) for w in range(4)]
         p.tyreCoreTemp[:] = [70.0 + 18.0 * warm] * 4
         for w, (lon, lat) in enumerate(((1.3, -0.8), (1.3, 0.8), (-1.3, -0.8), (-1.3, 0.8))):
             p.tyreContactPoint[w][:] = (x + lon * np.cos(hd) - lat * np.sin(hd), y,

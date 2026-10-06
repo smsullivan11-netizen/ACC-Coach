@@ -32,6 +32,7 @@
   .tyre .psi { font-size: 26px; font-weight: 800; }
   .tyre .sub { font-size: 12px; color: var(--dim); }
   .advice { margin-top: 6px; font-size: 13px; font-weight: 700; }
+  .loss { margin-left: 8px; font-size: 15px; font-weight: 700; color: var(--yellow); }
   .ok { color: var(--green); } .warn { color: var(--yellow); } .bad { color: var(--red); } .info { color: var(--blue); }
   .bar { height: 10px; background: rgba(255,255,255,.06); border-radius: 99px; overflow: hidden; margin-top: 6px; }
   .bar > div { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--green), var(--yellow), var(--red)); }
@@ -127,11 +128,12 @@ function render(s) {
       advice = ok ? `<div class="advice ok">On target · keep ${n(t.set, 1)}</div>`
                   : `<div class="advice ${Math.abs(t.change) < 0.5 ? "warn" : "bad"}">Set ${n(t.advice, 1)} (${sign(t.change, 1)}) · now ${n(t.set, 1)}</div>`;
     }
-    return `<div class="tyre"><div class="w">${t.wheel}</div><div class="psi">${n(t.lap_psi ?? t.live_psi, 2)}<span class="unit">psi</span></div>
+    const loss = t.loss != null && t.loss >= 0.1 ? `<span class="loss" title="Pressure lost (kerbs, contact): measured against what the tyre should have at its temperature">−${n(t.loss, 1)}</span>` : "";
+    return `<div class="tyre"><div class="w">${t.wheel}</div><div class="psi">${n(t.lap_psi ?? t.live_psi, 2)}<span class="unit">psi</span>${loss}</div>
       <div class="sub">core ${n(t.core_c, 0)} °C</div>${advice}</div>`;
   }).join("");
   $("tyreNote").textContent = s.pressure_ready
-    ? `Average hot pressure of the last lap, target ${n(s.settings.target_psi, 1)} psi. "Set" = the cold pressure for the pit menu.`
+    ? `Average hot pressure of the last lap, target ${n(s.settings.target_psi, 1)} psi. Yellow = pressure lost since the reference lap (kerbs, contact); the advice leaves it out. "Set" = the cold pressure for the pit menu.`
     : `Advice after ${n(s.settings.advice_min_km, 0)} km of running in the stint (${n(s.stint.km, 1)} km so far).`;
 
   // Tyre wear
