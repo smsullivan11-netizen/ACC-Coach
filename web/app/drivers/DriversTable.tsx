@@ -3,8 +3,8 @@
 import { ArrowDown, ArrowUp, Info, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Avatar, Position, RankIcon } from "@/components/ui";
-import { rankFor, SCALE_GRADIENT, scaleColor, scaleGradient } from "@/lib/ranks";
+import { Avatar, PartBar, Position, RankIcon, RatingBar, ScaleNumber } from "@/components/ui";
+import { rankFor } from "@/lib/ranks";
 
 export type DriverRow = {
   id: string; name: string; avatar: string | null; rating: number | null; best: number | null; change: number | null;
@@ -49,30 +49,13 @@ function InfoTip({ text, edge = false }: { text: string; edge?: boolean }) {
   );
 }
 
-/** A bar on the rank scale's colours: the whole 0-100 gradient, cut off at the value, so it blends
- *  through every rank colour below it (a 92 runs from blue to purple). */
-function ScaleBar({ v, className }: { v: number; className: string }) {
-  const cut = 100 - Math.max(0, Math.min(100, v));
-  return (
-    <div className={`overflow-hidden rounded-full bg-white/5 ${className}`}>
-      <div className="h-full" style={{ background: SCALE_GRADIENT, clipPath: `inset(0 ${cut}% 0 0 round 9999px)` }} />
-    </div>
-  );
-}
-
-// Parts: the bar shows only the last PART_WINDOW points of the scale below the value, so it is
-// mostly the value's own colour (the full scale left them mostly blue; user's request).
-const PART_WINDOW = 20;
-
+// Parts: the number in the scale's colour at its value, the zoomed-in bar under it (components/ui.tsx)
 function Part({ v }: { v: number | null }) {
   if (v == null) return <span className="text-zinc-600">–</span>;
-  const x = Math.max(0, Math.min(100, v));
   return (
     <div className="ml-auto w-16">
-      <div className="tabular text-right font-semibold" style={{ color: scaleColor(x) }}>{Math.round(v)}</div>
-      <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/5">
-        <div className="h-full rounded-full" style={{ width: `${x}%`, background: scaleGradient(Math.max(0, x - PART_WINDOW), x) }} />
-      </div>
+      <div className="text-right font-semibold"><ScaleNumber v={v} /></div>
+      <PartBar v={v} className="mt-1 h-1" />
     </div>
   );
 }
@@ -141,7 +124,7 @@ export default function DriversTable({ rows, me }: { rows: DriverRow[]; me: stri
                           {r.rating.toFixed(1)}{r.best != null && <span className="text-sm font-semibold text-zinc-500">/{r.best.toFixed(1)}</span>}
                         </span>
                       </div>
-                      <ScaleBar v={r.rating} className="mt-1 h-1.5" />
+                      <RatingBar v={r.rating} className="mt-1 h-1.5" />
                       <div className="mt-1 flex gap-2 text-[10px] font-semibold uppercase tracking-wider">
                         <span style={{ color: rank.color }}>{rank.title}</span>
                         {r.provisional && <span className="text-zinc-500">provisional</span>}

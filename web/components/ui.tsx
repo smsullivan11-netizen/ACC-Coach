@@ -1,7 +1,7 @@
-import type { LucideIcon } from "lucide-react";
+import { ArrowUpRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import { RANKS, rankFor, rankLevel, type Rank } from "@/lib/ranks";
+import { RANKS, rankFor, rankLevel, SCALE_GRADIENT, scaleColor, scaleGradient, type Rank } from "@/lib/ranks";
 
 // Small shared pieces of the interface (server and client components).
 
@@ -79,14 +79,50 @@ export function Chip({ tone = "grey", icon: Icon, children, title }: { tone?: ke
 }
 
 /** Section heading: icon, title in the team font, optional link or action on the right. */
-export function SectionTitle({ icon: Icon, children, action }: { icon?: LucideIcon; children: ReactNode; action?: ReactNode }) {
+export function SectionTitle({ icon: Icon, children, action, href }: { icon?: LucideIcon; children: ReactNode; action?: ReactNode; href?: string }) {
+  const title = <h2 className="display text-sm uppercase tracking-wider text-white">{children}</h2>;
   return (
     <div className="mb-3 flex items-center gap-2">
       {Icon && <Icon size={16} className="text-race" />}
-      <h2 className="display text-sm uppercase tracking-wider text-white">{children}</h2>
+      {href ? (
+        // The block's title opens its page (user's request, instead of a small link in the corner)
+        <Link href={href} className="group inline-flex items-center gap-1.5 [&_h2]:transition-colors hover:[&_h2]:text-accent">
+          {title}<ArrowUpRight size={14} className="text-zinc-500 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-accent" />
+        </Link>
+      ) : title}
       {action && <div className="ml-auto text-xs">{action}</div>}
     </div>
   );
+}
+
+/** A rating bar on the rank scale: the whole 0-100 gradient cut at the value, so it blends through
+ *  every rank colour below it (Drivers leaderboard, team ranking). */
+export function RatingBar({ v, className = "h-1.5", style }: { v: number; className?: string; style?: CSSProperties }) {
+  const cut = 100 - Math.max(0, Math.min(100, v));
+  return (
+    <div className={`overflow-hidden rounded-full bg-white/5 ${className}`}>
+      <div className="fill h-full" style={{ background: SCALE_GRADIENT, clipPath: `inset(0 ${cut}% 0 0 round 9999px)`, ...style }} />
+    </div>
+  );
+}
+
+const PART_WINDOW = 20;   // points of the scale shown in a sub-rating bar (user's request: mostly its own colour)
+
+/** A sub-rating bar (pace, consistency…): only the last PART_WINDOW points of the scale below the
+ *  value, stretched across the bar, so it is mostly the value's own colour. */
+export function PartBar({ v, className = "h-1.5", style }: { v: number; className?: string; style?: CSSProperties }) {
+  const x = Math.max(0, Math.min(100, v));
+  return (
+    <div className={`overflow-hidden rounded-full bg-white/5 ${className}`}>
+      <div className="fill h-full rounded-full" style={{ width: `${x}%`, background: scaleGradient(Math.max(0, x - PART_WINDOW), x), ...style }} />
+    </div>
+  );
+}
+
+/** A 0-100 value in the scale's colour at that value. */
+export function ScaleNumber({ v, className = "" }: { v: number | null | undefined; className?: string }) {
+  return v == null ? <span className={`text-zinc-600 ${className}`}>–</span>
+    : <span className={`tabular ${className}`} style={{ color: scaleColor(v) }}>{Math.round(v)}</span>;
 }
 
 /** Page heading in the team font, with an optional line under it. */

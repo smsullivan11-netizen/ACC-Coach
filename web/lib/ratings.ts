@@ -195,6 +195,41 @@ export async function formParts(tx: Sql, driverId: string) {
            sessions: rows.length, laps: rows.reduce((a, r) => a + r.laps, 0) };
 }
 
+type PartKey = "pace" | "consistency" | "clean" | "smoothness";
+export type HistoryPoint = {
+  id: string; session_id: string; at: string; track: string; rating: number; session_score: number;
+  pace: number | null; consistency: number | null; clean: number | null; smoothness: number | null;   // current form after it
+};
+
+/** The rating after each rated session, with the sub-ratings of the current form at that moment:
+ *  formSessions replayed row by row (same 60-day window, 5+ valid laps, best session per track). */
+export async function ratingHistory(tx: Sql, driverId: string): Promise<HistoryPoint[]> {
+  const rows = await tx<(Omit<FormSession, "id"> & { id: string; session_id: string; rating: number; at: Date; track: string })[]>`
+    select r.id, r.session_id, r.rating, r.session_score, r.pace, r.consistency, r.clean, r.smoothness, r.laps, s.track_id, t.key as track,
+           coalesce(s.recorded_at, s.uploaded_at) as at
+    from driver_rating r join session s on s.id = r.session_id join track t on t.id = s.track_id
+    where r.driver_id = ${driverId} order by r.id`;
+  return rows.map((row, k) => {
+    const mine = rows.slice(0, k + 1);
+    const last = Math.max(...mine.map((r) => new Date(r.at).getTime()));
+    const win = mine.filter((r) => new Date(r.at).getTime() > last - FORM_DAYS * 86_400_000);
+    const pool = win.some((r) => r.laps >= FORM_MIN_LAPS) ? win.filter((r) => r.laps >= FORM_MIN_LAPS) : win;
+    const best = new Map<string, (typeof rows)[number]>();
+    for (const r of pool) {
+      const b = best.get(r.track_id);
+      if (!b || r.session_score > b.session_score || (r.session_score === b.session_score && Number(r.id) > Number(b.id))) best.set(r.track_id, r);
+    }
+    const form = [...best.values()];
+    const avg = (key: PartKey) => {
+      const v = form.map((r) => r[key]).filter((x): x is number => x != null);
+      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    };
+    return { id: String(row.id), session_id: String(row.session_id), at: new Date(row.at).toISOString(), track: row.track,
+             rating: row.rating, session_score: row.session_score,
+             pace: avg("pace"), consistency: avg("consistency"), clean: avg("clean"), smoothness: avg("smoothness") };
+  });
+}
+
 /** Highest rating each driver reached once no longer provisional (from their 3rd rated session). */
 export async function allTimeBest(tx: Sql) {
   const rows = await tx<{ driver_id: string; best: number }[]>`

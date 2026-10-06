@@ -1,9 +1,12 @@
-import { Activity, ArrowUpRight, Crown, Gauge, Medal, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import { Activity, Crown, Gauge, Medal, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Link from "next/link";
-import { Avatar, Chip, delay, NextRank, Position, RankBadge, RankIcon, SectionTitle } from "@/components/ui";
+import TrendChart from "@/components/TrendChart";
+import { ratingDomain } from "@/lib/chart";
+import { Avatar, Chip, delay, NextRank, PartBar, Position, RankBadge, RankIcon, RatingBar, ScaleNumber, SectionTitle } from "@/components/ui";
 import type { Driver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
+import { scaleColor } from "@/lib/ranks";
 import { formParts, PROVISIONAL_SESSIONS, WEIGHTS } from "@/lib/ratings";
 import { recentSessions, timeOfDay, dayLabel, type SessionRow } from "@/lib/sessions";
 
@@ -11,8 +14,10 @@ import { recentSessions, timeOfDay, dayLabel, type SessionRow } from "@/lib/sess
 // progression, the team ranking and the team's activity.
 export default async function Dashboard({ me }: { me: Driver }) {
   const [history, [parts], ranking, mine, team] = await Promise.all([
-    sql<{ rating: number; date: string }[]>`
-      select rating, to_char(created_at, 'DD Mon') as date from driver_rating where driver_id = ${me.id} order by id`,
+    sql<{ rating: number; date: string; track: string }[]>`
+      select r.rating, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon') as date, t.key as track
+      from driver_rating r join session s on s.id = r.session_id join track t on t.id = s.track_id
+      where r.driver_id = ${me.id} order by r.id`,
     formParts(sql, me.id).then((p) => [p]),
     sql<{ id: string; display_name: string; avatar_url: string | null; rating: number; sessions: number }[]>`
       select d.id, d.display_name, d.avatar_url, r.rating, (select count(*) from driver_rating where driver_id = d.id)::int as sessions
@@ -24,6 +29,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
   const rating = history.at(-1)?.rating ?? null;
   const change = history.length >= 2 ? history.at(-1)!.rating - history.at(-2)!.rating : null;
   const pbs = mine.filter((s) => s.position != null);
+  const recent = history.slice(-30);   // the preview: the last 30 sessions (all of them on /progress)
   const first = me.display_name.split(/\s+/)[0];
 
   return (
@@ -36,7 +42,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
       <div className="grid gap-5 lg:grid-cols-2">
         {/* 1. Rating */}
         <section className="card card-red rise min-w-0 p-5" style={delay(40)}>
-          <SectionTitle icon={Gauge} action={<Link href={`/drivers/${me.id}`} className="inline-flex items-center gap-1 text-zinc-400 hover:text-white">your profile <ArrowUpRight size={13} /></Link>}>
+          <SectionTitle icon={Gauge} href={`/drivers/${me.id}`}>
             Your rating
           </SectionTitle>
           <div className="flex items-end gap-4">
@@ -57,10 +63,8 @@ export default async function Dashboard({ me }: { me: Driver }) {
               return (
                 <div key={k} className="grid grid-cols-[6.5rem_1fr_2rem] items-center gap-3 text-sm">
                   <span className="capitalize text-zinc-300">{k === "clean" ? "Clean driving" : k}</span>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
-                    {v != null && <div className="fill h-full rounded-full bg-gradient-to-r from-race to-accent" style={{ width: `${v}%`, ...delay(150 + i * 60) }} />}
-                  </div>
-                  <span className="tabular text-right text-zinc-400">{v != null ? Math.round(v) : "–"}</span>
+                  {v != null ? <PartBar v={v} style={delay(150 + i * 60)} /> : <div className="h-1.5 rounded-full bg-white/5" />}
+                  <ScaleNumber v={v} className="text-right font-semibold" />
                 </div>
               );
             })}
@@ -70,8 +74,9 @@ export default async function Dashboard({ me }: { me: Driver }) {
 
         {/* 2. Progression */}
         <section className="card card-red rise min-w-0 p-5" style={delay(90)}>
-          <SectionTitle icon={TrendingUp}>Your progression</SectionTitle>
-          <RatingLine points={history.map((h) => h.rating)} labels={history.map((h) => h.date)} />
+          <SectionTitle icon={TrendingUp} href="/progress">Your progression</SectionTitle>
+          <TrendChart values={recent.map((h) => h.rating)} labels={recent.map((h) => h.date)} details={recent.map((h) => prettyKey(h.track))}
+                      domain={ratingDomain(recent.map((h) => h.rating))} bands height={170} name="Rating" />
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             <Figure label="since your first session" value={history.length >= 2 ? signed(history.at(-1)!.rating - history[0].rating) : "–"} />
             <Figure label="PBs in 30 days" value={String(lastDays(pbs, 30).length)} />
@@ -95,7 +100,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
 
         {/* 3. Team ranking */}
         <section className="card card-red rise min-w-0 p-5" style={delay(140)}>
-          <SectionTitle icon={Trophy} action={<Link href="/drivers" className="text-zinc-400 hover:text-white">all drivers</Link>}>
+          <SectionTitle icon={Trophy} href="/drivers">
             Team ranking
           </SectionTitle>
           <ol className="space-y-1">
@@ -107,10 +112,8 @@ export default async function Dashboard({ me }: { me: Driver }) {
                   <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-white"><span className="truncate">{d.display_name}</span><RankIcon rating={d.rating} size={14} /></span>
                   <span className="hidden md:inline"><RankBadge rating={d.rating} /></span>
                   {d.sessions < PROVISIONAL_SESSIONS && <span className="hidden text-[11px] text-zinc-500 sm:inline">provisional</span>}
-                  <div className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-white/5 sm:block">
-                    <div className="fill h-full rounded-full bg-gradient-to-r from-race to-accent" style={{ width: `${d.rating}%`, ...delay(200 + i * 50) }} />
-                  </div>
-                  <span className="tabular w-10 text-right text-sm font-semibold text-accent">{d.rating.toFixed(1)}</span>
+                  <RatingBar v={d.rating} className="hidden h-1.5 w-24 sm:block" style={delay(200 + i * 50)} />
+                  <span className="tabular w-10 text-right text-sm font-semibold" style={{ color: scaleColor(d.rating) }}>{d.rating.toFixed(1)}</span>
                 </Link>
               </li>
             ))}
@@ -120,7 +123,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
 
         {/* 4. Team activity */}
         <section className="card card-red rise min-w-0 p-5" style={delay(190)}>
-          <SectionTitle icon={Activity} action={<Link href="/sessions" className="text-zinc-400 hover:text-white">all sessions</Link>}>
+          <SectionTitle icon={Activity} href="/sessions">
             Team activity
           </SectionTitle>
           <SessionList rows={team} />
@@ -143,34 +146,6 @@ function Figure({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg bg-white/[0.03] px-2 py-2.5">
       <div className="tabular text-xl font-bold text-white">{value}</div>
       <div className="mt-0.5 text-[11px] leading-tight text-zinc-500">{label}</div>
-    </div>
-  );
-}
-
-/** The rating after each session: a line with its area, the last point marked. */
-function RatingLine({ points, labels }: { points: number[]; labels: string[] }) {
-  if (points.length < 2)
-    return <p className="rounded-lg bg-white/[0.03] px-3 py-8 text-center text-sm text-zinc-500">Your rating curve appears after two rated sessions.</p>;
-  const shown = points.slice(-20), names = labels.slice(-20);
-  const lo = Math.max(0, Math.floor(Math.min(...shown) - 5)), hi = Math.min(100, Math.ceil(Math.max(...shown) + 5));
-  const x = (i: number) => 4 + (i * 292) / (shown.length - 1), y = (v: number) => 92 - ((v - lo) / (hi - lo || 1)) * 84;
-  const line = shown.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
-  return (
-    <div>
-      <svg viewBox="0 0 300 100" className="h-28 w-full" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="rating-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ffd200" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#e10600" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={`${line}L${x(shown.length - 1)},100L${x(0)},100Z`} fill="url(#rating-area)" />
-        <path d={line} fill="none" stroke="#ffd200" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-        <circle cx={x(shown.length - 1)} cy={y(shown.at(-1)!)} r={3} fill="#e10600" stroke="#ffd200" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-      </svg>
-      <div className="mt-1 flex justify-between text-[11px] text-zinc-500">
-        <span>{names[0]}</span><span>{lo}–{hi}</span><span>{names.at(-1)}</span>
-      </div>
     </div>
   );
 }

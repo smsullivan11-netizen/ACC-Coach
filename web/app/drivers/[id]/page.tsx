@@ -4,7 +4,9 @@ import { ACHIEVEMENTS } from "@/lib/achievements";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Chip, delay, NextRank, Position, RankBadge, RankIcon, SectionTitle } from "@/components/ui";
+import TrendChart from "@/components/TrendChart";
+import { ratingDomain } from "@/lib/chart";
+import { Chip, delay, NextRank, PartBar, Position, RankBadge, RankIcon, ScaleNumber, SectionTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
@@ -12,7 +14,7 @@ import { formParts, PROVISIONAL_SESSIONS } from "@/lib/ratings";
 import { drivingStyle } from "@/lib/style";
 import { coachSession } from "@/lib/coaching";
 
-type Point = { rating: number; session_score: number; date: string };
+type Point = { rating: number; session_score: number; date: string; track: string };
 type Parts = { pace: number | null; consistency: number | null; clean: number | null; smoothness: number | null };
 
 const PARTS: { key: keyof Parts; label: string; help: string }[] = [
@@ -29,7 +31,7 @@ export async function generateMetadata(props: PageProps<"/drivers/[id]">): Promi
 }
 
 export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
-  await requireDriver();
+  const me = await requireDriver();
   const { id } = await props.params;
   if (!/^\d+$/.test(id)) notFound();
   const [d] = await sql<{ id: string; display_name: string; avatar_url: string | null; since: string; is_admin: boolean }[]>`
@@ -37,8 +39,9 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
   if (!d) notFound();
 
   const [history, [parts], best, recent, style] = await Promise.all([
-    sql<Point[]>`select rating, session_score, to_char(created_at, 'DD Mon') as date
-                 from driver_rating where driver_id = ${id} order by id`,
+    sql<Point[]>`select r.rating, r.session_score, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon') as date, t.key as track
+                 from driver_rating r join session s on s.id = r.session_id join track t on t.id = s.track_id
+                 where r.driver_id = ${id} order by r.id`,
     formParts(sql, id).then((p): Parts[] => [p]),
     sql<{ track: string; car_class: string | null; car: string | null; lap_id: string; lap_time_ms: number; position: number; drivers: number }[]>`
       select t.key as track, r.car_class, c.key as car, r.lap_id, r.lap_time_ms, r.position::int,
@@ -161,11 +164,9 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
                 <div key={p.key}>
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-200">{p.label} <span className="text-zinc-500">· {p.help}</span></span>
-                    <span className="tabular font-semibold text-white">{v != null ? Math.round(v) : "–"}</span>
+                    <ScaleNumber v={v} className="font-semibold" />
                   </div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/5">
-                    {v != null && <div className="fill h-full rounded-full bg-gradient-to-r from-race to-accent" style={{ width: `${v}%`, ...delay(200 + i * 60) }} />}
-                  </div>
+                  {v != null ? <PartBar v={v} className="mt-1.5 h-1.5" style={delay(200 + i * 60)} /> : <div className="mt-1.5 h-1.5 rounded-full bg-white/5" />}
                 </div>
               );
             })}
@@ -173,8 +174,10 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
           <p className="mt-3 text-xs text-zinc-500">Best session on each track in the last 60 days (5+ valid laps), averaged over the tracks. Weights depend on the session type (practice, qualifying, race, mixed running).</p>
         </section>
         <section className="card rise p-5" style={delay(180)}>
-          <SectionTitle icon={TrendingUp}>Rating over time</SectionTitle>
-          <RatingChart points={history} />
+          {/* On your own profile the title opens your progression page */}
+          <SectionTitle icon={TrendingUp} href={me.id === d.id ? "/progress" : undefined}>Rating over time</SectionTitle>
+          <TrendChart values={history.map((h) => h.rating)} labels={history.map((h) => h.date)} details={history.map((h) => prettyKey(h.track))}
+                      domain={ratingDomain(history.map((h) => h.rating))} bands height={220} name="Rating" />
         </section>
 
         <section className="card rise overflow-hidden" style={delay(220)}>
@@ -215,34 +218,5 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
         </section>
       </div>
     </div>
-  );
-}
-
-function RatingChart({ points }: { points: Point[] }) {
-  if (points.length < 2) return <p className="rounded-lg bg-white/[0.03] px-3 py-10 text-center text-sm text-zinc-500">The chart appears after two rated sessions.</p>;
-  const w = 600, h = 180, pad = 26;
-  const x = (i: number) => pad + (i * (w - 2 * pad)) / (points.length - 1);
-  const y = (v: number) => h - pad - (v / 100) * (h - 2 * pad);
-  const line = (k: "rating" | "session_score") => points.map((p, i) => `${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`).join(" ");
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full">
-      <defs>
-        <linearGradient id="profile-area" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ffd200" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#e10600" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {[0, 25, 50, 75, 100].map((v) => (
-        <g key={v}>
-          <line x1={pad} x2={w - pad} y1={y(v)} y2={y(v)} stroke="#ffffff10" />
-          <text x={2} y={y(v) + 4} fontSize="10" fill="#71717a">{v}</text>
-        </g>
-      ))}
-      <polygon points={`${x(0)},${y(0)} ${line("rating")} ${x(points.length - 1)},${y(0)}`} fill="url(#profile-area)" />
-      <polyline points={line("session_score")} fill="none" stroke="#e10600" strokeOpacity="0.7" strokeWidth="1.2" strokeDasharray="4 4" />
-      <polyline points={line("rating")} fill="none" stroke="#ffd200" strokeWidth="2.2" />
-      {points.map((p, i) => <circle key={i} cx={x(i)} cy={y(p.rating)} r="3.2" fill="#0b0b0d" stroke="#ffd200" strokeWidth="1.8"><title>{`${p.date}: ${p.rating.toFixed(1)} (session ${p.session_score.toFixed(0)})`}</title></circle>)}
-      <text x={w - pad} y={h - 6} fontSize="10" fill="#71717a" textAnchor="end">yellow: rating · red dashed: session score</text>
-    </svg>
   );
 }

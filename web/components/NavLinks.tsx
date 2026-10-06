@@ -16,7 +16,9 @@ const LINKS = [
 // Main navigation; the current section is marked with a red bar.
 export default function NavLinks() {
   const path = usePathname();
-  const active = (href: string, exact?: boolean) => (exact ? path === href : path === href || path.startsWith(`${href}/`));
+  // The progression page is part of the Dashboard (opened from its "Your progression" block)
+  const active = (href: string, exact?: boolean) =>
+    (exact ? path === href || (href === "/" && path === "/progress") : path === href || path.startsWith(`${href}/`));
   return (
     <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
       {LINKS.map(({ href, label, icon: Icon, exact }) => {

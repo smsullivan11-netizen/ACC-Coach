@@ -667,6 +667,22 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   the current rank's floor to the next, on the dashboard's rating card and the profile header.
   Idea on hold (user will think about it): a track only counts in the rating after a couple of
   sessions there, so learning a new track does not lower it.
+- Bars and numbers in the rank scale's colours everywhere (components/ui.tsx): `RatingBar` (the
+  whole 0-100 gradient cut at the value: ratings on the Drivers table and the dashboard's team
+  ranking), `PartBar` (zoomed in, the last 20 points: sub-ratings on the Drivers table, dashboard
+  and profile), `ScaleNumber` (a 0-100 value in its colour). Dashboard block titles are the links
+  (`SectionTitle href`, small arrow; user's request, no grey corner links): rating → profile,
+  progression → /progress, team ranking → /drivers, team activity → /sessions.
+- Progression (`/progress`, user's request, opened from the dashboard's "Your progression" and the
+  title of "Rating over time" on your own profile; Dashboard stays highlighted in the menu): the
+  rating after each rated session on rank bands with a ▲ the first time each rank is reached; the
+  four sub-ratings of the current form after each session (`ratingHistory` in lib/ratings.ts
+  replays formSessions row by row), one at a time (switch); per track and class, each session's best
+  valid lap (dots, faster = higher) with the PB step line and the team best (dashed). Sessions very
+  slow for the track (over PB + 6 %) leave the lap chart. Charts: `components/TrendChart.tsx`
+  (client, drawn at the box's width, line in the scale's colour at each height, hover tooltip),
+  `ratingDomain` in lib/chart.ts (server pages cannot call a client module's function). The
+  dashboard and profile use the same chart (rank bands) instead of their own SVGs.
 - Fuel correction (user's request, 2026-10-06; app 0.1.6): the app sends each lap's average fuel
   (`metrics.fuel_l`, litres; no migration). The rating removes what the fuel above a minimum-fuel
   reference cost (`web/lib/fuel.ts`; user: hotlaps run on 5-10 L, so no bonus below it): 8 L on
