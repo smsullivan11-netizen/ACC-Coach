@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, Info, TrendingDown, TrendingUp } from "lucide-react
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, Position, RankIcon } from "@/components/ui";
-import { rankFor, SCALE_GRADIENT, scaleColor } from "@/lib/ranks";
+import { rankFor, SCALE_GRADIENT, scaleColor, scaleGradient } from "@/lib/ranks";
 
 export type DriverRow = {
   id: string; name: string; avatar: string | null; rating: number | null; best: number | null; change: number | null;
@@ -60,12 +60,19 @@ function ScaleBar({ v, className }: { v: number; className: string }) {
   );
 }
 
+// Parts: the bar shows only the last PART_WINDOW points of the scale below the value, so it is
+// mostly the value's own colour (the full scale left them mostly blue; user's request).
+const PART_WINDOW = 20;
+
 function Part({ v }: { v: number | null }) {
   if (v == null) return <span className="text-zinc-600">–</span>;
+  const x = Math.max(0, Math.min(100, v));
   return (
     <div className="ml-auto w-16">
-      <div className="tabular text-right font-semibold" style={{ color: scaleColor(v) }}>{Math.round(v)}</div>
-      <ScaleBar v={v} className="mt-1 h-1" />
+      <div className="tabular text-right font-semibold" style={{ color: scaleColor(x) }}>{Math.round(v)}</div>
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/5">
+        <div className="h-full rounded-full" style={{ width: `${x}%`, background: scaleGradient(Math.max(0, x - PART_WINDOW), x) }} />
+      </div>
     </div>
   );
 }

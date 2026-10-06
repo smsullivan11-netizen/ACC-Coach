@@ -460,7 +460,9 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   all uploaded laps); every column sorts (click its title) and has an "i" with its description;
   P1-P3 colours follow the sort. Bars and part numbers use the rank scale's colours
   (`SCALE_GRADIENT`/`scaleColor` in lib/ranks.ts, user's request): the whole 0-100 gradient cut at
-  the value, so a bar blends through every rank colour below it. Profiles
+  the value, so a bar blends through every rank colour below it (rating). The part bars zoom in
+  (`scaleGradient`, `PART_WINDOW` = the last 20 points below the value across the whole bar) so
+  they are mostly their own value's colour. Profiles
   (`/drivers/<id>`: avatar, rating, driving style, rating breakdown and history, best laps with
   position, recent sessions). Admin section in Settings (admins, "Recompute all ratings"); admins
   set target lap times on each leaderboard (`POST /api/targets`, `1:24.500`, empty = remove).

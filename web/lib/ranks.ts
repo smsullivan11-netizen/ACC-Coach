@@ -33,5 +33,14 @@ export function scaleColor(v: number) {
   return `rgb(${[0, 1, 2].map((i) => Math.round(ch(ca, i) + (ch(cb, i) - ch(ca, i)) * t)).join(" ")})`;
 }
 
+/** A slice of the scale (from-to, 0-100) as a gradient across a whole bar: zoomed in on the colours
+ *  near the value instead of the full blue-to-purple range. */
+export function scaleGradient(from: number, to: number) {
+  if (to - from < 0.5) return scaleColor(to);
+  const at = (v: number) => `${(((v - from) / (to - from)) * 100).toFixed(1)}%`;
+  const inner = STOPS.filter(([v]) => v > from && v < to).map(([v, c]) => `${c} ${at(v)}`);
+  return `linear-gradient(90deg, ${[`${scaleColor(from)} 0%`, ...inner, `${scaleColor(to)} 100%`].join(", ")})`;
+}
+
 /** Index from the bottom (Rookie 0 … Alien 7): a higher index is a promotion. */
 export const rankLevel = (rating: number) => RANKS.length - 1 - RANKS.findIndex((r) => rating >= r.min);
