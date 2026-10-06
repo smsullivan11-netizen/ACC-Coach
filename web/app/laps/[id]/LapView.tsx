@@ -63,7 +63,7 @@ async function loadLap(id: string): Promise<Loaded> {
 }
 
 export default function LapView({ lapId, vsId, candidates, otherHref, corner, startReplay = false }: {
-  lapId: string; vsId: string | null; candidates: Candidate[]; otherHref: string; corner?: number | null; startReplay?: boolean;
+  lapId: string; vsId: string | null; candidates: Candidate[]; otherHref: string; corner?: [number, number] | null; startReplay?: boolean;
 }) {
   const router = useRouter();
   const [laps, setLaps] = useState<Loaded[] | null>(null);
@@ -90,13 +90,15 @@ export default function LapView({ lapId, vsId, candidates, otherHref, corner, st
     };
   }, [lapId, vsId]);
 
-  // Opened from the coaching summary: zoom on that corner (with the braking zone before it)
+  // Opened from the coaching summary: zoom on that corner or section (with the braking zone before it)
+  const [zoomFirst, zoomLast] = corner ?? [null, null];
   useEffect(() => {
-    const c = corner != null ? laps?.[0].corners.find((x) => x.number === corner) : null;
-    if (!c) return;
-    const timer = setTimeout(() => zoom.current(cornerRange(c)), 100);   // after the charts' first draw
+    const first = laps?.[0].corners.find((x) => x.number === zoomFirst);
+    const last = laps?.[0].corners.find((x) => x.number === zoomLast);
+    if (!first || !last) return;
+    const timer = setTimeout(() => zoom.current([cornerRange(first)[0], cornerRange(last)[1]]), 100);   // after the charts' first draw
     return () => clearTimeout(timer);
-  }, [laps, corner]);
+  }, [laps, zoomFirst, zoomLast]);
 
   if (error) return <p className="mt-6 text-red-400">{error}</p>;
   if (!laps) return <p className="mt-6 text-zinc-500">Loading lap…</p>;

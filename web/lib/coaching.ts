@@ -2,27 +2,32 @@ import "server-only";
 import { sql } from "./db";
 import { lapTime, prettyKey } from "./format";
 import { paceReference } from "./targets";
+import { sectionLabel, sectionsOf } from "./sections";
 import type { EncodedChannel } from "./trace";
 import { decodeStored } from "./trace-store";
 
 // Coaching summary of a session, from data only (no AI service): where the driver loses time
-// against the team's best lap (corner by corner, split into braking/entry and exit, with what to
-// change), how the session went (consistency, track limits, mistakes, progress) and how they
-// drive (stint length, breaks, late sessions), then one to three things to focus on next time.
+// against the team's best lap (section by section, split into corners and into braking/entry and
+// exit, with what to change), how the session went (consistency, track limits, mistakes, progress)
+// and how they drive (stint length, breaks, late sessions), then one to three things to focus on
+// next time. Sections (lib/sections.ts) are corners driven as one: time given up in one corner to
+// be faster through the next is a choice, judged over the section (user's request: Misano T1–T2).
 // Thresholds are first guesses: tune them with the team.
 
 export type Tone = "good" | "tip" | "warning";
 export type Note = { topic: "technique" | "consistency" | "discipline" | "progress" | "wellbeing"; tone: Tone; text: string };
-export type CornerCoaching = {
-  number: number;
-  name: string | null;
-  loss_s: number;          // vs the reference lap (positive = time lost)
-  entry_s: number;         // braking and turn-in, up to the reference's apex
-  exit_s: number;          // apex to the end of the corner, plus the straight before the next braking
+export type SectionCoaching = {
+  number: number;          // first corner of the section
+  last: number;            // its last corner (= number for a single corner)
+  name: string | null;     // the corner's name (single corners)
+  loss_s: number;          // vs the reference lap (positive = time lost), from braking to the next section's braking
+  entry_s: number;         // braking and turn-in, up to each corner's apex
+  exit_s: number;          // apexes to the ends of the corners, plus the straight before the next braking
+  corners: { number: number; loss_s: number }[];   // the split inside the section
   advice: string[];
   start_m: number;
   end_m: number;
-  // The teammate fastest through this corner (when faster than you): who to learn it from
+  // The teammate fastest through this section (when faster than you): who to learn it from
   mentor?: { driver: string; gain_s: number; lap_id: string } | null;
 };
 export type Coaching = {
@@ -31,8 +36,8 @@ export type Coaching = {
   reference: { id: string; driver: string; time_ms: number; own: boolean } | null;
   gap_s: number | null;
   phases: { entry_s: number; exit_s: number } | null;
-  losses: CornerCoaching[];
-  strengths: CornerCoaching[];
+  losses: SectionCoaching[];
+  strengths: SectionCoaching[];
   notes: Note[];
   focus: string[];
 };
@@ -43,15 +48,44 @@ type CR = {
   lift_point_m: number | null; max_brake_pct: number | null; min_speed_kmh: number | null; apex_m: number | null;
   throttle_pickup_m: number | null; full_throttle_m: number | null; coasting_s: number | null; exit_speed_kmh: number | null;
 };
+type MapCR = CR & { name: string | null; start_m: number; end_m: number };
+// One corner of the best lap against the reference: time lost (s) from its braking point to its apex
+// (entry) and from its apex to the next corner's braking point (exit)
+type Row = { r: MapCR; y: CR; entry: number; exit: number };
 
 const MIN_CORNER_LOSS_S = 0.05;
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
+const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const s2 = (x: number) => `${Math.abs(x).toFixed(2)} s`;
 const minutes = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, "0")}` : `${Math.round(m)} min`);
-const label = (c: { number: number; name: string | null }) => `T${c.number}${c.name ? ` (${c.name})` : ""}`;
+const label = (c: { number: number; last: number; name: string | null }) => `${sectionLabel(c.number, c.last)}${c.name ? ` (${c.name})` : ""}`;
+const rowLoss = (x: Row) => x.entry + x.exit;
+
+/** SQL tables of the sections: sec(corner_number, s) with s the section's index, size(s, n), and
+ *  lapsec(lap_id, s, t): each comparable lap's time through each section it covers entirely. */
+const sectionTables = (groups: number[][], mapId: string) => sql`
+  sec as (select * from unnest(${groups.flat()}::int[], ${groups.flatMap((g, i) => g.map(() => i))}::int[]) as x(corner_number, s)),
+  size as (select s, count(*) as n from sec group by s),
+  lapsec as (
+    select cr.lap_id, sec.s, sum(cr.time_s) as t
+    from corner_result cr join sec using (corner_number) join lap l on l.id = cr.lap_id
+    where cr.corner_map_id = ${mapId} and l.comparable
+    group by cr.lap_id, sec.s
+    having count(*) = (select n from size where size.s = sec.s))`;
+
+/** Time given up in one corner of a section and won back in another (both over MIN_CORNER_LOSS_S):
+ *  the corner losing the most, the one gaining the most, and whether the loss comes first. */
+function tradeOf(part: Row[]) {
+  if (part.length < 2) return null;
+  const worst = part.reduce((a, b) => (rowLoss(b) > rowLoss(a) ? b : a));
+  const best = part.reduce((a, b) => (rowLoss(b) < rowLoss(a) ? b : a));
+  if (rowLoss(worst) < MIN_CORNER_LOSS_S || rowLoss(best) > -MIN_CORNER_LOSS_S) return null;
+  return { lostAt: `T${worst.r.corner_number}`, gainedAt: `T${best.r.corner_number}`, lost: rowLoss(worst), gained: -rowLoss(best),
+           lossFirst: part.indexOf(worst) < part.indexOf(best) };
+}
 
 /** Elapsed time of a lap at distance d (m) from its time channel (1 m grid). */
 function timeAt(time: Float64Array, d: number) {
@@ -75,7 +109,9 @@ function cornerAdvice(you: CR, ref: CR, refName: string, entryLoss: number, exit
     entry.push([-peak / 2, `Press the brake harder at the start: peak ${Math.round(you.max_brake_pct!)} % against ${Math.round(ref.max_brake_pct!)} %.`]);
   const vmin = d(you.min_speed_kmh, ref.min_speed_kmh);
   if (vmin != null && vmin < -3)
-    entry.push([-vmin * 2, `Carry more speed to the apex: ${Math.round(you.min_speed_kmh!)} km/h against ${Math.round(ref.min_speed_kmh!)} km/h. Release the brake more progressively as you turn in.`]);
+    entry.push([-vmin * 2, ref.lift_point_m == null
+      ? `Carry more speed through it: ${Math.round(you.min_speed_kmh!)} km/h against ${Math.round(ref.min_speed_kmh!)} km/h. It is taken flat out, so that speed comes from the exit of the corner before.`
+      : `Carry more speed to the apex: ${Math.round(you.min_speed_kmh!)} km/h against ${Math.round(ref.min_speed_kmh!)} km/h. Release the brake more progressively as you turn in.`]);
   const coast = d(you.coasting_s, ref.coasting_s);
   if (coast != null && coast > 0.15)
     entry.push([coast * 40, `You coast ${coast.toFixed(2)} s longer between brake and throttle: keep a little brake into the turn-in, then go straight to the throttle.`]);
@@ -99,6 +135,25 @@ function cornerAdvice(you: CR, ref: CR, refName: string, entryLoss: number, exit
   return out;
 }
 
+/** What to change in a section where time is lost: the advice of the corner losing the most and,
+ *  when time is traded between its corners, whether the trade pays (the reference's or the driver's). */
+function sectionAdvice(part: Row[], refName: string): string[] {
+  let worst = part.reduce((a, b) => (rowLoss(b) > rowLoss(a) ? b : a));
+  // A corner taken flat out is the previous corner's exit carried on: advise on that exit
+  const i = part.indexOf(worst);
+  const flat = i > 0 && worst.r.lift_point_m == null && worst.y.lift_point_m == null;
+  if (flat) worst = part[i - 1];
+  const advice = flat ? cornerAdvice(worst.y, worst.r, refName, 0, 1) : cornerAdvice(worst.y, worst.r, refName, worst.entry, worst.exit);
+  if (part.length === 1) return advice;
+  const tagged = advice.map((a) => `T${worst.r.corner_number}: ${a}`);
+  const t = tradeOf(part);
+  if (!t) return tagged;
+  return [t.lossFirst
+    ? `You lose ${s2(t.lost)} at ${t.lostAt} and get only ${s2(t.gained)} back at ${t.gainedAt}: if the slower ${t.lostAt} is meant to set up ${t.gainedAt}, it does not pay off yet.`
+    : `You are ${s2(t.gained)} quicker at ${t.gainedAt} but lose ${s2(t.lost)} at ${t.lostAt}: ${refName} gives up time at ${t.gainedAt} to be faster through ${t.lostAt}. Try a slower ${t.gainedAt} that sets you up for ${t.lostAt}.`,
+    tagged[0]];
+}
+
 export async function coachSession(sessionId: string): Promise<Coaching | null> {
   const [s] = await sql<{ driver_id: string; driver: string; track_id: string; car_class: string | null; type: string | null;
                           start: Date | null; uploaded: Date }[]>`
@@ -115,111 +170,141 @@ export async function coachSession(sessionId: string): Promise<Coaching | null> 
   const notes: Note[] = [];
   const focus: { weight: number; text: string }[] = [];
 
-  // --- Technique: best lap of the session against the team's best lap ---------------------------
+  // --- Technique: best lap of the session against the team's best lap, section by section --------
   const best = [...valid].sort((a, b) => a.t - b.t)[0] ?? null;
   let reference: Coaching["reference"] = null, gap: number | null = null, phases: Coaching["phases"] = null;
-  let losses: CornerCoaching[] = [], strengths: CornerCoaching[] = [];
+  let losses: SectionCoaching[] = [], strengths: SectionCoaching[] = [];
+  let sections: number[][] = [], mapId: string | null = null;   // corner numbers of each section; the best lap's map
   if (best) {
     const [mine] = await sql<{ map_id: string | null; time: EncodedChannel | null }[]>`
       select l.corner_map_id as map_id, tr.channels->'time_s' as time from lap l left join lap_trace tr on tr.lap_id = l.id where l.id = ${best.id}`;
-    const [ref] = mine?.map_id ? await sql<{ id: string; driver: string; driver_id: string; t: number; time: EncodedChannel }[]>`
+    const map = mine?.map_id ?? null;
+    mapId = map;
+    const [ref] = map ? await sql<{ id: string; driver: string; driver_id: string; t: number; time: EncodedChannel }[]>`
       select l.id, d.display_name as driver, d.id as driver_id, coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms) as t,
              tr.channels->'time_s' as time
       from lap l join session ss on ss.id = l.session_id join driver d on d.id = ss.driver_id left join car c on c.id = ss.car_id
       join lap_trace tr on tr.lap_id = l.id
       where ss.track_id = ${s.track_id} and c.class is not distinct from ${s.car_class} and l.comparable
-        and l.session_id <> ${sessionId} and l.corner_map_id = ${mine.map_id} and tr.channels ? 'time_s'
+        and l.session_id <> ${sessionId} and l.corner_map_id = ${map} and tr.channels ? 'time_s'
       order by 4 limit 1` : [];
-    if (ref && mine?.time) {
-      const own = ref.driver_id === s.driver_id;
-      const refName = own ? "your best lap" : ref.driver;
-      reference = { id: ref.id, driver: ref.driver, time_ms: ref.t, own };
-      gap = (best.t - ref.t) / 1000;
-      const tYou = decodeStored(mine.time), tRef = decodeStored(ref.time);
-      const corners = await sql<(CR & { name: string | null; start_m: number; end_m: number; k: number; side: "you" | "ref" })[]>`
+    if (map && mine?.time) {
+      const tYou = decodeStored(mine.time), tRef = ref ? decodeStored(ref.time) : null;
+      const corners = await sql<(MapCR & { side: "you" | "ref"; trace_m: number })[]>`
         select k.name, k.start_m * (tr.length * tr.step_m / m.length_m) as start_m, k.end_m * (tr.length * tr.step_m / m.length_m) as end_m,
-               case when cr.lap_id = ${best.id} then 'you' else 'ref' end as side, cr.*
+               case when cr.lap_id = ${best.id} then 'you' else 'ref' end as side, tr.length * tr.step_m as trace_m, cr.*
         from corner_result cr join corner k on k.corner_map_id = cr.corner_map_id and k.number = cr.corner_number
         join corner_map m on m.id = cr.corner_map_id join lap_trace tr on tr.lap_id = cr.lap_id
-        where cr.lap_id in (${best.id}, ${ref.id}) order by cr.corner_number`;
-      const you = new Map(corners.filter((c) => c.side === "you").map((c) => [c.corner_number, c]));
-      const them = corners.filter((c) => c.side === "ref");
-      const delta = (m: number) => timeAt(tYou, m) - timeAt(tRef, m);
-      const rows = them.flatMap((r) => {
-        const y = you.get(r.corner_number);
-        if (!y) return [];
-        const b = r.braking_point_m ?? r.lift_point_m ?? r.start_m;
-        const a = r.apex_m ?? (r.start_m + r.end_m) / 2;
-        const B = Math.min(Math.max(b, r.start_m), r.end_m), A = Math.min(Math.max(a, B), r.end_m);
-        return [{ r, y, approach: delta(B) - delta(r.start_m), entry: delta(A) - delta(B), exit: delta(r.end_m) - delta(A) }];
-      });
-      // The straight before a braking zone depends on the previous corner's exit
-      rows.forEach((row, i) => { rows[(i - 1 + rows.length) % rows.length].exit += row.approach; });
-      const all = rows.map(({ r, y, entry, exit }) => ({
-        y, r, out: { number: r.corner_number, name: r.name, loss_s: entry + exit, entry_s: entry, exit_s: exit,
-                     start_m: r.start_m, end_m: r.end_m, advice: [] as string[] } as CornerCoaching,
-      }));
-      phases = { entry_s: all.reduce((a, c) => a + c.out.entry_s, 0), exit_s: all.reduce((a, c) => a + c.out.exit_s, 0) };
-      losses = all.filter((c) => c.out.loss_s >= MIN_CORNER_LOSS_S).sort((a, b) => b.out.loss_s - a.out.loss_s).slice(0, 3)
-        .map(({ y, r, out }) => ({ ...out, advice: cornerAdvice(y, r, refName, out.entry_s, out.exit_s) }));
-      // Mentor: per weak corner, the teammate with the best time through it (same map and class)
-      if (losses.length) {
-        const mentors = await sql<{ corner_number: number; driver: string; lap_id: string; gain: number }[]>`
-          select distinct on (cb.corner_number) cb.corner_number, d.display_name as driver, cb.lap_id, mine.time_s - cb.time_s as gain
-          from corner_best cb join driver d on d.id = cb.driver_id
-          join corner_result mine on mine.lap_id = ${best.id} and mine.corner_number = cb.corner_number and mine.corner_map_id = cb.corner_map_id
-          where cb.corner_map_id = ${mine.map_id} and cb.driver_id <> ${s.driver_id}
-            and cb.car_class is not distinct from ${s.car_class} and cb.corner_number in ${sql(losses.map((l) => l.number))}
-            and cb.time_s < mine.time_s - 0.03
-          order by cb.corner_number, cb.time_s`;
-        for (const l of losses) {
-          const m = mentors.find((x) => x.corner_number === l.number);
-          l.mentor = m ? { driver: m.driver, gain_s: m.gain, lap_id: m.lap_id } : null;
+        where cr.lap_id in (${best.id}, ${ref?.id ?? best.id}) order by cr.corner_number`;
+      const yours = corners.filter((c) => c.side === "you"), them = corners.filter((c) => c.side === "ref");
+      // Corners linked on this lap or on the reference are judged together
+      sections = sectionsOf(yours.map((c) => c.corner_number), [{ time: tYou, corners: yours }, ...(tRef ? [{ time: tRef, corners: them }] : [])]);
+
+      if (ref && tRef) {
+        const own = ref.driver_id === s.driver_id;
+        const refName = own ? "your best lap" : ref.driver;
+        reference = { id: ref.id, driver: ref.driver, time_ms: ref.t, own };
+        gap = (best.t - ref.t) / 1000;
+        // Both laps on the reference's distance grid: sessions measure the track a little differently
+        // (Hungaroring 4,324 m and 4,350 m), and a raw metre on both laps is up to ~25 m apart late in
+        // the lap, which faked big entry/exit swings and braking-point gaps
+        const kY = yours.length && them.length ? yours[0].trace_m / them[0].trace_m : 1;
+        const onRef = (x: number | null) => (x == null ? null : x / kY);
+        const you = new Map(yours.map((c) => [c.corner_number, {
+          ...c, braking_point_m: onRef(c.braking_point_m), lift_point_m: onRef(c.lift_point_m), apex_m: onRef(c.apex_m),
+          throttle_pickup_m: onRef(c.throttle_pickup_m), full_throttle_m: onRef(c.full_throttle_m) }]));
+        const delta = (m: number) => timeAt(tYou, m * kY) - timeAt(tRef, m);
+        const approach: number[] = [];
+        const rows: Row[] = them.flatMap((r) => {
+          const y = you.get(r.corner_number);
+          if (!y) return [];
+          const b = r.braking_point_m ?? r.lift_point_m ?? r.start_m;
+          const a = r.apex_m ?? (r.start_m + r.end_m) / 2;
+          const B = Math.min(Math.max(b, r.start_m), r.end_m), A = Math.min(Math.max(a, B), r.end_m);
+          approach.push(delta(B) - delta(r.start_m));
+          return [{ r, y, entry: delta(A) - delta(B), exit: delta(r.end_m) - delta(A) }];
+        });
+        // The straight before a braking zone depends on the previous corner's exit
+        approach.forEach((x, i) => { rows[(i - 1 + rows.length) % rows.length].exit += x; });
+        phases = { entry_s: sum(rows.map((x) => x.entry)), exit_s: sum(rows.map((x) => x.exit)) };
+
+        const all = sections.flatMap((nums, i) => {
+          const part = rows.filter((x) => nums.includes(x.r.corner_number));
+          if (!part.length) return [];
+          const first = part[0], last = part[part.length - 1];
+          const out: SectionCoaching = {
+            number: first.r.corner_number, last: last.r.corner_number, name: part.length === 1 ? first.r.name : null,
+            loss_s: sum(part.map(rowLoss)), entry_s: sum(part.map((x) => x.entry)), exit_s: sum(part.map((x) => x.exit)),
+            corners: part.map((x) => ({ number: x.r.corner_number, loss_s: rowLoss(x) })),
+            advice: [], start_m: first.r.start_m, end_m: last.r.end_m,
+          };
+          return [{ part, out, s: i }];
+        });
+        const lost = all.filter((c) => c.out.loss_s >= MIN_CORNER_LOSS_S).sort((a, b) => b.out.loss_s - a.out.loss_s).slice(0, 3);
+        losses = lost.map(({ part, out }) => ({ ...out, advice: sectionAdvice(part, refName) }));
+        // Mentor: per weak section, the teammate with the best time through all of it (same map and class)
+        if (lost.length) {
+          const mentors = await sql<{ s: number; driver: string; lap_id: string; gain: number }[]>`
+            with ${sectionTables(sections, map)},
+            mine as (select s, t from lapsec where lap_id = ${best.id})
+            select distinct on (x.s) x.s, d.display_name as driver, x.lap_id, mine.t - x.t as gain
+            from lapsec x join mine using (s) join lap l on l.id = x.lap_id join session ss on ss.id = l.session_id
+            join driver d on d.id = ss.driver_id left join car c on c.id = ss.car_id
+            where x.s in ${sql(lost.map((c) => c.s))} and ss.driver_id <> ${s.driver_id}
+              and c.class is not distinct from ${s.car_class} and x.t < mine.t - 0.03
+            order by x.s, x.t`;
+          lost.forEach((c, i) => {
+            const m = mentors.find((x) => x.s === c.s);
+            losses[i].mentor = m ? { driver: m.driver, gain_s: m.gain, lap_id: m.lap_id } : null;
+          });
         }
-      }
-      strengths = all.filter((c) => c.out.loss_s <= -MIN_CORNER_LOSS_S).sort((a, b) => a.out.loss_s - b.out.loss_s).slice(0, 2)
-        .map((c) => c.out);
+        const won = all.filter((c) => c.out.loss_s <= -MIN_CORNER_LOSS_S).sort((a, b) => a.out.loss_s - b.out.loss_s).slice(0, 2);
+        strengths = won.map((c) => c.out);
 
-      if (gap <= 0) {
-        notes.push({ topic: "progress", tone: "good", text: own
-          ? `New personal best on this track: ${lapTime(best.t)}, ${s2(gap)} quicker than your previous best.`
-          : gap === 0
-            ? `Fastest lap of the team: ${lapTime(best.t)}, equal to ${ref.driver}'s.`
-            : `Fastest lap of the team: ${lapTime(best.t)}, ${s2(gap)} ahead of ${ref.driver}. You are the reference now.` });
-      }
-      const totalLoss = losses.reduce((a, c) => a + c.loss_s, 0);
-      if (phases && gap > 0.1) {
-        const { entry_s, exit_s } = phases;
-        if (entry_s > 0.1 && entry_s >= exit_s * 1.5)
-          focus.push({ weight: entry_s, text: `Corner entries: ${s2(entry_s)} of your ${s2(gap)} gap goes between the braking point and the apex. Push more on entry: brake later and release the brake progressively to carry speed to the apex.` });
-        else if (exit_s > 0.1 && exit_s >= entry_s * 1.5)
-          focus.push({ weight: exit_s, text: `Corner exits: ${s2(exit_s)} of your ${s2(gap)} gap comes after the apex. Get the car turned earlier so you can open the steering and commit to full throttle sooner.` });
-        else if (losses.length)
-          focus.push({ weight: totalLoss, text: `${losses.map(label).join(", ")}: these corners hold ${s2(totalLoss)} of your ${s2(gap)} gap. Work on them one at a time, starting with ${label(losses[0])}.` });
-      }
+        if (gap <= 0) {
+          notes.push({ topic: "progress", tone: "good", text: own
+            ? `New personal best on this track: ${lapTime(best.t)}, ${s2(gap)} quicker than your previous best.`
+            : gap === 0
+              ? `Fastest lap of the team: ${lapTime(best.t)}, equal to ${ref.driver}'s.`
+              : `Fastest lap of the team: ${lapTime(best.t)}, ${s2(gap)} ahead of ${ref.driver}. You are the reference now.` });
+        }
+        const totalLoss = sum(losses.map((c) => c.loss_s));
+        if (gap > 0.1) {
+          const { entry_s, exit_s } = phases;
+          if (entry_s > 0.1 && entry_s >= exit_s * 1.5)
+            focus.push({ weight: entry_s, text: `Corner entries: ${s2(entry_s)} of your ${s2(gap)} gap goes between the braking point and the apex. Push more on entry: brake later and release the brake progressively to carry speed to the apex.` });
+          else if (exit_s > 0.1 && exit_s >= entry_s * 1.5)
+            focus.push({ weight: exit_s, text: `Corner exits: ${s2(exit_s)} of your ${s2(gap)} gap comes after the apex. Get the car turned earlier so you can open the steering and commit to full throttle sooner.` });
+          else if (losses.length)
+            focus.push({ weight: totalLoss, text: `${losses.map(label).join(", ")}: they hold ${s2(totalLoss)} of your ${s2(gap)} gap. Work on them one at a time, starting with ${label(losses[0])}.` });
+        }
 
-      // Recurring weak corner in the driver's previous sessions here (same map)
-      if (losses.length) {
-        const history = await sql<{ session_id: string; corner_number: number; loss: number }[]>`
-          with mine as (
-            select l.session_id, cr.corner_number, min(cr.time_s) as t
-            from corner_result cr join lap l on l.id = cr.lap_id join session ss on ss.id = l.session_id
-            where ss.driver_id = ${s.driver_id} and ss.track_id = ${s.track_id} and l.comparable
-              and cr.corner_map_id = ${mine.map_id} and ss.id <> ${sessionId}
-              and ss.id in (select id from session where driver_id = ${s.driver_id} and track_id = ${s.track_id}
-                            and id <> ${sessionId} order by uploaded_at desc limit 3)
-            group by 1, 2),
-          team as (
-            select cr.corner_number, min(cr.time_s) as t from corner_result cr join lap l on l.id = cr.lap_id
-            where cr.corner_map_id = ${mine.map_id} and l.comparable group by 1)
-          select distinct on (mine.session_id) mine.session_id, mine.corner_number, mine.t - team.t as loss
-          from mine join team using (corner_number) order by mine.session_id, mine.t - team.t desc`;
-        const repeats = history.filter((h) => h.corner_number === losses[0].number).length;
-        if (repeats >= 2)
-          notes.push({ topic: "technique", tone: "warning", text: `${label(losses[0])} was also your biggest loss in ${repeats} of your last ${history.length} sessions here: it is a habit, not a one-off. Make it the first thing you work on next time.` });
+        // Recurring weak section in the driver's previous sessions here (same map)
+        if (lost.length) {
+          const history = await sql<{ session_id: string; s: number; loss: number }[]>`
+            with ${sectionTables(sections, map)},
+            mine as (
+              select l.session_id, x.s, min(x.t) as t from lapsec x join lap l on l.id = x.lap_id
+              where l.session_id in (select id from session where driver_id = ${s.driver_id} and track_id = ${s.track_id}
+                                     and id <> ${sessionId} order by uploaded_at desc limit 3)
+              group by 1, 2),
+            team as (select s, min(t) as t from lapsec group by s)
+            select distinct on (mine.session_id) mine.session_id, mine.s, mine.t - team.t as loss
+            from mine join team using (s) order by mine.session_id, mine.t - team.t desc`;
+          const repeats = history.filter((h) => h.s === lost[0].s).length;
+          if (repeats >= 2)
+            notes.push({ topic: "technique", tone: "warning", text: `${label(losses[0])} was also your biggest loss in ${repeats} of your last ${history.length} sessions here: it is a habit, not a one-off. Make it the first thing you work on next time.` });
+        }
+        // Strengths, and time given up in one corner that pays off in the next one
+        const trades = won.filter((c) => tradeOf(c.part)?.lossFirst);
+        for (const { part, out } of trades) {
+          const t = tradeOf(part)!;
+          notes.push({ topic: "technique", tone: "good", text: `${label(out)}: you lose ${s2(t.lost)} at ${t.lostAt} but gain ${s2(t.gained)} at ${t.gainedAt}, ${s2(-out.loss_s)} quicker than ${refName} over the section. The slower ${t.lostAt} pays off: keep that line.` });
+        }
+        const plain = won.filter((c) => !trades.includes(c)).map((c) => c.out);
+        if (plain.length)
+          notes.push({ topic: "technique", tone: "good", text: `Strong at ${plain.map(label).join(" and ")}: you gain ${s2(-sum(plain.map((c) => c.loss_s)))} on ${refName} there. Keep that approach.` });
       }
-      if (strengths.length)
-        notes.push({ topic: "technique", tone: "good", text: `Strong at ${strengths.map(label).join(" and ")}: you gain ${s2(-strengths.reduce((a, c) => a + c.loss_s, 0))} on ${refName} there. Keep that approach.` });
     }
   }
 
@@ -258,17 +343,16 @@ export async function coachSession(sessionId: string): Promise<Coaching | null> 
       notes.push({ topic: "wellbeing", tone: "warning", text: `From lap ${from}, ${longest} laps in a row were more than 2 % off your best. If the car was not damaged, that is fatigue or lost focus talking: take a break instead of piling up laps, tired laps build bad habits.` });
   }
   // Target lap time of this car on this track (LFM 101 % for the team's cars), and the session's
-  // optimal lap: the sum of the driver's best time through each corner over the session's valid laps
+  // optimal lap: the sum of the driver's best time through each section over the session's valid
+  // laps (sections, not corners: one lap's T1 cannot go with another lap's T2 when they are linked)
   const target = best ? await paceReference(sql, sessionId) : null;
-  const [opt] = best ? await sql<{ ms: number | null }[]>`
-    select case when count(*) = (select count(*) from corner k where k.corner_map_id = l0.corner_map_id)
+  const [opt] = best && valid.length >= 2 && mapId && sections.length ? await sql<{ ms: number | null }[]>`
+    with ${sectionTables(sections, mapId)},
+    x as (select ls.s, min(ls.t) as t from lapsec ls join lap l on l.id = ls.lap_id where l.session_id = ${sessionId} group by ls.s)
+    select case when (select count(*) from x) = (select count(*) from size)
+                 and (select count(*) from sec) = (select count(*) from corner k where k.corner_map_id = ${mapId})
                 then round(sum(t) * 1000)::int end as ms
-    from (select cr.corner_number, min(cr.time_s) as t
-          from corner_result cr join lap l on l.id = cr.lap_id
-          where l.session_id = ${sessionId} and l.comparable
-            and cr.corner_map_id = (select corner_map_id from lap where id = ${best.id})
-          group by 1) x, (select corner_map_id from lap where id = ${best.id}) l0
-    group by l0.corner_map_id` : [];
+    from x` : [];
   const optimal = opt?.ms && opt.ms < best!.t ? ` Your optimal lap time: ${lapTime(opt.ms)}.` : "";
   if (best && target?.target_ms) {
     const off = (best.t - target.target_ms) / 1000;

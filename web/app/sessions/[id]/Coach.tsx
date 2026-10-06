@@ -1,6 +1,7 @@
 import { ArrowUpRight, Flag, GraduationCap, Play, Sparkles, Target } from "lucide-react";
 import Link from "next/link";
-import type { Coaching, CornerCoaching, Tone } from "@/lib/coaching";
+import type { Coaching, SectionCoaching, Tone } from "@/lib/coaching";
+import { sectionLabel } from "@/lib/sections";
 
 const TONES: Record<Tone, { mark: string; color: string }> = {
   good: { mark: "✓", color: "text-emerald-400" },
@@ -8,12 +9,15 @@ const TONES: Record<Tone, { mark: string; color: string }> = {
   warning: { mark: "!", color: "text-orange-400" },
 };
 const sec = (x: number) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(2)} s`;
+/** The lap page's zoom: one corner, or a section's first to last corner ("8-10"). */
+const zoomOn = (l: SectionCoaching) => (l.last !== l.number ? `${l.number}-${l.last}` : `${l.number}`);
 
-// The coaching summary of a session (lib/coaching.ts).
+// The coaching summary of a session (lib/coaching.ts): losses by section, split per corner when a
+// section has several (time traded between them shows in green and red).
 export default function Coach({ c }: { c: Coaching }) {
   const max = Math.max(0.01, ...c.losses.map((l) => l.loss_s));
-  const compare = (corner?: CornerCoaching) =>
-    c.lap && c.reference ? `/laps/${c.lap.id}?vs=${c.reference.id}${corner ? `&corner=${corner.number}` : ""}` : null;
+  const compare = (part?: SectionCoaching) =>
+    c.lap && c.reference ? `/laps/${c.lap.id}?vs=${c.reference.id}${part ? `&corner=${zoomOn(part)}` : ""}` : null;
   return (
     <section className="card card-red rise relative mt-5 overflow-hidden p-5" style={{ "--d": "60ms" } as React.CSSProperties}>
       <div className="absolute -left-20 -top-20 h-56 w-56 rounded-full bg-accent/5 blur-3xl" />
@@ -41,27 +45,47 @@ export default function Coach({ c }: { c: Coaching }) {
               <h3 className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-zinc-400"><Flag size={14} className="text-race" /> Where you lose time</h3>
               <ul className="mt-2 space-y-4">
                 {c.losses.map((l) => (
-                  <li key={l.number}>
+                  <li key={zoomOn(l)}>
                     <div className="flex items-baseline gap-3">
-                      <span className="font-medium text-white">T{l.number}{l.name && <span className="ml-1.5 font-normal text-zinc-400">{l.name}</span>}</span>
+                      <span className="font-medium text-white" title={l.corners.length > 1 ? "Corners driven as one: judged together" : undefined}>
+                        {sectionLabel(l.number, l.last)}{l.name && <span className="ml-1.5 font-normal text-zinc-400">{l.name}</span>}
+                      </span>
                       <span className="tabular text-sm text-red-400">{sec(l.loss_s)}</span>
                       {compare(l) && <Link href={compare(l)!} className="ml-auto inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-accent">see it <ArrowUpRight size={12} /></Link>}
                     </div>
-                    <div className="mt-1 flex h-1.5 overflow-hidden rounded bg-white/5" title="Entry / exit">
-                      <div className="bg-orange-400" style={{ width: `${(Math.max(0, l.entry_s) / max) * 100}%` }} />
-                      <div className="bg-sky-400" style={{ width: `${(Math.max(0, l.exit_s) / max) * 100}%` }} />
-                    </div>
-                    <p className="tabular mt-1 text-xs text-zinc-500">
-                      <span className="text-orange-300">entry {sec(l.entry_s)}</span> · <span className="text-sky-300">exit {sec(l.exit_s)}</span>
-                    </p>
+                    {l.corners.length > 1 ? (
+                      <>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded bg-white/5" title="Time lost over the section">
+                          <div className="h-full bg-red-400/80" style={{ width: `${(l.loss_s / max) * 100}%` }} />
+                        </div>
+                        <p className="tabular mt-1 text-xs text-zinc-500">
+                          {l.corners.map((x, i) => (
+                            <span key={x.number}>
+                              {i > 0 && " · "}
+                              <span className={x.loss_s >= 0.005 ? "text-red-300" : x.loss_s <= -0.005 ? "text-emerald-300" : ""}>T{x.number} {sec(x.loss_s)}</span>
+                            </span>
+                          ))}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="mt-1 flex h-1.5 overflow-hidden rounded bg-white/5" title="Entry / exit">
+                          <div className="bg-orange-400" style={{ width: `${(Math.max(0, l.entry_s) / max) * 100}%` }} />
+                          <div className="bg-sky-400" style={{ width: `${(Math.max(0, l.exit_s) / max) * 100}%` }} />
+                        </div>
+                        <p className="tabular mt-1 text-xs text-zinc-500">
+                          <span className="text-orange-300">entry {sec(l.entry_s)}</span> · <span className="text-sky-300">exit {sec(l.exit_s)}</span>
+                        </p>
+                      </>
+                    )}
                     <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-zinc-300">
                       {l.advice.map((a) => <li key={a}>{a}</li>)}
                     </ul>
                     {l.mentor && c.lap && (
-                      <Link href={`/laps/${c.lap.id}?vs=${l.mentor.lap_id}&corner=${l.number}&replay=1`}
+                      <Link href={`/laps/${c.lap.id}?vs=${l.mentor.lap_id}&corner=${zoomOn(l)}&replay=1`}
                             className="mt-2 flex items-center gap-2 rounded-lg border border-race/30 bg-race/[0.06] px-3 py-2 text-sm text-zinc-200 transition hover:border-race/60">
                         <GraduationCap size={16} className="shrink-0 text-race" />
-                        <span><strong className="text-white">{l.mentor.driver}</strong> is {l.mentor.gain_s.toFixed(2)} s faster than you through T{l.number}: watch their replay</span>
+                        <span><strong className="text-white">{l.mentor.driver}</strong> is {l.mentor.gain_s.toFixed(2)} s faster than you through {sectionLabel(l.number, l.last)}: watch their replay</span>
                         <Play size={14} className="ml-auto shrink-0 text-accent" fill="currentColor" />
                       </Link>
                     )}

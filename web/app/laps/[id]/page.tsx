@@ -53,6 +53,8 @@ export default async function LapPage(props: PageProps<"/laps/[id]">) {
     })),
   ];
   const vsId = typeof vs === "string" && /^\d+$/.test(vs) && vs !== id ? vs : null;
+  // Zoom from the coaching summary: one corner ("3") or a section ("8-10")
+  const zoom = typeof corner === "string" ? corner.match(/^(\d+)(?:-(\d+))?$/) : null;
 
   return (
     <div className="bleed">
@@ -62,7 +64,7 @@ export default async function LapPage(props: PageProps<"/laps/[id]">) {
         <span className="ml-auto"><ShareCard url={lapCardUrl(id)} name={`${lap.driver}-${lap.track}-L${lap.number}`} /></span>
       </div>
       <LapView lapId={id} vsId={vsId} candidates={candidates} otherHref={`/sessions?track=${lap.track}&compare=${id}`}
-               corner={typeof corner === "string" && /^\d+$/.test(corner) ? Number(corner) : null}
+               corner={zoom ? [Number(zoom[1]), Number(zoom[2] ?? zoom[1])] : null}
                startReplay={replay === "1"} />
     </div>
   );

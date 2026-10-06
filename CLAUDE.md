@@ -312,13 +312,28 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   and class outside this session, on the same corner map (another driver's, or the driver's own).
   Time gap per corner from the two `time_s` traces, split at the reference's braking point and
   apex: entry = braking point → apex, exit = apex → corner end; the straight before a braking point
-  counts as the previous corner's exit. Top 3 losses (≥ 0.05 s) with advice from the corner
-  results (braking point, peak brake, apex speed, coasting, throttle pickup, full throttle, exit
-  speed), strongest corners, "recurring" when the same corner was the worst in ≥ 2 of the driver's
-  last 3 sessions there. Links open the comparison zoomed on the corner (`/laps/<id>?vs=…&corner=N`).
+  counts as the previous corner's exit. Both laps are compared on the reference's distance grid
+  (your metres × your trace length / the reference's): sessions measure the track a little
+  differently (Hungaroring 4,324 vs 4,350 m) and raw metres were ~25 m apart late in the lap.
+- Sections (`web/lib/sections.ts`, user's request after famas's Misano T1–T2: giving up T1 to be
+  faster through T2 was coached as a T1 loss): corners driven as one are judged together. Linked
+  when, on the best lap or the reference: the next corner is taken flat (no lift: it is the previous
+  exit carried on), the driver is not back on full throttle before it, or under `LINK_S` = 2 s
+  from full throttle to the next lift (local data: Hungaroring T8–T9 1.5-1.8 s; corners with a
+  straight between 2.4 s and more; to check on real Misano laps). Max 4 corners (cut at the widest
+  gap). Losses, strengths, mentors, the "recurring" check and the session's optimal lap are per
+  section (section time = sum of its corner times, corners tile the lap). Inside a section the coach
+  reads the split: loss then a bigger gain = "the slower T1 pays off: keep that line" (a strength,
+  no "brake later"); loss not won back = "does not pay off yet"; quicker early but slower later =
+  "the reference gives up time at T1 to be faster through T2". Advice for a flat corner goes to the
+  previous corner's exit. Top 3 losses (≥ 0.05 s) with advice from the corner results (braking
+  point, peak brake, apex speed, coasting, throttle pickup, full throttle, exit speed), strongest
+  sections, "recurring" when the same section was the worst in ≥ 2 of the driver's last 3 sessions
+  there. Links open the comparison zoomed on the corner or section (`&corner=N` or `&corner=8-10`).
 - Session: no valid lap, track limits (≥ 25 % of flying laps), consistency (median gap > 1 %, or
   very consistent < 0.4 %), laps > 7 % off (mistakes), progress from the first valid lap, gap to the
-  car's target with the session's optimal lap (sum of the best corner times over its valid laps),
+  car's target with the session's optimal lap (sum of the best section times over its valid laps,
+  2+ laps),
   short runs, race sessions. Break advice for a lasting pace drop only (user's rule):
   ≥ 3 complete laps in a row after the best lap, each > 2 % slower (one slow lap = a mistake, tyre
   wear stays under 2 %). Car damage is not in the bundle yet ("if the car was not damaged"):
@@ -550,8 +565,9 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   all ratings" also replays achievements (no Discord posts). Shown on profiles (locked ones greyed).
 - Head to head: `/drivers/compare?a=&b=`: shared tracks/classes (best laps), tracks won, corners
   faster (corner_best on the latest map), replay link per track.
-- Mentors: for each of the coach's 3 weak corners, the teammate with the best pass (same map and
-  class, ≥ 0.03 s faster) with a link to the replay of both laps zoomed on the corner.
+- Mentors: for each of the coach's 3 weak sections, the teammate with the best pass through all of
+  it on one lap (same map and class, ≥ 0.03 s faster) with a link to the replay of both laps zoomed
+  on the section. Still per corner: head to head "corners faster" and the `theoretical_best` view.
 
 ## Session conditions (app 0.1.2, migration 0008)
 - `recording.session_conditions`: while live (menus read 0 °C): air and track temperature at the
