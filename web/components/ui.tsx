@@ -1,8 +1,39 @@
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { RANKS, rankFor, rankLevel, type Rank } from "@/lib/ranks";
 
 // Small shared pieces of the interface (server and client components).
+
+/** A small two- or three-way switch (Corners | Sections): links on server pages, buttons in client
+ *  components. */
+export function Segmented<T extends string>({ options, value, href, onChange, className = "" }: {
+  options: { value: T; label: string; title?: string }[];
+  value: T;
+  href?: (v: T) => string;
+  onChange?: (v: T) => void;
+  className?: string;
+}) {
+  const look = (on: boolean) =>
+    `rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider transition ${on ? "bg-accent text-ink" : "text-zinc-400 hover:text-white"}`;
+  return (
+    <div className={`inline-flex shrink-0 items-center gap-0.5 rounded-md border border-white/10 bg-black/40 p-0.5 ${className}`}>
+      {options.map((o) =>
+        href ? (
+          <Link key={o.value} href={href(o.value)} scroll={false} title={o.title} className={look(o.value === value)}>{o.label}</Link>
+        ) : (
+          <button key={o.value} type="button" title={o.title} onClick={() => onChange?.(o.value)} className={look(o.value === value)}>{o.label}</button>
+        ),
+      )}
+    </div>
+  );
+}
+
+/** Corners | Sections, the same everywhere. */
+export const ZONE_OPTIONS = [
+  { value: "corners" as const, label: "Corners", title: "Every corner on its own" },
+  { value: "sections" as const, label: "Sections", title: "Corners driven as one (no real straight between them) grouped together" },
+];
 
 /** The team's name as it is written everywhere (user's request): "PC" white, "GR" pure red. */
 export const PCGR_RED = "#ff0000";

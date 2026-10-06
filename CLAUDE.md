@@ -275,6 +275,17 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   button per corner, sticky under the top bar; a click zooms every chart from 50 m before the
   corner to 30 m after it (`cornerRange`, same as the coaching links); the button of the current
   zoom is red. The replay's Turn checkpoints also zoom the charts (`onTurn`).
+- Corners | Sections (user's request, kept to one small switch, `Segmented` + `ZONE_OPTIONS` in
+  components/ui.tsx): on the Turn-button bar and in the replay's top bar (works in fullscreen); it
+  switches the Turn buttons ("Turns 8–10"), the replay checkpoints and the table under the charts
+  (Sections table: time, gap and gap per corner, traded time green/red). Sections are computed in
+  the browser from both laps (`sectionsOf`, linked on either). Mode: `?by=sections|corners` (head to
+  head's Replay links), a section link from the coach (`corner=8-10`), else the viewer's last
+  choice (localStorage `acc-coach:zones`), else corners.
+- The reference lap is moved onto this lap's distance grid when loaded (`alignTo` in LapView: linear,
+  nearest for gear and levels; corner distances scaled): sessions measure the track a little
+  differently, and raw metres made the gap, charts, corner table and replay gap compare different
+  places (up to ~25 m late in the lap at Hungaroring).
 - ABS (user's request, replacing a brake light): a flashing dark-blue light at the front of the car
   while the ABS works, the brake bar and the brake chart in blue there. ACC's `abs` float is the
   ABS intervention (only while braking: 37 % of hard-braking samples, ~1,000 pulses of ~10 ms in a
@@ -295,8 +306,9 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   100 % = 70 m wide (about one corner), log scale (8 % per wheel notch); the camera eases from the
   track's centre to the followed car over the first 20 %. Replaced the Close/Medium/Wide and "Whole
   track" options. Map labels scale with the view (viewW/60).
-- Corner checkpoints: "Turn N" boxes on the left of the player (name below, time the first car enters
-  the turn); click = jump there; the turn the first car is in is highlighted (data-active).
+- Corner checkpoints: "Turn N" (or "Turns 8–10" in Sections mode) boxes on the left of the player
+  (name below, time the first car enters it); click = jump there and zoom the charts; the one the
+  first car is in is highlighted (data-active).
 - Replay lines, "brake / throttle" (user's request, like Racemake): grey with nothing pressed, mixed
   towards green in proportion to the throttle, towards red to the brake, blue with ABS; every metre,
   10 colour steps so consecutive equal segments merge (~950 polylines for two laps).
@@ -320,7 +332,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   when, on the best lap or the reference: the next corner is taken flat (no lift: it is the previous
   exit carried on), the driver is not back on full throttle before it, or under `LINK_S` = 2 s
   from full throttle to the next lift (local data: Hungaroring T8–T9 1.5-1.8 s; corners with a
-  straight between 2.4 s and more; to check on real Misano laps). Max 4 corners (cut at the widest
+  straight between 2.4 s and more; real Misano laps of famas and So: T1→T2 0.56-0.61 s, so T1–T3
+  with T3 flat; Misano = T1–T3, T4–T5, T6, T7, T8–T10, T11). Max 4 corners (cut at the widest
   gap). Losses, strengths, mentors, the "recurring" check and the session's optimal lap are per
   section (section time = sum of its corner times, corners tile the lap). Inside a section the coach
   reads the split: loss then a bigger gain = "the slower T1 pays off: keep that line" (a strength,
@@ -563,11 +576,14 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   Endurance 45 min in one stint (= session), team record and target beaten per track, 3 records
   held). Rating badges were dropped: ranks cover them. Checked after each upload; "Recompute
   all ratings" also replays achievements (no Discord posts). Shown on profiles (locked ones greyed).
-- Head to head: `/drivers/compare?a=&b=`: shared tracks/classes (best laps), tracks won, corners
-  faster (corner_best on the latest map), replay link per track.
+- Head to head: `/drivers/compare?a=&b=&by=corners|sections`: shared tracks/classes (best laps),
+  tracks won, corners faster (corner_best on the latest map) or sections faster (Corners | Sections
+  switch under the score, user's request: sections from both drivers' best laps on the map, best
+  pass through each section on one lap, `sectionCounts`), replay link per track (keeps `by`).
+  Shared SQL: `lib/sections-db.ts` (`sectionTables`, `sectionsFromLaps`), also used by the coach.
 - Mentors: for each of the coach's 3 weak sections, the teammate with the best pass through all of
   it on one lap (same map and class, ≥ 0.03 s faster) with a link to the replay of both laps zoomed
-  on the section. Still per corner: head to head "corners faster" and the `theoretical_best` view.
+  on the section. Still per corner: the `theoretical_best` view.
 
 ## Session conditions (app 0.1.2, migration 0008)
 - `recording.session_conditions`: while live (menus read 0 °C): air and track temperature at the

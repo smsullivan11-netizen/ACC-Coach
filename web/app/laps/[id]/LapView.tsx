@@ -7,8 +7,10 @@ import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 import Conditions, { type SessionConditions } from "@/components/Conditions";
 import TrackSurface, { type Edges } from "@/components/TrackSurface";
+import { Segmented, ZONE_OPTIONS } from "@/components/ui";
 import { lapTime, prettyKey, REASONS } from "@/lib/format";
 import { labelPoint } from "@/lib/geometry";
+import { sectionsOf, zoneMode, type ZoneMode } from "@/lib/sections";
 import { withSteeringDeg } from "@/lib/steering";
 import { decodeTrace, smoothGear, type EncodedTrace, type Trace } from "@/lib/trace";
 import Replay from "./Replay";
@@ -23,13 +25,19 @@ type CornerRow = {
   end_m: number;
   time_s: number | null;
   entry_speed_kmh: number | null;
+  lift_point_m: number | null;
   braking_point_m: number | null;
   min_speed_kmh: number | null;
+  lap_apex_m: number | null;
   throttle_pickup_m: number | null;
   full_throttle_m: number | null;
   coasting_s: number | null;
   exit_speed_kmh: number | null;
 };
+/** What the Turn buttons, the replay's checkpoints and the table work on: one corner, or a section
+ *  (corners driven as one, lib/sections.ts). */
+export type Zone = { key: string; label: string; numbers: number[]; name: string | null; start_m: number; end_m: number };
+const ZONES_KEY = "acc-coach:zones";   // the viewer's last choice (this browser only)
 type LapData = {
   id: string;
   number: number;
@@ -62,12 +70,69 @@ async function loadLap(id: string): Promise<Loaded> {
   return { ...data, t };
 }
 
-export default function LapView({ lapId, vsId, candidates, otherHref, corner, startReplay = false }: {
-  lapId: string; vsId: string | null; candidates: Candidate[]; otherHref: string; corner?: [number, number] | null; startReplay?: boolean;
+const DISCRETE = new Set(["gear", "valid", "tc_level", "tc2_level", "abs_level", "engine_map"]);
+
+/** A lap moved onto another lap's distance grid. Sessions measure the track a little differently
+ *  (Hungaroring 4,324 or 4,350 m): without this, metre i of two laps is up to ~25 m apart late in
+ *  the lap, and the gap, the charts and the corner table compare different places. */
+function alignTo(l: Loaded, a: Loaded): Loaded {
+  if (!l.t || !a.t) return l;
+  const n = a.t.dist.length, k = l.t.dist.length / n;
+  if (Math.abs(k - 1) < 1e-4) return l;
+  const channels: Record<string, Float64Array> = {};
+  for (const [name, c] of Object.entries(l.t.channels)) {
+    const out = new Float64Array(n);
+    for (let j = 0; j < n; j++) {
+      const p = Math.min(j * k, c.length - 1), i = Math.max(0, Math.min(Math.floor(p), c.length - 2)), f = p - i;
+      out[j] = DISCRETE.has(name) ? c[f < 0.5 ? i : i + 1] : c[i] + (c[i + 1] - c[i]) * f;
+    }
+    channels[name] = out;
+  }
+  const m = (v: number | null) => (v == null ? null : v / k);
+  return {
+    ...l, t: { dist: a.t.dist, channels },
+    corners: l.corners.map((c) => ({
+      ...c, start_m: c.start_m / k, apex_m: c.apex_m / k, end_m: c.end_m / k, lift_point_m: m(c.lift_point_m),
+      braking_point_m: m(c.braking_point_m), lap_apex_m: m(c.lap_apex_m), throttle_pickup_m: m(c.throttle_pickup_m),
+      full_throttle_m: m(c.full_throttle_m),
+    })),
+  };
+}
+
+export default function LapView({ lapId, vsId, candidates, otherHref, corner, by: byParam = null, startReplay = false }: {
+  lapId: string; vsId: string | null; candidates: Candidate[]; otherHref: string; corner?: [number, number] | null;
+  by?: ZoneMode | null; startReplay?: boolean;
 }) {
   const router = useRouter();
-  const [laps, setLaps] = useState<Loaded[] | null>(null);
+  const [loaded, setLaps] = useState<Loaded[] | null>(null);
+  const laps = useMemo(() => (loaded ? loaded.map((l, i) => (i ? alignTo(l, loaded[0]) : l)) : null), [loaded]);
   const [error, setError] = useState<string | null>(null);
+  // Corners or sections: from the link (?by=, or a section opened from the coach), else the viewer's
+  // last choice (read on the client only: nothing depends on it before the laps are loaded)
+  const [by, setBy] = useState<ZoneMode>(() => {
+    if (byParam) return byParam;
+    if (corner && corner[0] !== corner[1]) return "sections";
+    try { return zoneMode(typeof window === "undefined" ? null : localStorage.getItem(ZONES_KEY)) ?? "corners"; } catch { return "corners"; }
+  });
+  const pickBy = useCallback((v: ZoneMode) => {
+    setBy(v);
+    try { localStorage.setItem(ZONES_KEY, v); } catch { /* private window: not remembered */ }
+  }, []);
+  // Sections from both laps (linked on either), then the zones in the chosen mode
+  const sections = useMemo(() => !laps ? [] : sectionsOf(laps[0].corners.map((c) => c.number), laps.flatMap((l) => l.t?.channels.time_s ? [{
+    time: l.t.channels.time_s,
+    corners: l.corners.map((c) => ({ corner_number: c.number, lift_point_m: c.lift_point_m, full_throttle_m: c.full_throttle_m, apex_m: c.lap_apex_m, time_s: c.time_s })),
+  }] : [])), [laps]);
+  const zones = useMemo<Zone[]>(() => {
+    const cs = laps?.[0].corners ?? [];
+    return (by === "sections" ? sections : cs.map((c) => [c.number])).flatMap((g) => {
+      const part = cs.filter((c) => g.includes(c.number));
+      if (!part.length) return [];
+      const names = part.map((c) => c.name).filter(Boolean);
+      return [{ key: g.join("-"), numbers: g, label: g.length > 1 ? `Turns ${g[0]}–${g[g.length - 1]}` : `Turn ${g[0]}`,
+                name: names.length ? names.join(" / ") : null, start_m: part[0].start_m, end_m: part[part.length - 1].end_m }];
+    });
+  }, [laps, by, sections]);
   const [range, setRange] = useState<Range>(null);
   const moveDots = useRef<(i: number | null) => void>(() => {});
   const zoom = useRef<(r: Range) => void>(() => {});
@@ -148,14 +213,17 @@ export default function LapView({ lapId, vsId, candidates, otherHref, corner, st
           </label>
         </div>
       </div>
-      <p className="mt-2 text-xs text-zinc-500">Drag on a chart to zoom, double-click to reset; the Turn buttons zoom every chart on that corner.</p>
+      <p className="mt-2 text-xs text-zinc-500">
+        Drag on a chart to zoom, double-click to reset; the Turn buttons zoom every chart on that corner, or on a whole section
+        (corners driven as one) with Sections.
+      </p>
 
       {a.t && replay && (
         <Replay laps={laps.flatMap((l, i) => (l.t ? [{ driver: `${l.driver} L${l.number}`, color: COLORS[i], t: l.t }] : []))}
-                edges={a.edges} corners={a.corners} onDistance={followCar} onClose={closeReplay}
-                onTurn={(n) => { const c = a.corners.find((x) => x.number === n); if (c) zoom.current(cornerRange(c)); }} />
+                edges={a.edges} corners={a.corners} checkpoints={zones} by={by} onBy={pickBy} onDistance={followCar} onClose={closeReplay}
+                onTurn={(z) => zoom.current(cornerRange(z))} />
       )}
-      {a.t && <CornerChips corners={a.corners} range={range} onSelect={(r) => zoom.current(r)} />}
+      {a.t && <CornerChips zones={zones} by={by} onBy={pickBy} range={range} onSelect={(r) => zoom.current(r)} />}
       {!a.t ? (
         <p className="card mt-6 p-6 text-zinc-400">This lap has no trace (incomplete lap).</p>
       ) : (
@@ -181,25 +249,28 @@ export default function LapView({ lapId, vsId, candidates, otherHref, corner, st
           </div>
         </div>
       )}
-      <CornerTable laps={laps} onSelect={(r) => zoom.current(r)} />
+      <CornerTable laps={laps} zones={zones} by={by} onSelect={(r) => zoom.current(r)} />
     </div>
   );
 }
 
-// --- Corner buttons: zoom every chart on a corner (stays under the top bar while scrolling) ------
+// --- Turn buttons: zoom every chart on a corner or a section (stay under the top bar while scrolling)
 
-function CornerChips({ corners, range, onSelect }: { corners: CornerRow[]; range: Range; onSelect: (r: Range) => void }) {
-  if (!corners.length) return null;
+function CornerChips({ zones, by, onBy, range, onSelect }: {
+  zones: Zone[]; by: ZoneMode; onBy: (v: ZoneMode) => void; range: Range; onSelect: (r: Range) => void;
+}) {
+  if (!zones.length) return null;
   const same = (r: [number, number]) => range != null && Math.abs(range[0] - r[0]) < 1 && Math.abs(range[1] - r[1]) < 1;
   const chip = "shrink-0 rounded-md border px-2.5 py-1 text-left text-xs transition";
   const look = (on: boolean) => (on ? "border-race bg-race/25 text-white" : "border-white/10 bg-raised/60 text-zinc-300 hover:border-accent/60 hover:text-white");
   return (
-    <div className="sticky top-[56px] z-20 mt-4 flex gap-1.5 overflow-x-auto rounded-lg border border-white/10 bg-ink/85 px-2 py-1.5 backdrop-blur">
+    <div className="sticky top-[56px] z-20 mt-4 flex items-center gap-1.5 overflow-x-auto rounded-lg border border-white/10 bg-ink/85 px-2 py-1.5 backdrop-blur">
+      <Segmented options={ZONE_OPTIONS} value={by} onChange={onBy} className="mr-1" />
       <button onClick={() => onSelect(null)} className={`${chip} ${look(!range)} font-semibold`}>Full lap</button>
-      {corners.map((c) => (
-        <button key={c.number} onClick={() => onSelect(cornerRange(c))}
-                className={`${chip} ${look(same(cornerRange(c)))} font-semibold`}>
-          Turn {c.number}
+      {zones.map((z) => (
+        <button key={z.key} onClick={() => onSelect(cornerRange(z))} title={z.name ?? undefined}
+                className={`${chip} ${look(same(cornerRange(z)))} font-semibold`}>
+          {z.label}
         </button>
       ))}
     </div>
@@ -454,11 +525,15 @@ const num = (v: number | null | undefined, digits = 0, unit = "") => (v == null 
 const diff = (x: number | null | undefined, y: number | null | undefined, digits = 0, unit = "") =>
   x == null || y == null ? "–" : `${x - y > 0 ? "+" : ""}${(x - y).toFixed(digits)}${unit}`;
 
-function CornerTable({ laps, onSelect }: { laps: Loaded[]; onSelect: (r: Range) => void }) {
+const gapClass = (gap: number | null) => (gap == null ? "" : gap > 0.02 ? "text-red-400" : gap < -0.02 ? "text-emerald-400" : "text-zinc-400");
+const gapText = (gap: number | null, digits = 3) => (gap == null ? "–" : `${gap > 0 ? "+" : ""}${gap.toFixed(digits)}`);
+
+function CornerTable({ laps, zones, by, onSelect }: { laps: Loaded[]; zones: Zone[]; by: ZoneMode; onSelect: (r: Range) => void }) {
   const [a, b] = laps;
   if (!a.corners.length) return null;
   const bc = new Map((b?.corners ?? []).map((c) => [c.number, c]));
   const compare = Boolean(b && b.corners.some((c) => c.time_s != null));
+  if (by === "sections") return <SectionTable a={a} bc={bc} compare={compare} zones={zones} onSelect={onSelect} />;
   return (
     <div className="card rise mt-5 overflow-hidden">
       <div className="px-5 pt-4">
@@ -508,9 +583,7 @@ function CornerTable({ laps, onSelect }: { laps: Loaded[]; onSelect: (r: Range) 
                 {compare ? (
                   <>
                     <td className="text-right">{num(c.time_s, 2, " s")}</td>
-                    <td className={`text-right ${gap == null ? "" : gap > 0.02 ? "text-red-400" : gap < -0.02 ? "text-emerald-400" : "text-zinc-400"}`}>
-                      {gap == null ? "–" : `${gap > 0 ? "+" : ""}${gap.toFixed(3)}`}
-                    </td>
+                    <td className={`text-right ${gapClass(gap)}`}>{gapText(gap)}</td>
                     <td className="text-right">
                       {num(c.min_speed_kmh)} <span className="text-zinc-500">({diff(c.min_speed_kmh, r?.min_speed_kmh)})</span>
                     </td>
@@ -534,6 +607,69 @@ function CornerTable({ laps, onSelect }: { laps: Loaded[]; onSelect: (r: Range) 
           })}
         </tbody>
       </table>
+      </div>
+    </div>
+  );
+}
+
+/** The table by section: time through each section (its corners' times added up), the gap, and
+ *  how the gap splits between its corners (time traded between corners shows green and red). */
+function SectionTable({ a, bc, compare, zones, onSelect }: {
+  a: Loaded; bc: Map<number, CornerRow>; compare: boolean; zones: Zone[]; onSelect: (r: Range) => void;
+}) {
+  const own = new Map(a.corners.map((c) => [c.number, c]));
+  const total = (m: Map<number, CornerRow>, ns: number[]) => {
+    const ts = ns.map((n) => m.get(n)?.time_s);
+    return ts.every((x): x is number => x != null) ? ts.reduce((s, x) => s + x, 0) : null;
+  };
+  return (
+    <div className="card rise mt-5 overflow-hidden">
+      <div className="px-5 pt-4">
+        <h2 className="display text-sm uppercase tracking-wider text-white">Sections</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Corners driven as one are grouped: giving up time in one to be faster through the next shows in the split.
+          {compare ? " Differences are this lap minus the reference." : ""} Click a row to zoom on the section.
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="data-table mt-2">
+          <thead>
+            <tr>
+              <th>Section</th>
+              <th className="text-right">Time</th>
+              {compare && <th className="text-right">Gap</th>}
+              <th>{compare ? "Gap per corner" : "Per corner"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {zones.map((z) => {
+              const mine = total(own, z.numbers), theirs = compare ? total(bc, z.numbers) : null;
+              const gap = mine != null && theirs != null ? mine - theirs : null;
+              return (
+                <tr key={z.key} onClick={() => onSelect([z.start_m, z.end_m])} className="cursor-pointer">
+                  <td className="whitespace-nowrap text-white">
+                    {z.numbers.length > 1 ? `T${z.numbers[0]}–T${z.numbers[z.numbers.length - 1]}` : `T${z.numbers[0]}`}
+                    {z.name && <span className="ml-2 text-zinc-400">{z.name}</span>}
+                  </td>
+                  <td className="text-right">{num(mine, 2, " s")}</td>
+                  {compare && <td className={`text-right font-semibold ${gapClass(gap)}`}>{gapText(gap)}</td>}
+                  <td className="tabular whitespace-nowrap text-xs text-zinc-500">
+                    {z.numbers.map((n, i) => {
+                      const c = own.get(n), r = bc.get(n);
+                      const g = compare && c?.time_s != null && r?.time_s != null ? c.time_s - r.time_s : null;
+                      return (
+                        <span key={n}>
+                          {i > 0 && " · "}T{n}{" "}
+                          {compare ? <span className={gapClass(g)}>{gapText(g, 2)}</span> : num(c?.time_s, 2, " s")}
+                        </span>
+                      );
+                    })}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );

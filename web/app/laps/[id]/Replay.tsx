@@ -3,8 +3,10 @@
 import { Maximize2, Minimize2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TrackSurface, { type Edges } from "@/components/TrackSurface";
+import { Segmented, ZONE_OPTIONS } from "@/components/ui";
 import { lapTime } from "@/lib/format";
 import { labelPoint } from "@/lib/geometry";
+import type { ZoneMode } from "@/lib/sections";
 import { smoothGear, type Trace } from "@/lib/trace";
 
 // Replay of one or two laps on the track map, by elapsed time (like watching both cars on track at
@@ -17,6 +19,8 @@ import { smoothGear, type Trace } from "@/lib/trace";
 
 export type ReplayLap = { driver: string; color: string; t: Trace };
 type Corner = { number: number; apex_m: number; start_m: number; name: string | null };
+/** A checkpoint button: one corner, or a section (several corners driven as one). */
+type Checkpoint = { key: string; label: string; name: string | null; start_m: number; end_m: number };
 type Car = {
   driver: string; color: string; n: number; step: number; end: number;
   time: Float64Array; x: Float64Array; z: Float64Array; v: Float64Array;
@@ -123,13 +127,16 @@ function linePaths(car: Car, byInputs: boolean) {
   return out;
 }
 
-export default function Replay({ laps, edges, corners, onDistance, onClose, onTurn }: {
+export default function Replay({ laps, edges, corners, checkpoints, by, onBy, onDistance, onClose, onTurn }: {
   laps: ReplayLap[];
   edges: Edges;
-  corners: Corner[];
+  corners: Corner[];                    // labels on the map
+  checkpoints: Checkpoint[];            // buttons on the side: corners or sections (by)
+  by: ZoneMode;
+  onBy: (v: ZoneMode) => void;
   onDistance: (d: number | null) => void;
   onClose: () => void;
-  onTurn?: (number: number) => void;   // a checkpoint was clicked: the charts zoom on that corner
+  onTurn?: (c: Checkpoint) => void;     // a checkpoint was clicked: the charts zoom on that corner or section
 }) {
   const cars = useMemo(() => laps.map(prepare).filter((c): c is Car => c !== null), [laps]);
   const maxT = Math.max(...cars.map((c) => c.end));
@@ -203,12 +210,13 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
     el.addEventListener("wheel", wheel, { passive: false });
     return () => el.removeEventListener("wheel", wheel);
   }, []);
-  // When each corner starts for the first car (for the checkpoints)
-  const turnTimes = useMemo(() => (cars[0] ? corners.map((c) => timeAt(cars[0], Math.max(0, c.start_m))) : []), [cars, corners]);
+  // When each checkpoint starts for the first car
+  const turnTimes = useMemo(() => (cars[0] ? checkpoints.map((c) => timeAt(cars[0], Math.max(0, c.start_m))) : []), [cars, checkpoints]);
+  useEffect(() => { activeTurn.current = -2; dirty.current = true; }, [checkpoints]);   // new buttons: highlight again
   const jumpTo = (i: number) => {
     elapsed.current = Math.min(maxT, turnTimes[i] + 0.02);
     dirty.current = true;
-    onTurn?.(corners[i].number);
+    onTurn?.(checkpoints[i]);
   };
   const clock = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 
@@ -297,15 +305,15 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
     // Charts follow the first car (a few times per second is enough)
     const now = performance.now();
     if (now - lastSync.current > 60) { lastSync.current = now; onDistance(states[0]?.d ?? null); }
-    // Corner checkpoints: the one the first car is in
+    // Checkpoints: the one the first car is in
     const d0 = states[0]?.d ?? 0;
     let current = -1;
-    corners.forEach((c, i) => { if (d0 >= c.start_m - 1) current = i; });
+    checkpoints.forEach((c, i) => { if (d0 >= c.start_m - 1) current = i; });
     if (current !== activeTurn.current) {
       activeTurn.current = current;
       turnEls.current.forEach((el, i) => el?.setAttribute("data-active", String(i === current)));
     }
-  }, [cars, carScale, bbox, camera, viewW, followShare, corners, maxT, onDistance, aspect, lapLength]);
+  }, [cars, carScale, bbox, camera, viewW, followShare, checkpoints, maxT, onDistance, aspect, lapLength]);
 
   useEffect(() => {
     let raf = 0, last = performance.now();
@@ -366,6 +374,7 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
           <option value="drivers">Lines: driver colours</option>
           <option value="inputs">Lines: brake / throttle</option>
         </select>
+        <Segmented options={ZONE_OPTIONS} value={by} onChange={onBy} />
         <button onClick={onClose} className="ml-auto text-sm text-zinc-400 underline hover:text-white">Close replay</button>
       </div>
 
@@ -390,15 +399,15 @@ export default function Replay({ laps, edges, corners, onDistance, onClose, onTu
           </g>
         ))}
       </svg>
-      {/* Corner checkpoints: click to jump there; the corner the car is in is highlighted */}
-      {corners.length > 0 && (
-        <div data-turns className={`absolute left-2 top-2 hidden w-28 flex-col gap-1 overflow-y-auto pr-1 sm:flex ${full ? "bottom-[calc(max(17%,96px)+112px)]" : "bottom-[108px]"}`}>
-          {corners.map((c, i) => (
-            <button key={c.number} ref={(el) => { turnEls.current[i] = el; }} onClick={() => jumpTo(i)} data-active="false"
+      {/* Checkpoints (corners or sections): click to jump there; the one the car is in is highlighted */}
+      {checkpoints.length > 0 && (
+        <div data-turns className={`absolute left-2 top-2 hidden flex-col gap-1 overflow-y-auto pr-1 sm:flex ${by === "sections" ? "w-32" : "w-28"} ${full ? "bottom-[calc(max(17%,96px)+112px)]" : "bottom-[108px]"}`}>
+          {checkpoints.map((c, i) => (
+            <button key={c.key} ref={(el) => { turnEls.current[i] = el; }} onClick={() => jumpTo(i)} data-active="false"
                     title={c.name ?? undefined}
                     className="shrink-0 rounded-md border border-white/10 bg-black/65 px-2 py-1 text-left backdrop-blur transition hover:border-accent/60 data-[active=true]:border-race data-[active=true]:bg-race/25">
               <div className="flex items-baseline justify-between gap-1 text-[11px] font-semibold text-white">
-                Turn {c.number}<span className="tabular font-normal text-zinc-400">{clock(turnTimes[i])}</span>
+                {c.label}<span className="tabular font-normal text-zinc-400">{clock(turnTimes[i])}</span>
               </div>
               {c.name && <div className="truncate text-[10px] text-zinc-400">{c.name}</div>}
             </button>

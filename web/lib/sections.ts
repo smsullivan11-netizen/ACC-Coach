@@ -11,10 +11,11 @@
 export const LINK_S = 2;
 export const MAX_SECTION = 4;   // corners: longer chains (Nordschleife) are cut where the gap is widest
 
-/** One lap: elapsed time on its 1 m grid, and its corner results (distances in the lap's metres). */
+/** One lap: elapsed time on its 1 m grid, and its corner results (distances in the lap's metres;
+ *  a corner with time_s null has no result and is ignored). */
 export type SectionLap = {
   time: ArrayLike<number>;
-  corners: { corner_number: number; lift_point_m: number | null; full_throttle_m: number | null; apex_m: number | null }[];
+  corners: { corner_number: number; lift_point_m: number | null; full_throttle_m: number | null; apex_m: number | null; time_s?: number | null }[];
 };
 
 function timeAt(time: ArrayLike<number>, d: number) {
@@ -29,8 +30,8 @@ export function sectionsOf(numbers: number[], laps: SectionLap[]): number[][] {
   for (let i = 0; i + 1 < numbers.length; i++) {
     let gap = Infinity, link = false;
     for (const lap of laps) {
-      const a = lap.corners.find((c) => c.corner_number === numbers[i]);
-      const b = lap.corners.find((c) => c.corner_number === numbers[i + 1]);
+      const a = lap.corners.find((c) => c.corner_number === numbers[i] && c.time_s !== null);
+      const b = lap.corners.find((c) => c.corner_number === numbers[i + 1] && c.time_s !== null);
       if (!a || !b) continue;
       const from = a.full_throttle_m ?? a.apex_m, to = b.lift_point_m ?? b.apex_m;
       const g = from != null && to != null ? timeAt(lap.time, to) - timeAt(lap.time, from) : Infinity;
@@ -61,3 +62,7 @@ export function sectionsOf(numbers: number[], laps: SectionLap[]): number[][] {
 
 /** "T4", or "T8–T10" for a section of several corners. */
 export const sectionLabel = (first: number, last: number) => (first === last ? `T${first}` : `T${first}–T${last}`);
+
+/** Corners or sections: the unit the lap page, the replay and the head to head count in (`?by=`). */
+export type ZoneMode = "corners" | "sections";
+export const zoneMode = (v: unknown): ZoneMode | null => (v === "sections" || v === "corners" ? v : null);

@@ -3,6 +3,7 @@ import { sql } from "./db";
 import { lapTime, prettyKey } from "./format";
 import { paceReference } from "./targets";
 import { sectionLabel, sectionsOf } from "./sections";
+import { sectionTables } from "./sections-db";
 import type { EncodedChannel } from "./trace";
 import { decodeStored } from "./trace-store";
 
@@ -63,18 +64,6 @@ const s2 = (x: number) => `${Math.abs(x).toFixed(2)} s`;
 const minutes = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, "0")}` : `${Math.round(m)} min`);
 const label = (c: { number: number; last: number; name: string | null }) => `${sectionLabel(c.number, c.last)}${c.name ? ` (${c.name})` : ""}`;
 const rowLoss = (x: Row) => x.entry + x.exit;
-
-/** SQL tables of the sections: sec(corner_number, s) with s the section's index, size(s, n), and
- *  lapsec(lap_id, s, t): each comparable lap's time through each section it covers entirely. */
-const sectionTables = (groups: number[][], mapId: string) => sql`
-  sec as (select * from unnest(${groups.flat()}::int[], ${groups.flatMap((g, i) => g.map(() => i))}::int[]) as x(corner_number, s)),
-  size as (select s, count(*) as n from sec group by s),
-  lapsec as (
-    select cr.lap_id, sec.s, sum(cr.time_s) as t
-    from corner_result cr join sec using (corner_number) join lap l on l.id = cr.lap_id
-    where cr.corner_map_id = ${mapId} and l.comparable
-    group by cr.lap_id, sec.s
-    having count(*) = (select n from size where size.s = sec.s))`;
 
 /** Time given up in one corner of a section and won back in another (both over MIN_CORNER_LOSS_S):
  *  the corner losing the most, the one gaining the most, and whether the loss comes first. */

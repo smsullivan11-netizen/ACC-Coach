@@ -7,6 +7,7 @@ import { requireDriver } from "@/lib/auth";
 import { lapCardUrl } from "@/lib/cards";
 import { sql } from "@/lib/db";
 import { lapTime, prettyKey } from "@/lib/format";
+import { zoneMode } from "@/lib/sections";
 import LapView, { type Candidate } from "./LapView";
 
 export const metadata: Metadata = { title: "Lap analysis" };
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Lap analysis" };
 export default async function LapPage(props: PageProps<"/laps/[id]">) {
   await requireDriver();
   const { id } = await props.params;
-  const { vs, corner, replay } = await props.searchParams;
+  const { vs, corner, replay, by } = await props.searchParams;
   if (!/^\d+$/.test(id)) notFound();
   const [lap] = await sql<{ number: number; session_id: string; track_id: string; track: string; driver: string; car_class: string | null }[]>`
     select l.number, l.session_id, s.track_id, t.key as track, d.display_name as driver, c.class as car_class
@@ -64,7 +65,7 @@ export default async function LapPage(props: PageProps<"/laps/[id]">) {
         <span className="ml-auto"><ShareCard url={lapCardUrl(id)} name={`${lap.driver}-${lap.track}-L${lap.number}`} /></span>
       </div>
       <LapView lapId={id} vsId={vsId} candidates={candidates} otherHref={`/sessions?track=${lap.track}&compare=${id}`}
-               corner={zoom ? [Number(zoom[1]), Number(zoom[2] ?? zoom[1])] : null}
+               corner={zoom ? [Number(zoom[1]), Number(zoom[2] ?? zoom[1])] : null} by={zoneMode(by)}
                startReplay={replay === "1"} />
     </div>
   );
