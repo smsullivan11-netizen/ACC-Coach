@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Race engineer · ACC Coach</title>
+<style>
+  :root { --bg: #070707; --panel: #111114; --raised: #18181c; --line: rgba(255,255,255,.08); --text: #f4f4f5; --dim: #a1a1aa;
+          --faint: #71717a; --red: #e10600; --yellow: #ffd200; --green: #22c55e; --orange: #fb923c; --blue: #38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 16px; border-bottom: 2px solid var(--red);
+           background: linear-gradient(90deg, #120202, #070707 60%); position: sticky; top: 0; z-index: 2; }
+  header h1 { margin: 0; font-size: 16px; letter-spacing: .08em; text-transform: uppercase; }
+  header h1 b { color: var(--yellow); }
+  .meta { color: var(--dim); font-size: 13px; }
+  .grow { flex: 1; }
+  button, input { font: inherit; }
+  .btn { background: var(--raised); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--yellow); }
+  main { display: grid; gap: 12px; padding: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); max-width: 1500px; margin: 0 auto; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; box-shadow: inset 0 2px 0 0 var(--red); }
+  .card h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+  .big { font-size: 40px; font-weight: 800; line-height: 1; color: var(--yellow); font-variant-numeric: tabular-nums; }
+  .unit { font-size: 15px; color: var(--dim); font-weight: 600; margin-left: 4px; }
+  .rows { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin-top: 12px; font-variant-numeric: tabular-nums; }
+  .rows span:nth-child(odd) { color: var(--dim); }
+  .rows span:nth-child(even) { text-align: right; font-weight: 600; }
+  .quad { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tyre { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-variant-numeric: tabular-nums; }
+  .tyre .w { font-size: 11px; color: var(--faint); font-weight: 700; letter-spacing: .1em; }
+  .tyre .psi { font-size: 26px; font-weight: 800; }
+  .tyre .sub { font-size: 12px; color: var(--dim); }
+  .advice { margin-top: 6px; font-size: 13px; font-weight: 700; }
+  .ok { color: var(--green); } .warn { color: var(--yellow); } .bad { color: var(--red); } .info { color: var(--blue); }
+  .bar { height: 10px; background: rgba(255,255,255,.06); border-radius: 99px; overflow: hidden; margin-top: 6px; }
+  .bar > div { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--green), var(--yellow), var(--red)); }
+  .note { color: var(--faint); font-size: 12px; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
+  td, th { padding: 5px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+  th { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+  td:first-child, th:first-child { text-align: left; }
+  .alert { background: rgba(225,6,0,.15); border: 1px solid var(--red); border-radius: 10px; padding: 10px; font-weight: 700; color: #fecaca; }
+  #waiting { padding: 60px 16px; text-align: center; color: var(--dim); }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 18px; width: min(420px, 92vw); }
+  dialog label { display: grid; grid-template-columns: 1fr 90px; align-items: center; gap: 10px; margin: 8px 0; font-size: 14px; color: var(--dim); }
+  dialog input { background: var(--raised); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; text-align: right; }
+  .share { font-size: 12px; color: var(--dim); }
+  .share b { color: var(--yellow); user-select: all; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ACC Coach · <b>Race engineer</b></h1>
+  <span class="meta" id="where"></span>
+  <span class="grow"></span>
+  <span class="share" id="share"></span>
+  <button class="btn" onclick="openSettings()">Settings</button>
+</header>
+<div id="waiting">Waiting for ACC… Start a session: the engineer follows your car live.</div>
+<main id="main" hidden>
+  <section class="card" id="fuel"><h2>Fuel</h2><div id="fuelBody"></div></section>
+  <section class="card"><h2>Tyre pressures</h2><div class="quad" id="tyres"></div><div class="note" id="tyreNote"></div></section>
+  <section class="card"><h2>Tyre wear</h2><div id="wear"></div></section>
+  <section class="card"><h2>Brakes</h2><div class="quad" id="brakes"></div><div class="note" id="brakeNote"></div></section>
+  <section class="card"><h2>Damage</h2><div id="damage"></div></section>
+  <section class="card"><h2>Laps</h2><table><thead><tr><th>Lap</th><th>Time</th><th>Fuel</th><th></th></tr></thead><tbody id="laps"></tbody></table></section>
+</main>
+<dialog id="settings">
+  <form method="dialog" onsubmit="saveSettings(event)">
+    <h2 style="margin:0 0 6px;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)">Settings</h2>
+    <label>Target hot pressure (psi) <input name="target_psi" type="number" step="0.1"></label>
+    <label>Pressure advice after (km in the stint) <input name="advice_min_km" type="number" step="1"></label>
+    <label>100 % tyre wear = slower per lap by (%) <input name="tyre_worn_pct" type="number" step="0.5"></label>
+    <label>Brake pads worn out at (mm) <input name="pad_worn_mm" type="number" step="0.5"></label>
+    <label>Fuel margin (laps) <input name="fuel_margin_laps" type="number" step="0.5"></label>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn" value="cancel" formmethod="dialog">Cancel</button>
+      <button class="btn" style="border-color:var(--yellow);color:var(--yellow)" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+<script>
+const $ = (id) => document.getElementById(id);
+const n = (v, d = 1) => (v == null || !isFinite(v) ? "–" : Number(v).toFixed(d));
+const sign = (v, d = 1) => (v == null ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d));
+const lap = (s) => { if (s == null || !isFinite(s) || s <= 0) return "–"; const m = Math.floor(s / 60); return `${m}:${(s - 60 * m).toFixed(3).padStart(6, "0")}`; };
+const clock = (s) => { if (s == null || s <= 0) return "–"; const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h} h ${String(m).padStart(2, "0")}` : `${m} min`; };
+let last = null;
+
+async function tick() {
+  try {
+    const s = await (await fetch("/state", { cache: "no-store" })).json();
+    last = s;
+    render(s);
+  } catch { /* app closed: keep the last view */ }
+  setTimeout(tick, 500);
+}
+
+function render(s) {
+  $("waiting").hidden = !!s.active;
+  $("main").hidden = !s.active;
+  $("share").innerHTML = s.share?.on && s.share.url ? `On your network: <b>${s.share.url}</b>` : "";
+  if (!s.active) return;
+  $("where").textContent = `${s.track.replace(/_/g, " ")} · ${s.car.replace(/_/g, " ")} · stint ${s.stint.number}, ${s.stint.laps} laps, ${n(s.stint.km)} km${s.stint.in_pit ? " · in the pit lane" : ""}`;
+
+  // Fuel
+  const f = s.fuel;
+  $("fuelBody").innerHTML = (f.to_add != null
+      ? `<div class="meta">Fuel to add at the next stop</div><div class="big">${n(f.to_add, 1)}<span class="unit">L</span></div>`
+      : `<div class="meta">Fuel in the tank</div><div class="big">${n(f.current, 1)}<span class="unit">L</span></div>`) +
+    `<div class="rows">
+      <span>In the tank</span><span>${n(f.current, 1)} L · ${n(f.laps_in_tank, 1)} laps</span>
+      <span>Per lap${f.measured_laps ? ` (last ${f.measured_laps})` : " (game estimate)"}</span><span>${n(f.per_lap, 2)} L</span>
+      <span>Average lap</span><span>${lap(f.avg_lap_s)}</span>
+      ${f.laps_left != null ? `<span>Race: laps left</span><span>${f.laps_left} · ${clock(f.time_left)}</span>
+      <span>Fuel to the finish (+${n(s.settings.fuel_margin_laps, 1)} lap margin)</span><span>${n(f.needed, 1)} L</span>
+      <span>Stops for fuel</span><span>${f.stops ?? 0}</span>` : ""}
+      <span>Longest stint on a full tank</span><span>${n(f.max_stint_laps, 0)} laps</span>
+    </div>`;
+
+  // Tyre pressures
+  $("tyres").innerHTML = s.tyres.map((t) => {
+    let advice = `<div class="advice info">Live ${n(t.live_psi, 2)} psi</div>`;
+    if (t.advice != null) {
+      const ok = Math.abs(t.change) < 0.15;
+      advice = ok ? `<div class="advice ok">On target · keep ${n(t.set, 1)}</div>`
+                  : `<div class="advice ${Math.abs(t.change) < 0.5 ? "warn" : "bad"}">Set ${n(t.advice, 1)} (${sign(t.change, 1)}) · now ${n(t.set, 1)}</div>`;
+    }
+    return `<div class="tyre"><div class="w">${t.wheel}</div><div class="psi">${n(t.lap_psi ?? t.live_psi, 2)}<span class="unit">psi</span></div>
+      <div class="sub">core ${n(t.core_c, 0)} °C</div>${advice}</div>`;
+  }).join("");
+  $("tyreNote").textContent = s.pressure_ready
+    ? `Average hot pressure of the last lap, target ${n(s.settings.target_psi, 1)} psi. "Set" = the cold pressure for the pit menu.`
+    : `Advice after ${n(s.settings.advice_min_km, 0)} km of running in the stint (${n(s.stint.km, 1)} km so far).`;
+
+  // Tyre wear
+  const w = s.wear;
+  $("wear").innerHTML = w.pct == null
+    ? `<div class="meta">Measuring… ${w.laps}/4 clean laps in this stint.</div><div class="note">Wear is read from the lap time trend over the stint (fuel weight removed): ACC does not publish tyre wear.</div>`
+    : `<div class="big">${n(w.pct, 0)}<span class="unit">%</span></div><div class="bar"><div style="width:${Math.min(100, w.pct)}%"></div></div>
+       <div class="rows"><span>Lost per lap</span><span>${n(w.per_lap_s, 3)} s</span><span>Lost since the start of the stint</span><span>${n(w.lost_s, 2)} s</span></div>
+       <div class="note">100 % = ${n(s.settings.tyre_worn_pct, 1)} % slower per lap than fresh tyres. From the fuel-corrected lap time trend.</div>`;
+
+  // Brakes
+  $("brakes").innerHTML = s.brakes.map((b) => `<div class="tyre"><div class="w">${b.wheel}</div>
+      <div class="psi">${n(b.pad_pct, 0)}<span class="unit">% worn</span></div>
+      <div class="bar"><div style="width:${Math.min(100, b.pad_pct)}%"></div></div>
+      <div class="sub" style="margin-top:6px">pad ${n(b.pad_mm, 1)} mm · disc ${n(b.disc_mm, 1)} mm</div>
+      <div class="sub">${b.laps_left != null ? `${n(b.per_lap_mm, 3)} mm/lap · ~${n(b.laps_left, 0)} laps left` : "wear rate after a lap"}</div></div>`).join("");
+  $("brakeNote").textContent = `Pads counted worn out at ${n(s.settings.pad_worn_mm, 1)} mm.` +
+    (s.fuel.laps_left != null && s.brakes.some((b) => b.laps_left != null && b.laps_left < s.fuel.laps_left) ? " ⚠ The pads will not last to the finish." : "");
+
+  // Damage
+  const d = s.damage;
+  $("damage").innerHTML = d.any
+    ? `<div class="alert">Damage</div><div class="rows">${Object.entries(d.zones).filter(([, v]) => v > 0).map(([k, v]) => `<span>${k}</span><span class="bad">${n(v, 1)}</span>`).join("")}
+       ${Object.entries(d.suspension).filter(([, v]) => v > 0).map(([k, v]) => `<span>suspension ${k}</span><span class="bad">${n(v, 2)}</span>`).join("")}</div>`
+    : `<div class="ok" style="font-weight:700">No damage</div>`;
+
+  // Laps
+  $("laps").innerHTML = s.laps.slice().reverse().map((l) =>
+    `<tr><td>L${l.n}</td><td>${lap(l.time)}</td><td>${n(l.fuel, 2)} L</td><td class="${l.pit ? "info" : l.valid ? "ok" : "bad"}">${l.pit ? "pit" : l.valid ? "valid" : "invalid"}</td></tr>`).join("");
+}
+
+function openSettings() {
+  const f = $("settings").querySelector("form");
+  for (const [k, v] of Object.entries(last?.settings ?? {})) if (f.elements[k]) f.elements[k].value = v;
+  $("settings").showModal();
+}
+async function saveSettings(e) {
+  if (e.submitter?.value === "cancel") return;
+  const f = e.target, body = {};
+  for (const el of f.elements) if (el.name) body[el.name] = Number(el.value);
+  await fetch("/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+tick();
+</script>
+</body>
+</html>

@@ -151,6 +151,7 @@ class Pages:
         st.playerName, st.playerSurname, st.playerNick = "Test", "Driver", "TDR"
         st.numberOfSessions, st.numCars, st.sectorCount, st.maxRpm, st.isOnline = 1, 5, 3, 7000, 0
         st.dryTyresName, st.wetTyresName = "DHF", "WH"
+        st.maxFuel, st.isTimedRace = 120.0, 1
 
     def physics(self) -> bytes:
         c, p = self.car, self.p
@@ -167,6 +168,13 @@ class Pages:
         p.velocity[:] = (c.v * np.cos(hd), 0.0, c.v * np.sin(hd))
         p.heading = hd
         p.fuel = 50.0 - c.distance / 2000
+        # Race engineer fields: pads and discs wear with distance, pressures and core temperatures
+        # build up over the first 8 km (front-left a bit hotter)
+        warm = min(1.0, c.distance / 8000)
+        p.padLife[:] = [29.0 - c.distance / (40000 if w < 2 else 30000) for w in range(4)]
+        p.discLife[:] = [32.0 - c.distance / 250000] * 4
+        p.wheelPressure[:] = [24.6 + (2.6 if w == 0 else 2.3) * warm for w in range(4)]
+        p.tyreCoreTemp[:] = [70.0 + 18.0 * warm] * 4
         for w, (lon, lat) in enumerate(((1.3, -0.8), (1.3, 0.8), (-1.3, -0.8), (-1.3, 0.8))):
             p.tyreContactPoint[w][:] = (x + lon * np.cos(hd) - lat * np.sin(hd), y,
                                         z + lon * np.sin(hd) + lat * np.cos(hd))
@@ -188,6 +196,8 @@ class Pages:
         g.isInPit = int(c.mode == "box")
         g.isValidLap = c.valid
         g.currentSectorIndex = int(3 * c.pos / c.t.length)
+        g.sessionTimeLeft, g.fuelXLap = max(0.0, 3600_000 - c.time * 1000), 1.5
+        g.mfdTyrePressureLF = g.mfdTyrePressureRF = g.mfdTyrePressureLR = g.mfdTyrePressureRR = 25.5
         g.activeCars, g.playerCarID = 5, PLAYER_ID
         for i in range(5):                       # player in slot 3, other cars elsewhere on track
             g.carID[i] = 1000 + i

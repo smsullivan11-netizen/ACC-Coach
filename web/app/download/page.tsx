@@ -1,4 +1,4 @@
-import { Cpu, Download, HardDrive, Info, Power } from "lucide-react";
+import { Cpu, Download, HardDrive, Info, Power, Gauge } from "lucide-react";
 import type { Metadata } from "next";
 import { delay, PageTitle, SectionTitle } from "@/components/ui";
 import { APP_RELEASE } from "@/lib/app-release";
@@ -53,6 +53,7 @@ export default async function DownloadPage() {
       <section className="card rise mt-5 p-5" style={delay(160)}>
         <SectionTitle icon={Info}>Good to know</SectionTitle>
         <ul className="space-y-2.5 text-sm text-zinc-400">
+          <li className="flex gap-2.5"><Gauge size={16} className="mt-0.5 shrink-0 text-race" /> Live race engineer (right-click the icon → Race engineer): fuel to add, tyre pressure advice, tyre and brake wear, damage. Open it on a second screen, or share it on your Wi-Fi to follow it on a phone or a teammate&apos;s PC.</li>
           <li className="flex gap-2.5"><Power size={16} className="mt-0.5 shrink-0 text-race" /> It starts with Windows (you can turn that off in its menu: right-click the icon).</li>
           <li className="flex gap-2.5"><Cpu size={16} className="mt-0.5 shrink-0 text-race" /> It only reads the data ACC publishes for apps; it uses about 4 % of one CPU core while you drive.</li>
           <li className="flex gap-2.5"><HardDrive size={16} className="mt-0.5 shrink-0 text-race" /> Recordings are kept on your PC for 30 days, then deleted; uploaded laps stay on the site.</li>

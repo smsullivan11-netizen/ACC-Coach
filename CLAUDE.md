@@ -684,3 +684,30 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   30 latest uploads with a note on creating them. Videos play on the page (youtube-nocookie embed).
 - YouTube images need `referrerPolicy="no-referrer"` (the channel avatar is refused otherwise).
 - The menu got a 7th link: the header's nav is `max-w-7xl` (labels nowrap) so it stays on one line.
+
+## Race engineer (app 0.1.7, agent/engineer.py, agent/engineer_server.py, agent/assets/engineer.html)
+- User's request (ACC Drive-like, kept simple): a live page served by the app at
+  http://localhost:8780 (8781/8782 if busy), tray "Race engineer (live)"; "Share the engineer on my
+  network" binds 0.0.0.0 (phone, tablet, teammate on the Wi-Fi; Windows asks for firewall access the
+  first time). Read-only; its settings are saved in config.json ("engineer").
+- A thread reads the shared memory at ~20 Hz (separate from the recorder) into `Engineer.feed`;
+  samples with all padLife at 0 are skipped (garage/loading: ACC zeroes the car's data).
+- Checked on the real Brands Hatch recording: tyreWear and wheelLoad stay 0 (ACC does not fill
+  them, and there is no tread depth anywhere: "read wear after a pit stop" is not possible);
+  wheelPressure, tyreCoreTemp, padLife (29 mm new) / discLife (32 mm), fuel, fuelXLap, mfd
+  pressures are live. carDamage / suspensionDamage exist (scale not checked yet: no contact recorded).
+- Fuel: per lap = mean of the last 3 non-pit laps (game estimate before); timed race: laps left =
+  ceil((time left − rest of this lap) / avg lap) + 1; needed = (laps left + margin) × per lap;
+  to add capped at the tank; stops; longest stint on a full tank.
+- Pressures (team: 26.9 psi hot on all four): average hot pressure at > 50 km/h over the last lap;
+  advice after 10 km in the stint (ACC Drive: 20, the user found it too much): set = pit-menu
+  pressure + (target − measured).
+- Tyre wear %: fuel-corrected lap time trend (Theil–Sen) over the stint's valid flying laps (first
+  one left out), from 4 laps; 100 % = `tyre_worn_pct` (default 5 %) slower than the stint's best
+  early lap. Brakes %: (new − now) / (new − `pad_worn_mm`, default 15 mm), new = highest seen since
+  a jump up (new pads at a stop); mm per lap and laps left; warning if they will not last the race.
+- Settings defaults (`DEFAULT_SETTINGS`): target 26.9 psi, advice after 10 km, 100 % tyre wear = 5 %
+  slower, pads worn at 15 mm (both to confirm with the team), fuel margin 1 lap.
+- Fuel weight table duplicated from web/lib/fuel.ts (keep in sync).
+- Test: `python tests/test_engineer.py` (fake session replay, the real recording when present,
+  live fake ACC + the page's /state). fake_acc fills pads, discs, pressures, temps, race clock.

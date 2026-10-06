@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # project modu
 import acc_shm as shm
 import corners as cn
 import upload
+from engineer_server import LiveEngineer
 from recorder import Recorder
 from version import __version__
 
@@ -163,6 +164,9 @@ class Agent:
         self.recorder = Recorder(self.rec_dir, shm_prefix, log=lambda m, end="\n": log.debug(m.strip()),
                                  on_file=lambda summary: self.queue.put(Path(summary["path"])))
         self._link_server = None
+        # Live race engineer page (engineer_server.py), on this PC or shared on the local network
+        self.engineer = LiveEngineer(ASSETS / "engineer.html", self.config.get("engineer") or {},
+                                     lambda s: self.config.set("engineer", s), shm_prefix)
 
     # Status for the tray menu
     def linked(self) -> bool:
@@ -190,8 +194,21 @@ class Agent:
 
     # Threads
     def start(self):
-        for target in (self._record, self._worker, self._housekeeping):
+        for target in (self._record, self._worker, self._housekeeping, self._engineer):
             threading.Thread(target=target, daemon=True).start()
+        self.engineer.serve(shared=bool(self.config.get("engineer_shared")))
+
+    def _engineer(self):
+        while not self.stop.is_set():
+            try:
+                self.engineer.run(self.stop)
+            except Exception:
+                log.exception("race engineer crashed, restarting")
+                self.stop.wait(5)
+
+    def share_engineer(self, on: bool):
+        self.config.set("engineer_shared", on)
+        self.engineer.serve(shared=on)
 
     def _record(self):
         while not self.stop.is_set():
@@ -353,6 +370,10 @@ def run_tray(agent: Agent):
         Menu.SEPARATOR,
         Item(lambda _: f"Linked to {agent.config.get('driver')}" if agent.linked() else "Link this PC to my account…",
              lambda: agent.link(), enabled=lambda _: not agent.linked()),
+        Item("Race engineer (live)", lambda: webbrowser.open(agent.engineer.url), enabled=lambda _: bool(agent.engineer.port)),
+        Item("Share the engineer on my network", lambda: agent.share_engineer(not agent.engineer.shared),
+             checked=lambda _: agent.engineer.shared),
+        Menu.SEPARATOR,
         Item("Open my sessions", open_url("/sessions"), default=True),
         Item("Leaderboards", open_url("/tracks")),
         Item(lambda _: f"Upload {len(agent.pending())} waiting session(s)",
