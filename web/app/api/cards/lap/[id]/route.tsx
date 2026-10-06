@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
+import { PCGR_RED } from "@/components/ui";
 import { currentDriver } from "@/lib/auth";
 import { validCardSignature } from "@/lib/cards";
 import { sql } from "@/lib/db";
@@ -58,7 +59,9 @@ export async function GET(request: Request, ctx: RouteContext<"/api/cards/lap/[i
             <div style={{ display: "flex", fontFamily: "Konexy", fontSize: 30 }}>
               ACC <span style={{ color: "#ffd200", marginLeft: 12 }}>COACH</span>
             </div>
-            <div style={{ display: "flex", marginLeft: "auto", fontFamily: "Konexy", fontSize: 22, color: "#e10600", letterSpacing: 4 }}>PCGR</div>
+            <div style={{ display: "flex", marginLeft: "auto", fontFamily: "Konexy", fontSize: 22, letterSpacing: 4 }}>
+              <span style={{ color: "#ffffff" }}>PC</span><span style={{ color: PCGR_RED }}>GR</span>
+            </div>
           </div>
           <div style={{ display: "flex", marginTop: 70, fontFamily: "Konexy", fontSize: 58, maxWidth: 900 }}>{info?.name ?? lap.track}</div>
           <div style={{ display: "flex", marginTop: 6, fontSize: 30, color: "#d4d4d8" }}>

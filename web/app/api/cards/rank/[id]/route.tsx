@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { RankSymbol } from "@/components/ui";
+import { PCGR_RED, RankSymbol } from "@/components/ui";
 import { currentDriver } from "@/lib/auth";
 import { validRankSignature } from "@/lib/cards";
 import { sql } from "@/lib/db";
@@ -45,7 +45,9 @@ export async function GET(request: Request, ctx: RouteContext<"/api/cards/rank/[
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={helmet} width={56} height={56} style={{ borderRadius: 12 }} alt="" />
           <div style={{ display: "flex", fontFamily: "Konexy", fontSize: 26 }}>ACC <span style={{ color: "#ffd200", marginLeft: 10 }}>COACH</span></div>
-          <div style={{ display: "flex", marginLeft: "auto", fontFamily: "Konexy", fontSize: 20, color: "#e10600", letterSpacing: 4 }}>PCGR</div>
+          <div style={{ display: "flex", marginLeft: "auto", fontFamily: "Konexy", fontSize: 20, letterSpacing: 4 }}>
+            <span style={{ color: "#ffffff" }}>PC</span><span style={{ color: PCGR_RED }}>GR</span>
+          </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 6 }}>
           <div style={{ display: "flex", fontSize: 26, letterSpacing: 8, color: "#a1a1aa", fontWeight: 700 }}>RANK UP</div>

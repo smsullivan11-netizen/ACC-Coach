@@ -4,6 +4,16 @@ import { RANKS, rankFor, rankLevel, type Rank } from "@/lib/ranks";
 
 // Small shared pieces of the interface (server and client components).
 
+/** The team's name as it is written everywhere (user's request): "PC" white, "GR" pure red. */
+export const PCGR_RED = "#ff0000";
+export function Pcgr({ className = "" }: { className?: string }) {
+  return (
+    <span className={className}>
+      <span style={{ color: "#ffffff" }}>PC</span><span style={{ color: PCGR_RED }}>GR</span>
+    </span>
+  );
+}
+
 /** Driver picture, or their initials on a dark disc. */
 export function Avatar({ url, name, size = 28, ring = false }: { url: string | null | undefined; name: string; size?: number; ring?: boolean }) {
   const cls = `shrink-0 rounded-full ${ring ? "ring-2 ring-accent/70" : ""}`;

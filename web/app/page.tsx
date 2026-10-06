@@ -1,5 +1,5 @@
 import { BarChart3, Gauge, Route } from "lucide-react";
-import { delay } from "@/components/ui";
+import { delay, Pcgr } from "@/components/ui";
 import { currentDriver, devLoginEnabled, discordConfigured } from "@/lib/auth";
 import Dashboard from "./Dashboard";
 
@@ -20,7 +20,7 @@ export default async function Home(props: PageProps<"/">) {
   return (
     <div className="mx-auto grid max-w-5xl items-center gap-10 py-6 md:grid-cols-[1.1fr_1fr]">
       <div className="rise order-2 md:order-1">
-        <p className="display text-xs tracking-[0.3em] text-race">PCGR · PCGROUP RACING</p>
+        <p className="display text-xs tracking-[0.3em] text-race"><Pcgr /> · PCGROUP RACING</p>
         <h1 className="display mt-3 text-5xl leading-tight text-white">
           ACC <span className="text-accent">COACH</span>
         </h1>

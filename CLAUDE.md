@@ -489,6 +489,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   it has **no ":" glyph**, so lap times always use Geist.
 - Logo: the PCGR mascot (`public/team-logo.jpg`); the helmet crop is the favicon / header logo
   (`app/icon.png`, `app/apple-icon.png`, `public/team-helmet.jpg`).
+- The name "PCGR" is always written "PC" white + "GR" pure red #ff0000 (user's request):
+  `<Pcgr />` / `PCGR_RED` in components/ui.tsx (footer, home, credits, both Discord cards).
 - Redesign done page by page with the user's feedback (they like Racemake's dark look and
   animations, but want simplicity for learning). Round 1: header, sign-in page, dashboard (new
   home for signed-in drivers), sessions list. Next: lap comparison, leaderboards, profiles, rest.

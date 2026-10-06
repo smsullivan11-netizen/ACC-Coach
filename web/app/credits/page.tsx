@@ -1,6 +1,6 @@
 import { Camera } from "lucide-react";
 import type { Metadata } from "next";
-import { PageTitle } from "@/components/ui";
+import { PageTitle, Pcgr } from "@/components/ui";
 import CREDITS from "@/lib/track-photo-credits.json";
 import { TRACKS } from "@/lib/tracks";
 
@@ -24,7 +24,7 @@ export default function CreditsPage() {
               <a href={c.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-zinc-400 underline-offset-2 hover:text-white hover:underline">
                 {c.author}
               </a>
-            ) : <span className="min-w-0 flex-1 truncate text-zinc-400">{c.author}</span>}
+            ) : <span className="min-w-0 flex-1 truncate text-zinc-400">{c.author === "PCGR" ? <Pcgr /> : c.author}</span>}
             <span className="text-xs text-zinc-500">{c.license}</span>
           </div>
         ))}
