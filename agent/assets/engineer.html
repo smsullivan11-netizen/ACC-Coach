@@ -72,7 +72,7 @@
     <label>Target hot pressure (psi) <input name="target_psi" type="number" step="0.1"></label>
     <label>Pressure advice after (km in the stint) <input name="advice_min_km" type="number" step="1"></label>
     <label>100 % tyre wear = slower per lap by (%) <input name="tyre_worn_pct" type="number" step="0.5"></label>
-    <label>Brake pads worn out at (mm) <input name="pad_worn_mm" type="number" step="0.5"></label>
+    <label>Brake pads at risk below (mm, = 90 % worn) <input name="pad_worn_mm" type="number" step="0.5"></label>
     <label>Fuel margin (laps) <input name="fuel_margin_laps" type="number" step="0.5"></label>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
       <button class="btn" value="cancel" formmethod="dialog">Cancel</button>
@@ -147,8 +147,9 @@ function render(s) {
       <div class="psi">${n(b.pad_pct, 0)}<span class="unit">% worn</span></div>
       <div class="bar"><div style="width:${Math.min(100, b.pad_pct)}%"></div></div>
       <div class="sub" style="margin-top:6px">pad ${n(b.pad_mm, 1)} mm · disc ${n(b.disc_mm, 1)} mm</div>
-      <div class="sub">${b.laps_left != null ? `${n(b.per_lap_mm, 3)} mm/lap · ~${n(b.laps_left, 0)} laps left` : "wear rate after a lap"}</div></div>`).join("");
-  $("brakeNote").textContent = `Pads counted worn out at ${n(s.settings.pad_worn_mm, 1)} mm.` +
+      <div class="sub">${b.laps_left != null ? `${n(b.per_lap_mm, 3)} mm/lap · ~${n(b.laps_left, 0)} laps to ${n(s.settings.pad_worn_mm, 0)} mm` : "wear rate after a lap"}</div>
+      ${b.at_risk ? `<div class="advice bad">Under ${n(s.settings.pad_worn_mm, 0)} mm: risk of brake failure</div>` : ""}</div>`).join("");
+  $("brakeNote").textContent = `New pads 0 %, ${n(s.settings.pad_worn_mm, 0)} mm = 90 % (ACC shows a red dot on the brake disc below 10 mm).` +
     (s.fuel.laps_left != null && s.brakes.some((b) => b.laps_left != null && b.laps_left < s.fuel.laps_left) ? " ⚠ The pads will not last to the finish." : "");
 
   // Damage

@@ -37,8 +37,8 @@ def fuel_seconds(track: str, fuel_l: float) -> float:
 DEFAULT_SETTINGS = {
     "target_psi": 26.9,        # hot pressure aimed at, all four tyres (team's choice)
     "advice_min_km": 10.0,     # running in the stint before pressure advice (ACC Drive: 20 km)
-    "tyre_worn_pct": 5.0,      # 100 % tyre wear = this much slower per lap than on fresh tyres
-    "pad_worn_mm": 15.0,       # pad thickness counted as worn out (new pads: 29 mm)
+    "tyre_worn_pct": 2.8,      # 100 % tyre wear = this much slower per lap than on fresh tyres (team: ~3 s at Spa)
+    "pad_worn_mm": 10.0,       # pads at risk below this (ACC dev: red dot in the HUD under 10 mm) = 90 % worn
     "fuel_margin_laps": 1.0,   # extra fuel on top of what the race needs
 }
 WHEELS = ("FL", "FR", "RL", "RR")
@@ -210,14 +210,15 @@ class Engineer:
             lost = slope * (xs[-1] - xs[0])
             wear.update(per_lap_s=slope, lost_s=lost, pct=min(150.0, 100 * lost / (base * s["tyre_worn_pct"] / 100)))
 
-        # Brakes: pads in mm and %, wear per lap over the stint
+        # Brakes: pads in mm and %: new = 0 %, the risk thickness (10 mm, ACC's red dot) = 90 %;
+        # wear per lap over the stint, laps left until the risk thickness
         pads = []
         laps_done = max(1, len(self.stint.laps))
         for i, w in enumerate(WHEELS):
             used = max(0.0, self.pad_new[i] - live["pads"][i])
             usable = max(0.1, self.pad_new[i] - s["pad_worn_mm"])
             pads.append({"wheel": w, "pad_mm": live["pads"][i], "disc_mm": live["discs"][i],
-                         "pad_pct": min(100.0, 100 * used / usable),
+                         "pad_pct": min(100.0, 90 * used / usable), "at_risk": live["pads"][i] < s["pad_worn_mm"],
                          "per_lap_mm": used / laps_done if self.stint.laps else None,
                          "laps_left": (live["pads"][i] - s["pad_worn_mm"]) / (used / laps_done) if self.stint.laps and used > 0 else None})
 

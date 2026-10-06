@@ -703,11 +703,13 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   advice after 10 km in the stint (ACC Drive: 20, the user found it too much): set = pit-menu
   pressure + (target − measured).
 - Tyre wear %: fuel-corrected lap time trend (Theil–Sen) over the stint's valid flying laps (first
-  one left out), from 4 laps; 100 % = `tyre_worn_pct` (default 5 %) slower than the stint's best
-  early lap. Brakes %: (new − now) / (new − `pad_worn_mm`, default 15 mm), new = highest seen since
-  a jump up (new pads at a stop); mm per lap and laps left; warning if they will not last the race.
-- Settings defaults (`DEFAULT_SETTINGS`): target 26.9 psi, advice after 10 km, 100 % tyre wear = 5 %
-  slower, pads worn at 15 mm (both to confirm with the team), fuel margin 1 lap.
+  one left out), from 4 laps; 100 % = `tyre_worn_pct` (2.8 %: team, ~3 s at Spa) slower than the
+  stint's best early lap. Brakes %: 90 × (new − now) / (new − `pad_worn_mm`): new pads (29 mm) 0 %,
+  10 mm = 90 % (an ACC dev: the HUD shows a red dot on the disc under 10 mm, risk of failure below);
+  new = highest seen since a jump up (new pads at a stop); mm per lap, laps to 10 mm, warnings.
+- Settings defaults (`DEFAULT_SETTINGS`, the team's values): target 26.9 psi, advice after 10 km,
+  100 % tyre wear = 2.8 % slower, pads at risk under 10 mm (= 90 %), fuel margin 1 lap. Damage
+  scale still to check on a recording with contact.
 - Fuel weight table duplicated from web/lib/fuel.ts (keep in sync).
 - Test: `python tests/test_engineer.py` (fake session replay, the real recording when present,
   live fake ACC + the page's /state). fake_acc fills pads, discs, pressures, temps, race clock.
