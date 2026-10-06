@@ -35,6 +35,10 @@ site when the session ends. There you compare your laps with your teammates', co
 speed, throttle, brake, steering, gear, racing lines and the time gained or lost everywhere on the
 lap, plus leaderboards and an Overall Driver Rating.
 
+While you drive, the live race engineer window follows your fuel, tyre pressures and temperatures,
+tyre and brake wear and damage, and tells you what to change at the next stop. It can also be
+shared with a teammate on your home network.
+
 Requires Assetto Corsa Competizione and an account on the team site (sign-in with Discord, team
 members only).
 
@@ -50,6 +54,7 @@ racing coach, motorsport, driving analysis, racing team
 - Uploads your laps when the session ends
 - Lap comparison with teammates: inputs, racing lines, time gap
 - Leaderboards and Overall Driver Rating
+- Live race engineer: fuel, tyre pressures and temperatures, tyre and brake wear, damage
 - Starts with Windows (can be turned off in Settings > Apps > Startup)
 
 ## Submission options
@@ -71,6 +76,9 @@ browser opens the "Link this PC" page. 2) Click "Use the test account" under the
 sign in with the test account, then click "Link this PC as Store Reviewer": the app shows a
 notification "Linked to Store Reviewer" and its menu says so. 3) The site (team's laps, lap
 comparison, leaderboards, driver ratings) is now open to this account; the app's other functions
-are in the icon's right-click menu. Recording itself needs the game: without ACC running the app
-stays in "Waiting for ACC", which is the expected state. It reads the game's documented shared
+are in the icon's right-click menu, among them "Race engineer (live)", a window that fills with
+live data only while ACC is running. "Share the engineer on my network" (off by default) makes
+that page reachable from other devices on the local network, so Windows may ask to allow it
+through the firewall. Recording itself needs the game: without ACC running the app stays in
+"Waiting for ACC", which is the expected state. It reads the game's documented shared
 memory (Local\acpmf_physics, graphics, static) and makes no other changes to the system.
