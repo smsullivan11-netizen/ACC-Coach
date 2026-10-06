@@ -2,7 +2,8 @@
 
 Texts to paste into the ACC Coach submission. Package: `agent\dist\ACC-Coach-<version>.msix`
 (`powershell -File agent\build.ps1 -Store`, with the real identity in `identity.json`).
-Screenshots: `agent\dist\store-screenshots\` (1920x1080, from the local test site).
+Screenshots: `agent\dist\store-screenshots\` (1920x1080, from the local test site; 1, 3 and
+8-race-engineer retaken 2026-10-07 for 0.2.0: the engineer from the real Brands Hatch recording).
 
 ## Pricing and availability
 - Markets: all (default).
@@ -48,6 +49,14 @@ team's telemetry site.
 **Search terms** (max 7; not "free" and no other product's name such as Assetto Corsa
 Competizione: the first submission was refused for "Free"): telemetry, sim racing, lap times,
 racing coach, motorsport, driving analysis, racing team
+
+**What's new in this version** (0.2.0, first public version after 0.1.0):
+- New live race engineer window: fuel per lap and fuel to add, tyre pressures with the cold
+  pressure to set at the next stop, tyre and brake temperatures with brake duct advice, tyre and
+  brake pad wear, damage. It can be shared with a phone or a teammate on your home network.
+- Sends each lap's fuel load and the session's air and track temperatures to the team site.
+- Hotlap sessions: laps are now split correctly, including invalid laps.
+- New program and tray icons.
 
 **Features**
 - Records ACC sessions automatically at the game's physics rate
