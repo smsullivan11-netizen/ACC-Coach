@@ -1,6 +1,7 @@
 import { Clapperboard, ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import BackgroundVideo from "@/components/BackgroundVideo";
 import { PageTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { CHANNEL_URL, SECTIONS, teamVideos, type YouTubeData } from "@/lib/youtube";
@@ -22,7 +23,9 @@ export default async function YouTubePage(props: PageProps<"/youtube">) {
   const current = data?.sections.find((s) => s.key === section) ?? data?.sections.find((s) => s.videos.length) ?? data?.sections[0];
 
   return (
-    <div>
+    // The team video behind the page, as on the dashboard (user's request); cards in frosted glass
+    <div className="glass">
+      <BackgroundVideo src="/media/dashboard-bg.mp4" poster="/media/dashboard-bg.jpg" />
       <PageTitle icon={Clapperboard} sub="The team's videos: livery reveals, hotlaps and highlights.">YouTube</PageTitle>
       {!data && (
         <p className="card p-6 text-zinc-400">

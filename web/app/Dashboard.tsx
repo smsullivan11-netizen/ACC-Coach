@@ -2,6 +2,7 @@ import { Activity, Crown, Gauge, Medal, TrendingDown, TrendingUp, Trophy } from 
 import Link from "next/link";
 import BackgroundVideo from "@/components/BackgroundVideo";
 import TrendChart from "@/components/TrendChart";
+import WelcomeHero from "@/components/WelcomeHero";
 import { ratingDomain } from "@/lib/chart";
 import { Avatar, Chip, delay, NextRank, PartBar, Position, RankBadge, RankIcon, ScaleNumber, SectionTitle } from "@/components/ui";
 import type { Driver } from "@/lib/auth";
@@ -37,10 +38,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
     // The team video behind the page; the cards turn to frosted glass over it (globals.css .glass)
     <div className="glass">
       <BackgroundVideo src="/media/dashboard-bg.mp4" poster="/media/dashboard-bg.jpg" />
-      <div className="rise mb-6">
-        <p className="text-sm text-zinc-400">{dayLabel(new Date())}</p>
-        <h1 className="display mt-1 text-3xl text-white">Welcome back, <span className="text-accent">{first}</span></h1>
-      </div>
+      <WelcomeHero day={dayLabel(new Date())} name={first} />
 
       <div className="grid gap-5 lg:grid-cols-2">
         {/* 1. Rating */}

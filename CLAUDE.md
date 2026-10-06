@@ -561,6 +561,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   "Animation effects" is off (the user's gaming PC), and the video never played. Cards over it are frosted glass (`.glass .card` in
   globals.css: 72 % panel + backdrop blur; write only the standard `backdrop-filter`, the CSS build
   dropped it when the -webkit- line was there too).
+- Same video behind the YouTube page (.glass + BackgroundVideo). Dashboard welcome (components/WelcomeHero.tsx,
+  user's request): bigger (6xl), with room under it so the blocks start lower and the video shows
+  on arrival; fades out and drifts up 40 px over the first 320 px of scrolling (the entrance
+  animation is on an inner box: its final state would pin opacity and position).
 - Redesign done page by page with the user's feedback (they like Racemake's dark look and
   animations, but want simplicity for learning). Round 1: header, sign-in page, dashboard (new
   home for signed-in drivers), sessions list. Next: lap comparison, leaderboards, profiles, rest.
