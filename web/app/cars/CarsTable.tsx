@@ -114,16 +114,18 @@ export default function CarsTable({ rows }: { rows: CarRow[] }) {
                     <span className="font-medium">{r.name}</span> <span className="text-xs text-zinc-500">{r.year}</span>
                   </Link>
                   <div className="mt-1 flex items-center gap-3 whitespace-nowrap text-xs text-zinc-500">
-                    {drive != null && <Stars v={drive} />}
+                    {drive != null && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Driveability</span>
+                        <Stars v={drive} />
+                      </span>
+                    )}
                     {r.laps > 0 && <span>{r.laps} team {r.laps === 1 ? "lap" : "laps"} · {r.drivers} {r.drivers === 1 ? "driver" : "drivers"}</span>}
                   </div>
                 </td>
                 <td className="text-right">
                   {r.overall == null ? <span className="whitespace-nowrap text-xs text-zinc-500">not rated yet</span> : (
-                    <div className="ml-auto w-16">
-                      <div className="tabular text-right text-lg font-bold" style={{ color: scaleColor(r.overall) }}>{r.overall.toFixed(1)}</div>
-                      <PartBar v={r.overall} className="mt-1 h-1.5" />
-                    </div>
+                    <span className="tabular text-lg font-bold" style={{ color: scaleColor(r.overall) }}>{r.overall.toFixed(1)}</span>
                   )}
                 </td>
                 {COLUMNS.map((p) => <td key={p.key} className="text-right"><Part v={r.parts[p.key]} /></td>)}
