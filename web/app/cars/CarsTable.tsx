@@ -53,15 +53,19 @@ function Stars({ v }: { v: number }) {
 }
 
 // Cars of one class: overall rating, the sub-ratings and the sheet's pace gap; under each car's name
-// its driveability stars and the team's laps. Every column sorts (click again to reverse); unrated
-// cars stay at the bottom.
+// its driveability stars and the team's laps. Every column sorts (click again to reverse); cars
+// without a value stay at the bottom, in the sheet's order.
 export default function CarsTable({ rows }: { rows: CarRow[] }) {
-  const [sort, setSort] = useState<{ key: Key; desc: boolean }>({ key: "overall", desc: true });
+  // By overall rating once a car of the class is rated, by the sheet before (user: nothing rated
+  // left the list alphabetical and without positions)
+  const [sort, setSort] = useState<{ key: Key; desc: boolean }>(() =>
+    rows.some((r) => r.overall != null) ? { key: "overall", desc: true } : { key: "sheetGap", desc: false });
   const val = (r: CarRow, k: Key): number | null =>
     k === "overall" || k === "sheetGap" ? r[k] : r.parts[k] ?? null;
   const sorted = useMemo(() => [...rows].sort((a, b) => {
     const x = val(a, sort.key), y = val(b, sort.key);
-    if (x == null && y == null) return (b.overall ?? -1) - (a.overall ?? -1) || a.name.localeCompare(b.name);
+    if (x == null && y == null)   // not rated (or not in the sheet): the sheet's order, then the name
+      return (a.sheetGap ?? Infinity) - (b.sheetGap ?? Infinity) || a.name.localeCompare(b.name);
     if (x == null) return 1;
     if (y == null) return -1;
     return sort.desc ? y - x : x - y;

@@ -57,7 +57,7 @@ export default async function CarsPage(props: PageProps<"/cars">) {
           {rated} of {rows.length} cars rated{me.is_admin && rated < rows.length ? ": open a car to rate it" : ""}
         </span>
       </div>
-      <CarsTable rows={rows} />
+      <CarsTable key={current} rows={rows} />
     </div>
   );
 }
