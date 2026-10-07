@@ -1,4 +1,4 @@
-import { Cpu, Download, HardDrive, Info, Power, Gauge } from "lucide-react";
+import { Cpu, Download, HardDrive, Info, Power, Gauge, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { delay, PageTitle, SectionTitle } from "@/components/ui";
 import { APP_RELEASE } from "@/lib/app-release";
@@ -37,6 +37,17 @@ export default async function DownloadPage() {
           <p className="relative ml-auto text-zinc-500">The first version is being prepared.</p>
         )}
       </div>
+
+      {ready && APP_RELEASE.notes.length > 0 && (
+        <section className="card rise mt-5 p-5" style={delay(70)}>
+          <SectionTitle icon={Sparkles}>What&apos;s new in {APP_RELEASE.version}</SectionTitle>
+          <ul className="space-y-2 text-sm text-zinc-300">
+            {APP_RELEASE.notes.map((n) => (
+              <li key={n} className="flex gap-2.5"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /> {n}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="card rise mt-5 p-5" style={delay(100)}>
         <SectionTitle icon={HardDrive}>Install</SectionTitle>

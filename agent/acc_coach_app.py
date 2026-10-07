@@ -255,7 +255,7 @@ class Agent:
         track = r.get("track", "").replace("_", " ").title()
         if r["status"] == "uploaded":
             self.last_result = f"Last upload: {track}, {r['laps']} laps"
-            self.notify(APP, f"{track}: {r['laps']} laps uploaded")
+            self.notify(f"{track}: {r['laps']} laps uploaded", rating_text(r))
         elif r["status"] == "unauthorized":
             self.config.set("token", None)
             self.notify(APP, "This PC is no longer linked to your account: link it again (right-click the icon).")
@@ -327,6 +327,24 @@ class Agent:
         self.notify(APP, f"Linked to {self.config.get('driver')}. Your sessions will upload automatically.")
         for path in self.pending():
             self.queue.put(path)
+
+
+def rating_text(r: dict) -> str:
+    """The rating change for the upload notification: 'Rating 64.2 (+1.3) · Contender'."""
+    rating, before = r.get("rating"), r.get("rating_before")
+    if "rating_before" not in r:                       # an older site: no rating change to show
+        return f"Rating {rating:.1f}" if rating is not None else "Open your sessions to see the analysis."
+    if rating is None:
+        return "No valid lap in this session: your rating is unchanged."
+    if before is None:
+        return f"Your first rating: {rating:.1f} · {r.get('rank')}"
+    change = round(rating, 1) - round(before, 1)
+    text = f"Rating {rating:.1f} ({'+' if change > 0 else '−' if change < 0 else '±'}{abs(change):.1f})"
+    if not r.get("rank"):
+        return text
+    if r.get("rank_before") and r["rank"] != r["rank_before"]:
+        return f"{text}: promoted to {r['rank']}!" if change > 0 else f"{text} · now {r['rank']}"
+    return f"{text} · {r['rank']}"
 
 
 # --- Tray icon -------------------------------------------------------------------------

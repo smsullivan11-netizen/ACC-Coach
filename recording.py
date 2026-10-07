@@ -17,6 +17,7 @@ from types import SimpleNamespace
 import numpy as np
 
 import acc_shm as shm
+import acc_log
 import accrec
 from acc_telemetry import Lap, POS_CHANNELS, TRACK_LENGTHS, clean_inputs, fmt, hold
 
@@ -198,6 +199,11 @@ def load_recording(path: str, track_length: float | None = None, tol: float = 0.
         driver=" ".join(x for x in (st("playerName"), st("playerSurname")) if x),
         datetime=datetime.fromisoformat(rec.header["local_time"]) if "local_time" in rec.header else datetime.now(),
         session_type=rec.header.get("session", {}).get("type"))
+    # Server and balance of performance from ACC's log (app 0.4): offline sessions have neither
+    head.online = rec.header.get("session", {}).get("online")
+    head.server = None
+    if head.online is not False and "created_at" in rec.header:
+        head.server = acc_log.session_server(datetime.fromisoformat(rec.header["created_at"]))
     if len(p["t_ns"]) < 2 or len(g["t_ns"]) < 2:
         return head, [], 0.0
 

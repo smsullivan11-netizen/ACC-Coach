@@ -46,11 +46,12 @@ export type Bundle = {
     driver_name: string | null;
     conditions?: Record<string, unknown> | null;
     official: { session_file: string; server_name: string | null; car_id: number; car_model: number | null } | null;
-    // App 0.4+: whether the session was online, the server's name from ACC's log, and ACC's ballast
-    // field (kg; documented as unused by Kunos, checked once real LFM sessions come in)
+    // App 0.4+ (acc_log.py): whether the session was online, and from ACC's log the server's name and
+    // the BoP the server gave the car (kg, restrictor %; none on servers without a BoP)
     online?: boolean | null;
     server_name?: string | null;
     ballast_kg?: number | null;
+    restrictor_pct?: number | null;
   };
   corner_map: { track: string; version: number; length_m: number; provisional: boolean; hash: string; corners: Corner[] };
   laps: BundleLap[];
@@ -140,7 +141,10 @@ export async function importBundle(b: Bundle, driverId: string): Promise<{ sessi
               ${s.recorded_at}::timestamp, ${s.type ?? null}, ${b.version}, ${b.agent?.version ?? null}, ${s.driver_name?.trim() || null}, ${s.conditions ? tx.json(s.conditions as never) : null},
               ${serverName}, ${detectBop(serverName)})
       returning id`;
-    await snapshotBop(tx, session.id);   // LFM's ballast and restrictor for this car and track, as they are now
+    if (s.ballast_kg != null || s.restrictor_pct != null)   // the game's own figures (migration 0015)
+      await tx`update session set game_ballast_kg = ${s.ballast_kg ?? null}, game_restrictor_pct = ${s.restrictor_pct ?? null}
+               where id = ${session.id}`;
+    await snapshotBop(tx, session.id);   // the BoP's ballast and restrictor: the game's, else LFM's for this car and track now
 
     for (const l of b.laps) {
       // Apps before 0.3: a trace clock that disagrees with the lap time is repaired; its corner

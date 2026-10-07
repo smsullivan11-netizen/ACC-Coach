@@ -201,14 +201,17 @@ export function detectBop(serverName: string | null | undefined): Bop {
   return serverName && /lowfuelmotorsport\.com/i.test(serverName) ? "lfm" : "default";
 }
 
-/** Freezes LFM's ballast and restrictor for an LFM session's car and track as they are now (LFM
- *  changes its BoP over time: old laps keep theirs); clears them for a default-BoP session. */
+/** The session's ballast and restrictor: what the game says the server gave the car (app 0.4+, ACC's
+ *  log, migration 0015), else for an LFM session LFM's figures for the car and track as they are now
+ *  (LFM changes its BoP over time: old laps keep theirs); none for a default-BoP session without them. */
 export async function snapshotBop(db: Sql | postgres.TransactionSql, sessionId: string) {
   // effective BoP = coalesce(bop_chosen, bop, 'default') (migration 0014)
   await db`
     update session s set
-      bop_ballast_kg = case when coalesce(s.bop_chosen, s.bop, 'default') = 'lfm' then r.ballast_kg end,
-      bop_restrictor_pct = case when coalesce(s.bop_chosen, s.bop, 'default') = 'lfm' then r.restrictor_pct end
+      bop_ballast_kg = case when s.game_ballast_kg is not null or s.game_restrictor_pct is not null then s.game_ballast_kg
+                            when coalesce(s.bop_chosen, s.bop, 'default') = 'lfm' then r.ballast_kg end,
+      bop_restrictor_pct = case when s.game_ballast_kg is not null or s.game_restrictor_pct is not null then s.game_restrictor_pct
+                                when coalesce(s.bop_chosen, s.bop, 'default') = 'lfm' then r.restrictor_pct end
     from session s2 join track t on t.id = s2.track_id left join car c on c.id = s2.car_id
     left join lap_reference r on r.bop = 'lfm' and r.track_key = lower(t.key) and r.car_key = c.key
     where s.id = ${sessionId} and s2.id = s.id`;

@@ -134,6 +134,12 @@ def build_bundle(source_path: str, head, laps: list, ref: float, cmap: dict,
             "driver_name": head.driver or None,
             "conditions": getattr(head, "conditions", None),   # recorder only: temperatures, grip, rain, wind, time of day
             "official": official_info(results, car_id) if results and car_id is not None else None,
+            # Recorder, app 0.4+ (acc_log.py): online or not, the server's name and the BoP the server
+            # gave the car (kg, restrictor %), from ACC's log; None when unknown
+            "online": getattr(head, "online", None),
+            "server_name": (getattr(head, "server", None) or {}).get("server_name"),
+            "ballast_kg": (getattr(head, "server", None) or {}).get("ballast_kg"),
+            "restrictor_pct": (getattr(head, "server", None) or {}).get("restrictor_pct"),
         },
         "corner_map": {**{k: cmap.get(k) for k in ("track", "version", "length_m", "corners")},
                        "provisional": bool(cmap.get("provisional")), "hash": cn.map_hash(cmap)},

@@ -1,4 +1,5 @@
 import "server-only";
+import { APP_RELEASE } from "./app-release";
 import { appUrl, env, REVIEW_DISCORD_ID } from "./auth";
 import { lapCardUrl, rankCardUrl } from "./cards";
 import { sql } from "./db";
@@ -104,6 +105,34 @@ export async function announcePromotions(before: Map<string, number>) {
     select id, display_name from driver where id in ${sql(up.map(([id]) => id))}`).map((d) => [d.id, d.display_name]));
   const embeds = up.map(([id, r]) => promotion(names.get(id) ?? "A driver", id, r, before.get(id)!));
   for (let i = 0; i < embeds.length; i += 10) await post({ embeds: embeds.slice(i, i + 10) });   // Discord: 10 per message
+}
+
+/** A new desktop app version (lib/app-release.ts, user's request 2026-10-07), posted once: the first
+ *  upload or app update check after the deploy posts it (site_state 'app_announced', migration 0015). */
+export async function announceRelease() {
+  if (!env("DISCORD_WEBHOOK_URL") || !(APP_RELEASE.sizeMb > 0)) return;
+  try {
+    const first = await sql`
+      insert into site_state (key, value) values ('app_announced', ${APP_RELEASE.version})
+      on conflict (key) do update set value = excluded.value, updated_at = now()
+        where site_state.value is distinct from excluded.value
+      returning key`;
+    if (!first.length) return;   // already posted
+  } catch (e) {
+    console.error("release announcement", e);   // before migration 0015
+    return;
+  }
+  await post({ embeds: [{
+    color: YELLOW,
+    title: `🆕 ACC Coach ${APP_RELEASE.version} is out`,
+    description: [
+      ...APP_RELEASE.notes.map((n) => `• ${n}`),
+      "",
+      `**Installer**: download it from the [download page](${appUrl()}/download) and run it over the old one.`,
+      "**Microsoft Store**: it updates by itself once the Store has published it (a few days).",
+    ].join("\n"),
+    url: `${appUrl()}/download`,
+  }] });
 }
 
 /** Admin test message from Settings. */

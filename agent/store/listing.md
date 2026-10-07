@@ -50,7 +50,12 @@ team's telemetry site.
 Competizione: the first submission was refused for "Free"): telemetry, sim racing, lap times,
 racing coach, motorsport, driving analysis, racing team
 
-**What's new in this version** (0.3):
+**What's new in this version** (0.4):
+- After each upload, the notification shows your new rating and its change, and any promotion.
+- Online sessions: the server's name and the balance of performance the server gave your car
+  (ballast, restrictor) are read from ACC's log, so LFM sessions are recognised automatically.
+
+Earlier text (0.3):
 - Laps are now timed on the game's own lap timer: pausing the game mid-lap no longer adds the
   pause to that lap's telemetry, and very short sessions are timed exactly.
 
@@ -94,4 +99,5 @@ live data only while ACC is running. "Share the engineer on my network" (off by 
 that page reachable from other devices on the local network, so Windows may ask to allow it
 through the firewall. Recording itself needs the game: without ACC running the app stays in
 "Waiting for ACC", which is the expected state. It reads the game's documented shared
-memory (Local\acpmf_physics, graphics, static) and makes no other changes to the system.
+memory (Local\acpmf_physics, graphics, static) and, for online sessions, the server's name from the
+game's own log file (%LOCALAPPDATA%\AC2\Saved\Logs, read only); it makes no other changes to the system.

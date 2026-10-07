@@ -24,6 +24,10 @@ export default function PrivacyPage() {
           brake, steering, gear), speed, the car&apos;s position on track, lap times and lap validity, and the session
           details (track, car, session type, the driver name set in the game).
         </li>
+        <li>
+          For online sessions, from the game&apos;s own log file: the name of the server and the balance of performance
+          (ballast, restrictor) the server gave your car. Nothing else is read from the log.
+        </li>
         <li>Nothing else on your PC: no other programs, files, keystrokes or browsing.</li>
         <li>
           Recordings are stored in the app&apos;s folder on your PC and deleted 30 days after they have been uploaded.

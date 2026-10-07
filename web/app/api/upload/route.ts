@@ -4,10 +4,11 @@ import { driverFromRequest } from "@/lib/auth";
 import { awardAchievements } from "@/lib/achievements";
 import { afterUpload } from "@/lib/corner-maps";
 import { refreshCornerRefsForSession } from "@/lib/corner-refs";
-import { announceSession } from "@/lib/discord";
+import { announceRelease, announceSession } from "@/lib/discord";
 import { sql } from "@/lib/db";
 import { importBundle, Rejected, type Bundle } from "@/lib/import-bundle";
 import { compressOldTraces, pruneTraces } from "@/lib/storage";
+import { rankFor } from "@/lib/ranks";
 import { rateSession } from "@/lib/ratings";
 import { ensureReferences } from "@/lib/references";
 import { flagTooFast } from "@/lib/too-fast";
@@ -42,6 +43,9 @@ export async function POST(request: Request) {
   }
   // Laps faster than LFM's best ever allow: treated as invalid before the session is rated (lib/too-fast.ts)
   await flagTooFast(sql, { sessionId: result.sessionId });
+  // The rating before this session, for the change in the app's notification (app 0.4+)
+  const [before] = await sql<{ rating: number }[]>`
+    select rating from driver_rating where driver_id = ${driver.id} order by id desc limit 1`;
   const rating = await rateSession(sql, result.sessionId);
   await afterUpload(result.sessionId);
   // Achievements and the Discord post must never fail an upload
@@ -51,6 +55,7 @@ export async function POST(request: Request) {
   await compressOldTraces(10).catch((e) => console.error("compress traces", e));   // older traces, a few per upload
   // Track surface on the maps, recomputed with the new laps once the app has its answer
   after(() => refreshOutlineForSession(result.sessionId).catch((e) => console.error("track outline", e)));
+  after(() => announceRelease());   // a new app version, posted once (lib/discord.ts)
   // Corner reference points (distances before each corner, virtual boards), with the new laps
   after(() => refreshCornerRefsForSession(result.sessionId).catch((e) => console.error("corner refs", e)));
   return Response.json({
@@ -59,5 +64,8 @@ export async function POST(request: Request) {
     laps: result.laps,
     driver: driver.display_name,
     rating: rating ? Math.round(rating.rating * 10) / 10 : null,
+    rating_before: before ? Math.round(before.rating * 10) / 10 : null,
+    rank: rankFor(rating?.rating ?? before?.rating ?? 0).title,
+    rank_before: before ? rankFor(before.rating).title : null,
   });
 }

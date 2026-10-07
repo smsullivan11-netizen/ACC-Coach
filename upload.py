@@ -42,7 +42,7 @@ def request(url: str, token: str, data: bytes | None = None) -> tuple[int, dict]
 
 
 def upload_file(path: Path, url: str, token: str) -> dict:
-    """Processes a session and uploads it. Returns {status, message, laps?, session_url?} with
+    """Processes a session and uploads it. Returns {status, message, laps?, session_url?, rating?…} with
     status: uploaded, no_laps, duplicate, unauthorized, offline (retry later) or refused."""
     head, laps, ref = acc.load_any(str(path))
     if not laps:
@@ -62,7 +62,9 @@ def upload_file(path: Path, url: str, token: str) -> dict:
     if status == 200:
         return {"status": "uploaded", "laps": res["laps"], "kb": len(data) / 1024, "track": head.venue,
                 "session_url": f"{url}/sessions/{res['session_id']}",
-                "message": f"{res['laps']} laps uploaded"}
+                "message": f"{res['laps']} laps uploaded",
+                # The driver's rating after this session (site 2026-10-07+; None: no valid lap)
+                **{k: res[k] for k in ("rating", "rating_before", "rank", "rank_before") if k in res}}
     if status == 0:
         return {"status": "offline", "message": res["error"]}
     error = res.get("error", f"error {status}")

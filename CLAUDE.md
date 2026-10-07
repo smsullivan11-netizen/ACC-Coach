@@ -21,6 +21,7 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - `recorder.py`: records the shared memory while driving, one `.accrec` file per session.
 - `accrec.py`: `.accrec` file format (raw pages, zlib chunks): writer and reader.
 - `recording.py`: `.accrec` → laps for the pipeline; `check` command for real recordings.
+- `acc_log.py`: the server's name and the BoP given to the car, from ACC's own log (see "Session BoP").
 - `acc_telemetry.py`: MoTeC .ld/.ldx reading, lap splitting, validation, cleaning, resampling,
   lap metrics, server .json matching, CLI, overlay and racing-line plots (reads `.accrec` too).
 - `corners.py`: corner map (`tracks/<track>.json`) and per-corner metrics.
@@ -31,7 +32,8 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - `agent/`: the ACC Coach desktop app (`acc_coach_app.py`), its installer (`installer.iss`) and
   build script (`build.ps1`). `version.py`: app version, also sent in every bundle.
 - `tests/`: `test_synthetic.py` (MoTeC), `test_recorder.py` (live, fake game), `test_recording.py`
-  (recorder files), `test_db.py` (reference import `import_bundle` for the site), `fake_acc.py`.
+  (recorder files), `test_db.py` (reference import `import_bundle` for the site), `test_acc_log.py`
+  (ACC's log), `fake_acc.py`.
 - `ldparser.py`: third party, GPL-3.0, unmodified.
 
 ## Conventions
@@ -501,6 +503,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   puts everything in one folder (tests). Recordings deleted after 30 days once handled.
   Pending (offline, not linked) retried every 10 min; the file being recorded is never picked up.
 - Update check at start: `GET /api/app/latest` (version from `web/lib/app-release.ts`).
+- Upload notification (app 0.4, user's request): title "<Track>: N laps uploaded", text = the rating
+  change from the upload's reply (`rating`, `rating_before`, `rank`, `rank_before`):
+  "Rating 64.2 (+1.3) · Contender", "…: promoted to Front Runner!", "Your first rating: …", or "No
+  valid lap in this session: your rating is unchanged." (`rating_text`).
 - Build: `powershell -File agent\build.ps1` → PyInstaller (windowed, excludes ldparser/GPL,
   matplotlib, psycopg) + Inno Setup 6 (per-user, no admin; installed with
   `winget install JRSoftware.InnoSetup --scope user`) → `agent\dist\ACC-Coach-Setup.exe` (~21 MB),
@@ -656,6 +662,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   team record (beats every earlier lap of the class), record equalled, or personal best, with the lap
   card as the embed image, plus **rank promotions** (this upload's rating only). No achievement or
   rating-change posts. Never fails an upload. Admin button "Test the Discord channel".
+- App releases (user's request, 2026-10-07): `announceRelease` posts "🆕 ACC Coach <version> is out"
+  with `APP_RELEASE.notes` (also the download page's "What's new"), once per version: the first upload
+  or app update check (`/api/app/latest`) after the deploy claims it in `site_state` ('app_announced',
+  migration 0015). Write the notes in `web/lib/app-release.ts` before building a release.
 - Ranks (`lib/ranks.ts`, user's scale): Rookie 0, Apprentice 20, Intermediate 40, Advanced 50,
   Contender 60, Front Runner 70, Expert 80, Alien 90. `RankBadge` next to ratings (drivers list,
   profile, dashboard).
@@ -840,13 +850,25 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   times" after he updates the sheet, then "Recompute all ratings".
 - Session BoP (user: the team mostly races default-BoP championships, LFM rarely): `session.bop`
   detected at import = LFM when the server name matches "lowfuelmotorsport.com" (ACC's log names the
-  server: "Connecting to server '…' with track …", checked in the user's AC2 logs; app 0.4 sends
-  `session.server_name`/`online`/`ballast_kg`; server results files already carry a name), else
-  default (offline = always default); `session.bop_chosen` set on the session page (like the session
-  type; POST /api/sessions/[id]/bop: LFM kilos frozen, laps re-checked for too fast, ratings replayed).
-  Effective BoP = coalesce(bop_chosen, bop, 'default'). LFM sessions freeze LFM's ballast/restrictor
-  for their car and track (`bop_ballast_kg`, `bop_restrictor_pct`, `snapshotBop`). ACC's physics
-  `ballast` field is documented as unused (0 in single player); to check on a real LFM session.
+  server; server results files already carry a name), else default (offline = always default);
+  `session.bop_chosen` set on the session page (like the session type; POST /api/sessions/[id]/bop:
+  kilos frozen, laps re-checked for too fast, ratings replayed). Effective BoP = coalesce(bop_chosen,
+  bop, 'default'). Shown kilos (`bop_ballast_kg`, `bop_restrictor_pct`, `snapshotBop`) = the game's
+  (`game_ballast_kg`/`game_restrictor_pct`, migration 0015) when sent, else for LFM sessions LFM's
+  for their car and track at upload time (the badge shows kilos on a default session too when the
+  server added some).
+- ACC's log (`acc_log.py`, app 0.4; `%LOCALAPPDATA%\AC2\Saved\Logs\AC2.log`, older runs
+  `AC2-backup-<UTC date>.log`; line times are UTC). At each session load (checked in the user's real
+  logs, 2026-10-07): "Connecting to server '<name>' with track <key>" (online only), "Step:
+  LoadingsessionPage Native Start", "Setting CarId 1001 additional BoP: -22 kg, 0.190000 restrictor"
+  (only when the server applies a BoP; LFM Valencia −22 kg, LFM Brands Hatch −16 kg, team server
+  none), "<surname> try to possess Car 1001". The app looks up, when it processes a recording, the
+  last load before the recording's `created_at` (logs written since then only) and sends
+  `session.online`/`server_name`/`ballast_kg`/`restrictor_pct` (restrictor fraction × 100). Server
+  names are mangled in the log (each UTF-8 byte as U+FF80-U+FFFF, emoji as CESU-8 surrogates):
+  `server_text` undoes it ("🏎️ PCGroup Racing ┃ Practice & Trackday ┃ Pcgroup"). Offline recordings
+  skip the lookup. The physics `ballast` field is unused (documented, 0). `ACC_LOG_DIR` for tests
+  (`tests/test_acc_log.py`).
   Leaderboards: BoP filter (All / Default BoP / LFM BoP, `?bop=`), a badge per entry (`components/Bop.tsx`:
   "Default" or "LFM · −7 kg · 20 %"); no per-car targets on the leaderboards any more (the old
   `car_target` table is unused).
@@ -892,16 +914,15 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   (Nordschleife especially: no TUM data, tight sections) once deployed.
 - App 0.1.1 (ABS channel): installer published on the site; `ACC-Coach-0.1.1.msix` to submit to the
   Store once 0.1.0 has passed certification.
-- Coaching: tune thresholds with real sessions; maybe the rating change and the top focus in the
-  desktop app's upload notification (needs an app release).
+- Coaching: tune thresholds with real sessions; maybe the top focus in the desktop app's upload
+  notification (the rating change is there since app 0.4).
 - Corner maps: done on the site (geometry). Mount Panorama upgrades at its next upload (or an
   admin rebuilds it); check its result on the real layout and tune the thresholds if needed.
 - Microsoft Store release of the desktop app (see "Desktop app"): the teammate install failed on
   Smart App Control. Name reserved; first submission (0.1.0) to upload by the user, then the
   Store link goes on the site's download page.
 - Production: migration 0003 applied on Neon (2026-10-04); "Recompute all ratings" to click once.
-- Ideas not requested yet: rating change in the app's upload notification, coaching summary per
-  session, stint view, server results import.
+- Ideas not requested yet: coaching summary per session, stint view, server results import.
 - Name the corners of the team's tracks; weighted composite ranking to define with the team.
 - Safer .json matching when `head.driver` is empty: carModel ↔ car-from-file-name table.
 
