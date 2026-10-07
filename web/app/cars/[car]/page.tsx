@@ -12,6 +12,7 @@ import { dateTime, lapTime, prettyKey } from "@/lib/format";
 import { scaleColor } from "@/lib/ranks";
 import { REFERENCE_FACTOR } from "@/lib/references";
 import { trackInfo } from "@/lib/tracks";
+import { CAR_NOTES, CAR_NOTES_SOURCE } from "@/lib/car-notes";
 import RatingForm from "./RatingForm";
 
 type Rating = Record<CarPart, number | null> & { note: string | null; source: string | null; updated_at: Date | null; editor: string | null };
@@ -68,6 +69,8 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
   for (const t of team) row(t.track_key).team = t;
   const list = [...tracks.entries()].sort((a, b) => (b[1].team?.laps ?? 0) - (a[1].team?.laps ?? 0) || a[1].name.localeCompare(b[1].name));
   const total = overall(rating);
+  // An admin's description, else the researched starting one (lib/car-notes.ts)
+  const note = rating?.note ?? CAR_NOTES[car] ?? null;
   const sheetDate = refs.find((r) => r.sheet_date)?.sheet_date;
 
   return (
@@ -108,13 +111,14 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
               );
             })}
           </ul>
-          {rating?.note && <p className="mt-5 whitespace-pre-line text-sm text-zinc-300">{rating.note}</p>}
+          {note && <p className="mt-5 whitespace-pre-line text-sm text-zinc-300">{note}</p>}
           <p className="mt-4 text-xs text-zinc-500">
             {rating?.updated_at
               ? <>Rated by {rating.editor ?? "an admin"}, {dateTime(rating.updated_at)}{rating.source ? <> · Source: {rating.source}</> : null}</>
               : "Not rated yet: the team's admins rate the cars from their knowledge of them."}
+            {!rating?.note && note && <> · Description: {CAR_NOTES_SOURCE}</>}
           </p>
-          {me.is_admin && <RatingForm car={car} initial={rating ?? null} />}
+          {me.is_admin && <RatingForm car={car} initial={{ ...rating, note }} />}
         </section>
 
         <section className="card rise overflow-hidden" style={delay(80)}>

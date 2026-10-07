@@ -948,6 +948,12 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   LFM tag), its gap to the target and laps (top speed dropped at the user's request). "Cars" in the main menu; with it the header's
   "Get the app" label hides from 1280 to 1535 px (icon only), or the header overflowed by 10 px.
 - `components/InfoTip.tsx`: the "i" box shared by the Drivers and Cars tables.
+- Descriptions (user's request, 2026-10-08, after writing the Ford's own: "Absolute V8 freedom power
+  beast..."): `lib/car-notes.ts` holds researched starting texts for the 53 other cars in that short,
+  punchy style (Coach Dave Academy, GOSetups, Traxion, GTPlanet, Overtake; only claims about ACC's
+  car, thin for a few old models). Shown until an admin saves a note (car_rating.note wins) and
+  pre-filled in the edit form; the page credits the research when it shows one. Driveability stars
+  in the list carry a "Driveability" label above them; no bar under the overall score.
 
 ## YouTube (web/lib/youtube.ts, /youtube, 2026-10-06)
 - The team's channel @PCGroupRacing (id UCGSgxcvFG5fMuAOMoJAQBZA, title "PCGR"), YouTube Data API v3
