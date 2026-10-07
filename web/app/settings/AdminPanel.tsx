@@ -34,6 +34,19 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
     router.refresh();
   }
 
+  // Reference lap times from OhneSpeed's sheet (lib/references.ts), after he updates it
+  async function importReferences() {
+    setBusy(true);
+    const res = await fetch("/api/references/import", { method: "POST" });
+    const data = await res.json();
+    setBusy(false);
+    const unknown = res.ok ? (data.tabs as { unknown: string[] }[]).flatMap((t) => t.unknown) : [];
+    setMessage(res.ok
+      ? `Read ${data.references} reference times (sheet of ${data.sheetDate ?? "unknown date"})${unknown.length ? `; cars not recognised: ${unknown.join(", ")}` : ""}. Click "Recompute all ratings" to apply them.`
+      : data.error);
+    router.refresh();
+  }
+
   async function testDiscord() {
     const res = await fetch("/api/discord/test", { method: "POST" });
     setMessage(res.ok ? "Test message sent: check the Discord channel." : (await res.json()).error);
@@ -77,10 +90,12 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
         {busy ? "Recomputing…" : "Recompute all ratings"}
       </button>
       <button onClick={repairTraces} disabled={busy} className="btn btn-ghost ml-2 mt-4">Repair lap traces</button>
+      <button onClick={importReferences} disabled={busy} className="btn btn-ghost ml-2 mt-4">Update reference times</button>
       <button onClick={testDiscord} disabled={busy} className="btn btn-ghost ml-2 mt-4">Test the Discord channel</button>
       <p className="mt-1 text-xs text-zinc-500">
         Recompute: replays every session in upload order with today&apos;s targets: ratings, then achievements (nothing is posted to Discord).
         Repair: fixes the traces of laps recorded by apps before 0.3 whose clock counted a game pause or ran off (replay, charts, coach); lap times do not change.
+        Update reference times: reads OhneSpeed&apos;s spreadsheet again after he updates it (the ratings&apos; 101 % targets, default and LFM BoP).
       </p>
       {message && <p className="mt-2 text-sm text-accent">{message}</p>}
     </div>

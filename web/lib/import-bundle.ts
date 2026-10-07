@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "./db";
 import type { EncodedChannel } from "./trace";
+import { detectBop, snapshotBop } from "./references";
 import { repairBundleLap } from "./trace-repair";
 import { packChannels } from "./trace-store";
 
@@ -45,6 +46,11 @@ export type Bundle = {
     driver_name: string | null;
     conditions?: Record<string, unknown> | null;
     official: { session_file: string; server_name: string | null; car_id: number; car_model: number | null } | null;
+    // App 0.4+: whether the session was online, the server's name from ACC's log, and ACC's ballast
+    // field (kg; documented as unused by Kunos, checked once real LFM sessions come in)
+    online?: boolean | null;
+    server_name?: string | null;
+    ballast_kg?: number | null;
   };
   corner_map: { track: string; version: number; length_m: number; provisional: boolean; hash: string; corners: Corner[] };
   laps: BundleLap[];
@@ -124,12 +130,17 @@ export async function importBundle(b: Bundle, driverId: string): Promise<{ sessi
       serverSessionId = row?.id ?? null;
     }
 
+    // BoP (lib/references.ts): offline = default; the server's name (app 0.4+, or a server results
+    // file) tells an LFM server; the team can change it on the session page
+    const serverName = (s.online === false ? null : s.server_name?.trim() || s.official?.server_name?.trim()) || null;
     const [session] = await tx<{ id: string }[]>`
       insert into session (driver_id, track_id, car_id, server_session_id, source_kind, source_file, source_sha256,
-                           recorded_at, session_type, bundle_version, agent_version, acc_driver_name, conditions)
+                           recorded_at, session_type, bundle_version, agent_version, acc_driver_name, conditions, server_name, bop)
       values (${driverId}, ${track.id}, ${carId}, ${serverSessionId}, ${b.source.kind}, ${b.source.file}, ${b.source.sha256},
-              ${s.recorded_at}::timestamp, ${s.type ?? null}, ${b.version}, ${b.agent?.version ?? null}, ${s.driver_name?.trim() || null}, ${s.conditions ? tx.json(s.conditions as never) : null})
+              ${s.recorded_at}::timestamp, ${s.type ?? null}, ${b.version}, ${b.agent?.version ?? null}, ${s.driver_name?.trim() || null}, ${s.conditions ? tx.json(s.conditions as never) : null},
+              ${serverName}, ${detectBop(serverName)})
       returning id`;
+    await snapshotBop(tx, session.id);   // LFM's ballast and restrictor for this car and track, as they are now
 
     for (const l of b.laps) {
       // Apps before 0.3: a trace clock that disagrees with the lap time is repaired; its corner

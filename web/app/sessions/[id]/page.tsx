@@ -5,14 +5,16 @@ import { notFound } from "next/navigation";
 import { RATING_TYPE_LABELS, ratingType, WEIGHTS_BY_TYPE, type RatingType as RatingTypeKey } from "@/lib/ratings";
 import DeleteSession from "./DeleteSession";
 import RatingType from "./RatingType";
+import SessionBop from "./SessionBop";
 import TooFast from "./TooFast";
 import { fuelReference, fuelSeconds } from "@/lib/fuel";
 import { Avatar, Chip, delay, SectionTitle } from "@/components/ui";
 import Conditions, { type SessionConditions } from "@/components/Conditions";
 import { requireDriver } from "@/lib/auth";
 import { coachSession } from "@/lib/coaching";
+import { paceReference } from "@/lib/targets";
 import { sql } from "@/lib/db";
-import { lapTime, prettyKey, REASONS } from "@/lib/format";
+import { carShortName, lapTime, prettyKey, REASONS } from "@/lib/format";
 import { hasPhoto, photoUrl, trackInfo } from "@/lib/tracks";
 import Coach from "./Coach";
 
@@ -30,6 +32,11 @@ type Session = {
   rating_type: string | null;
   source_kind: string;
   source_file: string;
+  bop: string | null;
+  bop_chosen: string | null;
+  server_name: string | null;
+  bop_ballast_kg: number | null;
+  bop_restrictor_pct: number | null;
 };
 type Lap = {
   id: string;
@@ -59,7 +66,8 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   const [session] = await sql<Session[]>`
     select s.id, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY, HH24:MI') as recorded,
            d.display_name as driver, d.id as driver_id, d.avatar_url, s.conditions, t.key as track, c.key as car, c.class as car_class,
-           s.session_type, to_jsonb(s) ->> 'rating_type' as rating_type, s.source_kind, s.source_file
+           s.session_type, to_jsonb(s) ->> 'rating_type' as rating_type, s.source_kind, s.source_file,
+           s.bop, s.bop_chosen, s.server_name, s.bop_ballast_kg, s.bop_restrictor_pct
     from session s join driver d on d.id = s.driver_id join track t on t.id = s.track_id
     left join car c on c.id = s.car_id
     where s.id = ${id}`;
@@ -72,6 +80,9 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
   const time = (l: Lap) => l.official_lap_time_ms ?? l.game_lap_time_ms ?? l.lap_time_ms;
   const best = Math.min(...laps.filter((l) => l.comparable).map(time));
   const coaching = await coachSession(id);
+  // The session's BoP and the reference time behind the rating (OhneSpeed's sheet, lib/targets.ts)
+  const ref = await paceReference(sql, id);
+  const effectiveBop = session.bop_chosen ?? session.bop ?? "default";
   // Fuel load per lap (app 0.1.6+) and what the fuel above the track's minimum-fuel reference cost
   const hasFuel = laps.some((l) => l.metrics?.fuel_l != null);
   const fuelCost = (fuel: number) => {
@@ -135,6 +146,11 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
 
       <RatingType sessionId={id} chosen={session.rating_type === "mixed" ? "practice" : session.rating_type} options={typeOptions}
                   accLabel={`${session.session_type ?? "unknown"} → ${RATING_TYPE_LABELS[autoType]}`} />
+      <SessionBop sessionId={id} chosen={session.bop_chosen} detected={session.bop ?? "default"} server={session.server_name}
+                  info={{ bop: effectiveBop, ballast_kg: session.bop_ballast_kg, restrictor_pct: session.bop_restrictor_pct }}
+                  reference={ref.sheet_ms != null && ref.target_ms != null && session.car ? {
+                    car: carShortName(session.car), sheet: lapTime(Math.round(ref.sheet_ms)), target: lapTime(ref.target_ms), source: ref.source ?? "",
+                  } : null} />
 
       {coaching && <Coach c={coaching} />}
 

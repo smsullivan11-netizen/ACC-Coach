@@ -9,6 +9,7 @@ import { sql } from "@/lib/db";
 import { importBundle, Rejected, type Bundle } from "@/lib/import-bundle";
 import { compressOldTraces, pruneTraces } from "@/lib/storage";
 import { rateSession } from "@/lib/ratings";
+import { ensureReferences } from "@/lib/references";
 import { flagTooFast } from "@/lib/too-fast";
 import { refreshOutlineForSession } from "@/lib/track-outline";
 
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "not a session bundle (.json.gz)" }, { status: 400 });
   }
 
+  await ensureReferences(sql);   // the reference lap times, imported once after the deploy (lib/references.ts)
   let result;
   try {
     result = await importBundle(bundle, driver.id);

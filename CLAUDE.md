@@ -827,21 +827,46 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   style average those same sessions (`formParts`). **All-time best** = highest rating once no longer
   provisional (`allTimeBest`), shown as "current/best" on the Drivers list and under the rating on
   profiles. After deploying a formula change, an admin clicks "Recompute all ratings" (Settings).
-- Too-fast laps (user's rule, 2026-10-07, lib/too-fast.ts): faster than LFM's all-time best − 0.5 %
-  = target × 0.995 / 1.01 (≈ 1.5 % under the 101 % target; car's own target, else its class's average
-  on the track, else no check) → excluded reason `too_fast`, comparable = false: like an invalid lap
-  everywhere (pace, leaderboards, records, corner maps, outline; clean driving and consistency count
-  it as invalid). Checked at upload (before rating), when an admin changes a target (those drivers'
-  ratings replayed) and in "Recompute all ratings". Admins: "Not a cut" on the session page
-  (`lap.metrics.too_fast_ok`, stays cleared; "Flag again" undoes), POST /api/laps/[id]/too-fast.
-- Pace score's 100 (hidden, `ratingReference` in lib/targets.ts; user's rule 2026-10-07) = the car's
-  LFM 101 % target on the track, exactly: a teammate beating it must not lower everyone else's pace
-  (team: within 1 % of LFM's all-time best = alien). A car without a target uses the average of its
-  class's targets on that track; a track without any target, the team's best real lap in the class.
-  Before: the faster of the target and the team best (the BMW at Zolder, driven by one driver, was its
-  own reference: pace 100 → 24.3 with the change). Targets: LFM's 101 % times, per car (the user chose
-  them as "more achievable than 100 %"); admins edit them on each leaderboard. The displayed reference
-  (`paceReference`: target or the team best when faster) stays for the leaderboards and coaching notes.
+- Reference times and BoP (user's choice, 2026-10-07; migration 0014, lib/references.ts): OhneSpeed's
+  public "ACC race pace" spreadsheet (SHEET_URL; credited on /credits), read from its published CSV
+  pages: per car and track, stock-BoP qualifying time (GT3 tab "Race pace v1.9.6+ (stockBoP)", column
+  "Qualy"; GT4 "Top time") and LFM-BoP top time (LFM hotlaps + BoP + 0.5 %, low fuel; its "BoP" column
+  "20/-7 kg" = LFM's restrictor % / ballast kg), plus the 992 Cup and M2 tabs (single-make: same time
+  for both BoPs). Table `lap_reference` (bop, track_key lowercase, car_key, car_class, time_ms,
+  ballast_kg, restrictor_pct). 2026-10-07 import: 1,744 times (31 GT3 cars × 25 tracks default, 15 LFM;
+  11 GT4; Cup and M2 23 tracks). OhneSpeed's car names → ACC keys in `CARS` (an unmapped car is listed
+  by the import), track names in `TRACKS` (accents stripped: "Nürburgring"). Imported automatically
+  when the table is empty (`ensureReferences`: upload, Recompute); admins: Settings → "Update reference
+  times" after he updates the sheet, then "Recompute all ratings".
+- Session BoP (user: the team mostly races default-BoP championships, LFM rarely): `session.bop`
+  detected at import = LFM when the server name matches "lowfuelmotorsport.com" (ACC's log names the
+  server: "Connecting to server '…' with track …", checked in the user's AC2 logs; app 0.4 sends
+  `session.server_name`/`online`/`ballast_kg`; server results files already carry a name), else
+  default (offline = always default); `session.bop_chosen` set on the session page (like the session
+  type; POST /api/sessions/[id]/bop: LFM kilos frozen, laps re-checked for too fast, ratings replayed).
+  Effective BoP = coalesce(bop_chosen, bop, 'default'). LFM sessions freeze LFM's ballast/restrictor
+  for their car and track (`bop_ballast_kg`, `bop_restrictor_pct`, `snapshotBop`). ACC's physics
+  `ballast` field is documented as unused (0 in single player); to check on a real LFM session.
+  Leaderboards: BoP filter (All / Default BoP / LFM BoP, `?bop=`), a badge per entry (`components/Bop.tsx`:
+  "Default" or "LFM · −7 kg · 20 %"); no per-car targets on the leaderboards any more (the old
+  `car_target` table is unused).
+- Too-fast laps (user's rule, 2026-10-07, lib/too-fast.ts): faster than the best ever − 0.5 % = the
+  session BoP's reference time × 0.995 (≈ 1.5 % under the 101 % target; car's own reference, else its
+  default-BoP one, else its class's average on the track for GT3/GT4, else no check) → excluded reason
+  `too_fast`, comparable = false: like an invalid lap everywhere (pace, leaderboards, records, corner
+  maps, outline; clean driving and consistency count it as invalid). Checked at upload (before
+  rating), on a session's BoP change, after a references import and in "Recompute all ratings".
+  Admins: "Not a cut" on the session page (`lap.metrics.too_fast_ok`, stays cleared; "Flag again"
+  undoes), POST /api/laps/[id]/too-fast.
+- Pace score's 100 (hidden, `ratingReference` in lib/targets.ts; user's rules 2026-10-07) = the
+  reference time of the session's car, track and BoP × 1.01 (stock BoP: qualifying; LFM: top time;
+  "qualy × 1.01 confirmed" by the user), exactly: a teammate beating it must not lower everyone else's
+  pace (team: within 1 % of the best = alien). Fallbacks: the car's default-BoP time, its class's
+  average on the track (GT3/GT4 only), then the team's best real lap in the class. The displayed
+  reference (`paceReference`: target or the team best when faster) feeds the coaching notes and the
+  session page ("Reference Ford: 1:21.757 → target 101 % 1:22.575 (OhneSpeed, Default BoP)"). History:
+  LFM 101 % targets for the Mustang/McLaren only (car_target, 2026-10-04 → 10-07); before that the
+  faster of the target and the team best (the BMW at Zolder was its own reference: pace 100 → 24.3).
 - Ratings are history (`driver_rating`), not recomputed automatically when targets change; the
   admin button `rebuildRatings` replays every session in upload order (needed once on production
   after migration 0003, for sessions uploaded before ratings existed).

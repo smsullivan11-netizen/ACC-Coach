@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { sql } from "./db";
 import { lapTime } from "./format";
 import { trackInfo } from "./tracks";
+import { paceReference } from "./targets";
 
 // Achievements (rating levels are ranks instead: lib/ranks.ts): checked after each upload (and replayed for every session by `rebuildAchievements`).
 // Each check looks at the driver's data as of that session and returns what is earned; the table
@@ -76,11 +77,10 @@ async function check(db: Sql, sessionId: string): Promise<Earned[]> {
       where s2.track_id = ${s.track_id} and c.class is not distinct from ${s.car_class} and l.comparable
         and s2.id < ${sessionId} and coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms) <= ${best} limit 1`;
     if (!faster) out.push({ code: "team_best", scope: s.track.toLowerCase(), detail: `${name}: ${lapTime(best)}` });
-    const [target] = await db<{ target_ms: number }[]>`
-      select ct.target_ms from session ss join car c on c.id = ss.car_id
-      join car_target ct on ct.car_key = c.key and ct.track_key = ${s.track.toLowerCase()} where ss.id = ${sessionId}`;
-    if (target && best <= target.target_ms)
-      out.push({ code: "target_beaten", scope: s.track.toLowerCase(), detail: `${name}: ${lapTime(best)} (target ${lapTime(target.target_ms)})` });
+    // The target: the reference time of the session's BoP × 1.01 (OhneSpeed's sheet, lib/targets.ts)
+    const { target_ms: target } = await paceReference(db, sessionId);
+    if (target != null && best <= target)
+      out.push({ code: "target_beaten", scope: s.track.toLowerCase(), detail: `${name}: ${lapTime(best)} (target ${lapTime(target)})` });
   }
   // Records held right now
   const [held] = await db<{ n: number }[]>`select count(distinct track_id)::int as n from lap_ranking where driver_id = ${s.driver_id} and position = 1`;

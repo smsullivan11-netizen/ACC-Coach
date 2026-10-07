@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { PageTitle, Pcgr } from "@/components/ui";
 import CREDITS from "@/lib/track-photo-credits.json";
 import { TRACKS } from "@/lib/tracks";
+import { SHEET_URL } from "@/lib/references";
 
 export const metadata: Metadata = { title: "Credits" };
 
@@ -40,6 +41,18 @@ export default function CreditsPage() {
           racetrack-database
         </a>{" "}
         by the Chair of Automotive Technology, Technical University of Munich (LGPL-3.0 licence), fitted to the team&apos;s laps.
+      </p>
+      <p className="mt-3 text-sm text-zinc-500">
+        Reference lap times (the 101 % targets of the ratings, default and LFM BoP) and LFM&apos;s ballast and restrictor
+        per car and track: OhneSpeed&apos;s{" "}
+        <a href={SHEET_URL} target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-white hover:underline">
+          ACC race pace spreadsheet
+        </a>{" "}
+        (
+        <a href="https://www.youtube.com/@ohne_speed" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-white hover:underline">
+          OhneSpeed on YouTube
+        </a>
+        ), read from its published pages.
       </p>
     </div>
   );

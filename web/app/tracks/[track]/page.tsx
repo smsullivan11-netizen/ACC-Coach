@@ -1,14 +1,13 @@
-import { ArrowLeft, Crown, GitCompareArrows, Map as MapIcon, Ruler, Target } from "lucide-react";
+import { ArrowLeft, Crown, GitCompareArrows, Map as MapIcon, Ruler } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Avatar, Chip, delay, Position, RankIcon } from "@/components/ui";
+import { Avatar, delay, Position, RankIcon } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, gap, lapTime, prettyKey } from "@/lib/format";
-import { carClass } from "@/lib/import-bundle";
+import BopBadge from "@/components/Bop";
 import { hasPhoto, photoUrl, trackInfo } from "@/lib/tracks";
-import TargetForm from "./TargetForm";
 
 type Row = {
   position: number;
@@ -24,7 +23,13 @@ type Row = {
   session_id: string;
   date: string | null;
   theoretical_ms: number | null;
+  bop: string;
+  ballast_kg: number | null;
+  restrictor_pct: number | null;
 };
+
+// BoP filter (user's request, 2026-10-07): all laps (default), or only default-BoP / LFM-BoP sessions
+const FILTERS = [{ key: "all", label: "All" }, { key: "default", label: "Default BoP" }, { key: "lfm", label: "LFM BoP" }] as const;
 
 
 export async function generateMetadata(props: PageProps<"/tracks/[track]">): Promise<Metadata> {
@@ -35,38 +40,35 @@ export async function generateMetadata(props: PageProps<"/tracks/[track]">): Pro
 export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
   const me = await requireDriver();
   const { track } = await props.params;
+  const { bop: bopParam } = await props.searchParams;
+  const filter = FILTERS.find((f) => f.key === bopParam)?.key ?? "all";
   const [t] = await sql<{ id: string; length_m: number }[]>`select id, length_m from track where key = ${track}`;
   if (!t) notFound();
 
-  // Best valid lap per driver and class; theoretical best = sum of the driver's best corners on the
-  // track's latest corner map
+  // Best valid lap per driver and class among the sessions of the chosen BoP (same rules as the
+  // lap_ranking view); theoretical best = sum of the driver's best corners on the latest corner map
   const rows = await sql<Row[]>`
-    with map as (select id from corner_map where track_id = ${t.id} order by version desc limit 1)
+    with map as (select id from corner_map where track_id = ${t.id} order by version desc limit 1),
+    laps as (
+      select l.id as lap_id, s.driver_id, c.class as car_class, c.key as car, l.session_id,
+             coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms) as lap_time_ms, s.recorded_at,
+             coalesce(s.bop_chosen, s.bop, 'default') as bop, s.bop_ballast_kg as ballast_kg, s.bop_restrictor_pct as restrictor_pct
+      from lap l join session s on s.id = l.session_id left join car c on c.id = s.car_id
+      where s.track_id = ${t.id} and l.comparable
+        and (${filter} = 'all' or coalesce(s.bop_chosen, s.bop, 'default') = ${filter})),
+    best as (select distinct on (car_class, driver_id) * from laps order by car_class, driver_id, lap_time_ms, lap_id),
+    ranked as (select b.*, rank() over w as position, b.lap_time_ms - min(b.lap_time_ms) over w as gap_ms
+               from best b window w as (partition by b.car_class order by b.lap_time_ms))
     select r.position::int, r.gap_ms, r.lap_time_ms, r.lap_id, r.car_class, r.driver_id, d.display_name as driver, d.avatar_url,
-           c.key as car, l.session_id, to_char(r.recorded_at, 'DD Mon YYYY') as date,
+           r.car, r.session_id, to_char(r.recorded_at, 'DD Mon YYYY') as date, r.bop, r.ballast_kg, r.restrictor_pct,
            round(tb.theoretical_s * 1000)::int as theoretical_ms,
            (select dr.rating from driver_rating dr where dr.driver_id = r.driver_id order by dr.id desc limit 1) as rating
-    from lap_ranking r
+    from ranked r
     join driver d on d.id = r.driver_id
-    join lap l on l.id = r.lap_id
-    left join car c on c.id = r.car_id
     left join theoretical_best tb on tb.driver_id = r.driver_id and tb.car_class is not distinct from r.car_class
                                   and tb.corner_map_id = (select id from map)
-    where r.track_id = ${t.id}
     order by r.car_class nulls last, r.position`;
-  // Targets per car (LFM 101 % for the team's cars): the pace score's 100 (lib/targets.ts
-  // ratingReference; a car without one uses its class's targets on the track)
-  const targets = await sql<{ car: string; target_ms: number; source: string | null }[]>`
-    select car_key as car, target_ms, source from car_target where track_key = lower(${track}) order by car_key`;
-  const cars = new Map<string, { cls: string; target: (typeof targets)[number] | null; best: number | null }>();
-  for (const x of targets) cars.set(x.car, { cls: carClass(x.car), target: x, best: null });
-  for (const r of rows) {
-    if (!r.car) continue;
-    const e = cars.get(r.car) ?? { cls: r.car_class ?? "Other", target: null, best: null };
-    e.best = e.best == null ? r.lap_time_ms : Math.min(e.best, r.lap_time_ms);
-    cars.set(r.car, e);
-  }
-  const classes = [...new Set([...rows.map((r) => r.car_class ?? "Other"), ...[...cars.values()].map((e) => e.cls)])];
+  const classes = [...new Set(rows.map((r) => r.car_class ?? "Other"))];
 
   const info = trackInfo(track) ?? { name: prettyKey(track), country: "" };
 
@@ -102,31 +104,27 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
         </div>
       </div>
 
-      {rows.length === 0 && <p className="card mt-6 p-6 text-zinc-400">No valid lap yet on this track.</p>}
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-wider text-zinc-500">BoP</span>
+        <div className="flex rounded-lg border border-white/[0.07] bg-black/40 p-0.5">
+          {FILTERS.map((f) => (
+            <Link key={f.key} href={f.key === "all" ? `/tracks/${track}` : `/tracks/${track}?bop=${f.key}`} scroll={false}
+                  className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
+                    filter === f.key ? "bg-white/[0.09] text-white ring-1 ring-white/10" : "text-zinc-400 hover:text-white"}`}>
+              {f.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+      {rows.length === 0 && (
+        <p className="card mt-6 p-6 text-zinc-400">{filter === "all" ? "No valid lap yet on this track." : `No valid lap with the ${filter === "lfm" ? "LFM" : "default"} BoP yet on this track.`}</p>
+      )}
       {classes.map((cls, ci) => {
-        const inClass = [...cars.entries()].filter(([, e]) => e.cls === cls);
-        const withTarget = inClass.filter(([, e]) => e.target);
         const list = rows.filter((r) => (r.car_class ?? "Other") === cls);
         return (
           <section key={cls} className="card card-red rise relative mt-6" style={delay(80 + ci * 60)}>
             <div className="flex flex-wrap items-center gap-3 px-5 pt-4">
               <h2 className="display text-xl text-white">{cls}</h2>
-              {withTarget.map(([car, e]) => (
-                <Chip key={car} tone="red" icon={Target}>Target {carShortName(car)} {lapTime(e.target!.target_ms)}</Chip>
-              ))}
-              {me.is_admin && (
-                <details className="ml-auto text-sm text-zinc-400">
-                  <summary className="cursor-pointer list-none text-xs text-zinc-500 hover:text-zinc-300">Edit targets</summary>
-                  <div className="absolute right-5 z-10 mt-2 space-y-2 rounded-lg border border-white/10 bg-raised p-3 shadow-xl">
-                    {inClass.map(([car, e]) => (
-                      <div key={car} className="flex flex-wrap items-center gap-3">
-                        <span className="w-44 text-zinc-300">{prettyKey(car)}</span>
-                        <TargetForm track={track} car={car} current={e.target ? lapTime(e.target.target_ms) : ""} />
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              )}
             </div>
             <div className="mt-3 overflow-x-auto">
               {list.length ? (
@@ -154,7 +152,9 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
                             {r.position === 1 && <Crown size={14} className="text-accent" />}
                           </Link>
                         </td>
-                        <td className="text-zinc-300">{r.car ? carShortName(r.car) : "–"}</td>
+                        <td className="text-zinc-300">
+                          <span className="flex flex-wrap items-center gap-2">{r.car ? carShortName(r.car) : "–"} <BopBadge info={r} /></span>
+                        </td>
                         <td className="text-right">
                           <Link href={`/laps/${r.lap_id}`} className={`font-semibold hover:underline ${r.position === 1 ? "text-accent" : "text-white"}`}>
                             {lapTime(r.lap_time_ms)}

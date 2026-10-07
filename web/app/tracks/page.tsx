@@ -1,4 +1,4 @@
-import { ChevronRight, Crown, Target, Trophy, Users } from "lucide-react";
+import { ChevronRight, Crown, Trophy, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Avatar, delay, PageTitle } from "@/components/ui";
@@ -15,10 +15,11 @@ type Best = { track: string; car_class: string | null; driver_id: string; driver
 
 
 // The tracks the team has driven as cards (most recent first): photo or outline, the team's best
-// lap per class and the targets. The other ACC tracks below, compact, with their targets.
+// lap per class. The other ACC tracks below, compact. (No targets here since 2026-10-07: the
+// reference times come from OhneSpeed's sheet per BoP and show on each session's page.)
 export default async function TracksPage() {
   await requireDriver();
-  const [best, recent, targets, outlines] = await Promise.all([
+  const [best, recent, outlines] = await Promise.all([
     sql<Best[]>`
       select t.key as track, r.car_class, d.id as driver_id, d.display_name as driver, d.avatar_url, c.key as car, r.lap_time_ms,
              (select count(*) from lap_ranking x where x.track_id = r.track_id and x.car_class is not distinct from r.car_class)::int as drivers,
@@ -28,7 +29,6 @@ export default async function TracksPage() {
       where r.position = 1 order by r.lap_time_ms`,
     sql<{ key: string; last: Date }[]>`
       select t.key, max(coalesce(s.recorded_at, s.uploaded_at)) as last from session s join track t on t.id = s.track_id group by t.key`,
-    sql<{ track: string; car: string; target_ms: number }[]>`select lower(track_key) as track, car_key as car, target_ms from car_target`,
     trackOutlines(),
   ]);
   // Links use the key as stored (ACC's case); cards and lookups use the lowercase key
@@ -40,7 +40,7 @@ export default async function TracksPage() {
 
   return (
     <div>
-      <PageTitle icon={Trophy} sub="The team's fastest lap on every track, per class, and the target lap times. Open a track for its full leaderboard.">
+      <PageTitle icon={Trophy} sub="The team's fastest lap on every track, per class. Open a track for its full leaderboard.">
         Leaderboards
       </PageTitle>
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -48,7 +48,6 @@ export default async function TracksPage() {
           const info = trackInfo(key) ?? { name: prettyKey(key), country: "" };
           // One team best per class (the first to set it when two drivers share the time)
           const rows = best.filter((b, j) => b.track === key && best.findIndex((o) => o.track === key && o.car_class === b.car_class) === j);
-          const goals = targets.filter((t) => t.track === key);
           const driven = last.has(key);
           const body = (
             <>
@@ -83,14 +82,6 @@ export default async function TracksPage() {
                 )) : (
                   <p className="mt-1 text-sm text-zinc-500">{driven ? "No valid lap yet." : "Not driven by the team yet."}</p>
                 )}
-                {goals.length > 0 && (
-                  <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/5 pt-3 text-xs text-zinc-400">
-                    <Target size={13} className="text-race" />
-                    {goals.map((g) => (
-                      <span key={g.car}>{carShortName(g.car)} <span className="tabular text-zinc-200">{lapTime(g.target_ms)}</span></span>
-                    ))}
-                  </div>
-                )}
                 {driven && (
                   <span className="mt-3 inline-flex items-center gap-1 self-end text-xs text-zinc-500 transition group-hover:text-accent">
                     Leaderboard <ChevronRight size={14} />
@@ -116,7 +107,6 @@ export default async function TracksPage() {
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {keys.filter((k) => !last.has(k)).map((key) => {
               const info = trackInfo(key) ?? { name: prettyKey(key), country: "" };
-              const goals = targets.filter((t) => t.track === key);
               return (
                 <div key={key} className="card flex min-w-0 items-center gap-3 overflow-hidden p-0 pr-3">
                   {hasPhoto(key) ? (
@@ -130,9 +120,6 @@ export default async function TracksPage() {
                         <img src={`/flags/${info.country}.svg`} alt="" width={18} height={12} className="h-3 w-[18px] shrink-0 rounded-[2px] object-cover" />
                       )}
                       <span className="truncate">{info.name}</span>
-                    </div>
-                    <div className="tabular truncate text-[11px] text-zinc-500">
-                      {goals.length ? goals.map((g) => `${carShortName(g.car)} ${lapTime(g.target_ms)}`).join(" · ") : "no target"}
                     </div>
                   </div>
                 </div>

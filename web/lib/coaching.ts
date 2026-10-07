@@ -405,7 +405,7 @@ export async function coachSession(sessionId: string): Promise<Coaching | null> 
     const off = (best.t - target.target_ms) / 1000;
     notes.push(off <= 0
       ? { topic: "progress", tone: "good", text: `Target beaten: ${lapTime(best.t)} against ${lapTime(target.target_ms)} for the ${prettyKey(target.car)} here.${optimal}` }
-      : { topic: "progress", tone: "tip", text: `Target for the ${prettyKey(target.car)} here: ${lapTime(target.target_ms)}. You are ${s2(off)} away (${((off * 100000) / target.target_ms).toFixed(1)} %).${optimal}` });
+      : { topic: "progress", tone: "tip", text: `Target for the ${prettyKey(target.car)} here${target.bop === "lfm" ? " (LFM BoP)" : ""}: ${lapTime(target.target_ms)}. You are ${s2(off)} away (${((off * 100000) / target.target_ms).toFixed(1)} %).${optimal}` });
   } else if (optimal) {
     notes.push({ topic: "progress", tone: "tip", text: optimal.trim() });
   }
