@@ -59,7 +59,8 @@ function boardsOf(c: CornerRow, x: ArrayLike<number>, z: ArrayLike<number>): Boa
 }
 /** What the Turn buttons, the replay's checkpoints and the table work on: one corner, or a section
  *  (corners driven as one, lib/sections.ts). */
-export type Zone = { key: string; label: string; numbers: number[]; name: string | null; start_m: number; end_m: number };
+export type Zone = { key: string; label: string; numbers: number[]; name: string | null; start_m: number; end_m: number;
+                     from_m: number };   // where the replay and the charts start: LEAD_S before its braking zone
 const ZONES_KEY = "acc-coach:zones";   // the viewer's last choice (this browser only)
 type LapData = {
   id: string;
@@ -81,8 +82,26 @@ type Range = [number, number] | null;
 
 const COLORS = ["#ffd200", "#d4d4d8"]; // this lap: team yellow; reference: light grey
 
-/** Chart zoom on a corner: from 50 m before it (the braking zone) to 30 m after it. */
-const cornerRange = (c: { start_m: number; end_m: number }): [number, number] => [Math.max(0, c.start_m - 50), c.end_m + 30];
+/** Chart zoom on a corner or section: from its view start (LEAD_S before the braking zone) to 30 m after it. */
+const cornerRange = (c: { from_m: number; end_m: number }): [number, number] => [c.from_m, c.end_m + 30];
+
+// How early the replay checkpoints and the corner zoom start (user's request, 2026-10-07: they began
+// too close to the corner, with no view of the approach): this long before the braking (or lift)
+// point, at the car's speed there (≈ 85 m at 250 km/h, 40 m at 120 km/h)
+const LEAD_S = 1.25;
+
+/** Where to start looking at a corner: the earlier braking (or lift) point of the laps, else the
+ *  corner zone's start, minus LEAD_S at the speed there. */
+function viewStart(laps: Loaded[], number: number): number {
+  const own = laps[0].corners.find((c) => c.number === number);
+  if (!own) return 0;
+  const points = laps.map((l) => l.corners.find((c) => c.number === number))
+    .map((c) => c?.braking_point_m ?? c?.lift_point_m).filter((x): x is number => x != null && x >= own.start_m - 300 && x <= own.end_m);
+  const b = points.length ? Math.min(...points) : own.start_m;
+  const v = laps[0].t?.channels.speed_ms;
+  const speed = v ? v[Math.max(0, Math.min(v.length - 1, Math.round(b)))] : 40;
+  return Math.max(0, b - Math.max(15, speed) * LEAD_S);
+}
 
 async function loadLap(id: string): Promise<Loaded> {
   const res = await fetch(`/api/laps/${id}`);
@@ -158,9 +177,12 @@ export default function LapView({ lapId, vsId, candidates, otherHref, corner, by
       if (!part.length) return [];
       const names = part.map((c) => c.name).filter(Boolean);
       return [{ key: g.join("-"), numbers: g, label: g.length > 1 ? `Turns ${g[0]}–${g[g.length - 1]}` : `Turn ${g[0]}`,
-                name: names.length ? names.join(" / ") : null, start_m: part[0].start_m, end_m: part[part.length - 1].end_m }];
+                name: names.length ? names.join(" / ") : null, start_m: part[0].start_m, end_m: part[part.length - 1].end_m,
+                from_m: viewStart(laps!, part[0].number) }];
     });
   }, [laps, by, sections]);
+  // The replay's checkpoints start at each zone's view start (LEAD_S before its braking zone)
+  const checkpoints = useMemo(() => zones.map((z) => ({ ...z, start_m: z.from_m })), [zones]);
   const [range, setRange] = useState<Range>(null);
   const moveDots = useRef<(i: number | null) => void>(() => {});
   const zoom = useRef<(r: Range) => void>(() => {});
@@ -189,7 +211,7 @@ export default function LapView({ lapId, vsId, candidates, otherHref, corner, by
     const first = laps?.[0].corners.find((x) => x.number === zoomFirst);
     const last = laps?.[0].corners.find((x) => x.number === zoomLast);
     if (!first || !last) return;
-    const timer = setTimeout(() => zoom.current([cornerRange(first)[0], cornerRange(last)[1]]), 100);   // after the charts' first draw
+    const timer = setTimeout(() => zoom.current([viewStart(laps!, first.number), last.end_m + 30]), 100);   // after the charts' first draw
     return () => clearTimeout(timer);
   }, [laps, zoomFirst, zoomLast]);
 
@@ -248,8 +270,8 @@ export default function LapView({ lapId, vsId, candidates, otherHref, corner, by
 
       {a.t && replay && (
         <Replay laps={laps.flatMap((l, i) => (l.t ? [{ driver: `${l.driver} L${l.number}`, color: COLORS[i], t: l.t, car: l.car }] : []))}
-                edges={a.edges} corners={a.corners} boards={boards} checkpoints={zones} by={by} onBy={pickBy} onDistance={followCar} onClose={closeReplay}
-                onTurn={(z) => zoom.current(cornerRange(z))} />
+                edges={a.edges} corners={a.corners} boards={boards} checkpoints={checkpoints} by={by} onBy={pickBy} onDistance={followCar} onClose={closeReplay}
+                onTurn={(z) => zoom.current([z.start_m, z.end_m + 30])} />
       )}
       {a.t && <CornerChips zones={zones} by={by} onBy={pickBy} range={range} onSelect={(r) => zoom.current(r)} />}
       {!a.t ? (

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { RATING_TYPE_LABELS, ratingType, WEIGHTS_BY_TYPE, type RatingType as RatingTypeKey } from "@/lib/ratings";
 import DeleteSession from "./DeleteSession";
 import RatingType from "./RatingType";
+import TooFast from "./TooFast";
 import { fuelReference, fuelSeconds } from "@/lib/fuel";
 import { Avatar, Chip, delay, SectionTitle } from "@/components/ui";
 import Conditions, { type SessionConditions } from "@/components/Conditions";
@@ -168,11 +169,19 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
                       {l.comparable && Number.isFinite(best) && !isBest ? `+${((time(l) - best) / 1000).toFixed(3)}` : ""}
                     </td>
                     <td>
-                      {l.comparable ? <Chip tone="green" icon={CircleCheck}>valid</Chip> : (
-                        <span className="flex flex-wrap gap-1">
+                      {l.comparable ? (
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <Chip tone="green" icon={CircleCheck}>valid</Chip>
+                          {/* a lap faster than the "too fast" limit, cleared by an admin (lib/too-fast.ts) */}
+                          {(m as Record<string, unknown>).too_fast_ok === true && <span className="text-[11px] text-zinc-500" title="Faster than LFM's best ever allows, checked by an admin">fast lap, checked</span>}
+                          {(m as Record<string, unknown>).too_fast_ok === true && me.is_admin && <TooFast lapId={l.id} cleared />}
+                        </span>
+                      ) : (
+                        <span className="flex flex-wrap items-center gap-1">
                           {l.excluded_reasons.map((r) => (
-                            <Chip key={r} tone={r === "game_invalid" || r === "server_invalid" ? "red" : r === "track_edges" ? "blue" : "grey"}>{REASONS[r] ?? r}</Chip>
+                            <Chip key={r} tone={r === "game_invalid" || r === "server_invalid" || r === "too_fast" ? "red" : r === "track_edges" ? "blue" : "grey"}>{REASONS[r] ?? r}</Chip>
                           ))}
+                          {l.excluded_reasons.includes("too_fast") && me.is_admin && <TooFast lapId={l.id} cleared={false} />}
                         </span>
                       )}
                     </td>

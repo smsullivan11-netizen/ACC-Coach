@@ -1,6 +1,8 @@
 import { currentDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
+import { rebuildDriverRatings } from "@/lib/ratings";
 import { parseLapTime } from "@/lib/targets";
+import { flagTooFast } from "@/lib/too-fast";
 
 // Target lap time of a track and car (admins). Body: { track: "brands_hatch", car: "ford_mustang_gt3",
 // time: "1:22.570" }; time empty or null removes the target (the team's best lap is then the reference).
@@ -15,6 +17,7 @@ export async function POST(request: Request) {
   track = track.toLowerCase();   // targets are keyed by the lowercase track key
   if (!time) {
     await sql`delete from car_target where track_key = ${track} and car_key = ${car}`;
+    await recheckTooFast(track);
     return Response.json({ ok: true, target_ms: null });
   }
   const ms = parseLapTime(time);
@@ -23,5 +26,12 @@ export async function POST(request: Request) {
     insert into car_target (track_key, car_key, target_ms, source, set_by) values (${track}, ${car}, ${ms}, ${"set by " + driver.display_name}, ${driver.id})
     on conflict (track_key, car_key) do update set target_ms = excluded.target_ms, source = excluded.source,
                                                   set_by = excluded.set_by, set_at = now()`;
+  await recheckTooFast(track);
   return Response.json({ ok: true, target_ms: ms });
+}
+
+/** A target moved the "too fast" limit (lib/too-fast.ts): laps flagged or cleared, those drivers'
+ *  ratings replayed. */
+async function recheckTooFast(track: string) {
+  for (const driverId of await flagTooFast(sql, { trackKey: track })) await rebuildDriverRatings(sql, driverId);
 }

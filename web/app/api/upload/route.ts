@@ -9,6 +9,7 @@ import { sql } from "@/lib/db";
 import { importBundle, Rejected, type Bundle } from "@/lib/import-bundle";
 import { compressOldTraces, pruneTraces } from "@/lib/storage";
 import { rateSession } from "@/lib/ratings";
+import { flagTooFast } from "@/lib/too-fast";
 import { refreshOutlineForSession } from "@/lib/track-outline";
 
 // Upload of a session bundle (.json.gz written by bundle.py), from the desktop app / upload script
@@ -37,6 +38,8 @@ export async function POST(request: Request) {
     if (e instanceof Rejected) return Response.json({ error: e.message }, { status: e.status });
     throw e;
   }
+  // Laps faster than LFM's best ever allow: treated as invalid before the session is rated (lib/too-fast.ts)
+  await flagTooFast(sql, { sessionId: result.sessionId });
   const rating = await rateSession(sql, result.sessionId);
   await afterUpload(result.sessionId);
   // Achievements and the Discord post must never fail an upload

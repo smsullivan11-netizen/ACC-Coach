@@ -47,6 +47,7 @@ export const REASONS: Record<string, string> = {
   pit_out: "out-lap",
   pit_in: "in-lap",
   track_edges: "edge lap (track map)",
+  too_fast: "too fast: likely a cut",
 };
 
 const SHORT_CARS: Record<string, string> = {

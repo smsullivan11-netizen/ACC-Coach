@@ -257,6 +257,11 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   edges never past 85 % of the turn's radius. Sharp kinks: Barcelona 28 → 0, Misano 29 → 0, Zolder
   12 → 0, Mount Panorama 6 → 0, COTA 2 → 0; valid-lap points outside ≤ 0.07 % (was up to 0.59 %).
   Hungaroring now passes the TUM check (laps aligned better).
+- View start of corners and sections (user's request, 2026-10-07: replay checkpoints and the corner
+  zoom began too close to the corner): `viewStart` in LapView = the earlier braking (or lift) point of
+  the two laps, else the zone start, minus `LEAD_S` = 1.25 s at the car's speed there (≈ 85 m at
+  250 km/h). Used by the Turn buttons, coach links (`?corner=`), the replay checkpoints and their
+  "neck and neck" levelling (checkpoint `start_m` = the zone's `from_m`).
 - Optional exact edges: two **edge laps** driven slowly with the left / right wheels on the white
   line (driving direction), picked by an admin on the track map page; both set = they replace the
   automatic surface. Edge = the lap's line moved outward by 1.0 m, one point every 2 m. An edge
@@ -822,6 +827,13 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   style average those same sessions (`formParts`). **All-time best** = highest rating once no longer
   provisional (`allTimeBest`), shown as "current/best" on the Drivers list and under the rating on
   profiles. After deploying a formula change, an admin clicks "Recompute all ratings" (Settings).
+- Too-fast laps (user's rule, 2026-10-07, lib/too-fast.ts): faster than LFM's all-time best − 0.5 %
+  = target × 0.995 / 1.01 (≈ 1.5 % under the 101 % target; car's own target, else its class's average
+  on the track, else no check) → excluded reason `too_fast`, comparable = false: like an invalid lap
+  everywhere (pace, leaderboards, records, corner maps, outline; clean driving and consistency count
+  it as invalid). Checked at upload (before rating), when an admin changes a target (those drivers'
+  ratings replayed) and in "Recompute all ratings". Admins: "Not a cut" on the session page
+  (`lap.metrics.too_fast_ok`, stays cleared; "Flag again" undoes), POST /api/laps/[id]/too-fast.
 - Pace score's 100 (hidden, `ratingReference` in lib/targets.ts; user's rule 2026-10-07) = the car's
   LFM 101 % target on the track, exactly: a teammate beating it must not lower everyone else's pace
   (team: within 1 % of LFM's all-time best = alien). A car without a target uses the average of its

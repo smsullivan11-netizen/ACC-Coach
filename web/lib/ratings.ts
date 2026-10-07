@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { announcePromotions, currentRatings } from "./discord";
 import { fuelSeconds } from "./fuel";
 import { ratingReference } from "./targets";
+import { flagTooFast } from "./too-fast";
 
 // Overall Driver Rating (0-100), updated after each uploaded session.
 //
@@ -279,6 +280,7 @@ export async function rebuildDriverRatings(sql: postgres.Sql, driverId: string) 
  *  before ratings existed). Uses today's targets and team bests for all of them. */
 export async function rebuildRatings(sql: postgres.Sql) {
   const before = await currentRatings();
+  await flagTooFast(sql);   // with today's targets (lib/too-fast.ts)
   const result = await sql.begin(async (tx) => {
     await tx`delete from driver_rating`;
     const sessions = await tx<{ id: string }[]>`select id from session order by uploaded_at, id`;
