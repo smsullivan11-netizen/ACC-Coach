@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, CircleHelp, Download, Flag, Gauge, Link2, MonitorPlay, Trophy, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CircleHelp, Download, Flag, Gauge, Link2, MonitorPlay, Trophy, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -104,14 +104,18 @@ export default function Tutorial({ seen }: { seen: boolean }) {
       return next;
     });
   }, []);
+  // Seen = closed once (on the account): no longer opens by itself, and the button shows a green tick
+  const [done, setDone] = useState(seen);
+  const seenRef = useRef(seen);
   const close = useCallback(() => {
     setOpen(false);
-    if (!seenRef.current) { seenRef.current = true; void fetch("/api/guide-seen", { method: "POST" }).catch(() => {}); }
+    setDone(true);
+    // keepalive: the request still goes through if the page is refreshed or left right after closing
+    if (!seenRef.current) { seenRef.current = true; void fetch("/api/guide-seen", { method: "POST", keepalive: true }).catch(() => {}); }
     button.current?.focus();
   }, []);
 
   // Until the member has closed it once: open by itself
-  const seenRef = useRef(seen);
   useEffect(() => {
     if (!seen) { const t = setTimeout(() => { setI(0); setOpen(true); }, 700); return () => clearTimeout(t); }
   }, [seen]);
@@ -135,10 +139,17 @@ export default function Tutorial({ seen }: { seen: boolean }) {
   const last = i === SLIDES.length - 1;
   return (
     <>
-      <button ref={button} onClick={() => { setI(0); setDir("next"); setOpen(true); }} title="How to use this site"
+      <button ref={button} onClick={() => { setI(0); setDir("next"); setOpen(true); }} title={done ? "How to use this site (seen)" : "How to use this site"}
               aria-label="Guide: how to use this site"
-              className="flex h-9 items-center gap-1.5 rounded-full px-2 text-sm text-zinc-400 transition-colors hover:bg-white/[0.07] hover:text-white 2xl:pl-2.5 2xl:pr-3">
-        <CircleHelp size={17} />
+              className="flex h-9 items-center gap-2.5 rounded-full px-2 text-sm text-zinc-400 transition-colors hover:bg-white/[0.07] hover:text-white 2xl:pl-2.5 2xl:pr-3">
+        <span className="relative">
+          <CircleHelp size={17} />
+          {done && (
+            <span className="absolute -bottom-1 -right-1.5 flex h-3 w-3 items-center justify-center rounded-full bg-green-500 ring-2 ring-[#141417]">
+              <Check size={8} strokeWidth={4} className="text-black" />
+            </span>
+          )}
+        </span>
         <span className="hidden 2xl:inline">Guide</span>
       </button>
 

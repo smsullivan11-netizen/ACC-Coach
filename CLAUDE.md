@@ -727,7 +727,8 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - User's request: no new section; a "?" button in the header (next to the name, "Guide" on wide
   screens) opens a 10-slide slideshow over the page, blurred behind (portal on <body>: inside the
   header's backdrop-filter a fixed element is held to the header). Opens by itself until the
-  member first closes it (`driver.guide_seen_at`, migration 0013, set by POST /api/guide-seen). Arrows, dots, ←/→, swipe; Esc, ✕ or a
+  member first closes it (`driver.guide_seen_at`, migration 0013, set by POST /api/guide-seen with
+  keepalive, so a refresh right after closing does not cancel it); then the ? shows a green tick. Arrows, dots, ←/→, swipe; Esc, ✕ or a
   click outside close it; page scroll locked while open. All slide texts share one grid cell so the
   window keeps one height. Pictures: `public/media/tutorial/*.webp` (1200 px, ~30 KB), screenshots
   of the local test site at 1440x900 without the header (engineer: the real Brands Hatch replay);
