@@ -41,6 +41,9 @@ export default async function CarsPage(props: PageProps<"/cars">) {
       drivers: tm.get(c.key)?.drivers ?? 0, laps: tm.get(c.key)?.laps ?? 0, km: tm.get(c.key)?.km ?? 0,
     };
   });
+  // Sheet pace from the class's fastest car on average (user's request: it reads 0, like lap gaps)
+  const fastest = Math.min(...rows.map((x) => x.sheetGap ?? Infinity));
+  for (const x of rows) if (x.sheetGap != null) x.sheetGap -= fastest;
   const rated = rows.filter((x) => x.overall != null).length;
 
   return (
