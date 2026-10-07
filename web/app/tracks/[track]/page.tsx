@@ -54,8 +54,8 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
                                   and tb.corner_map_id = (select id from map)
     where r.track_id = ${t.id}
     order by r.car_class nulls last, r.position`;
-  // Rating references per car: the car's target (LFM 101 % for the team's cars) or the team's best
-  // in that car when faster; cars without a target use the class's team best (lib/targets.ts)
+  // Targets per car (LFM 101 % for the team's cars): the pace score's 100 (lib/targets.ts
+  // ratingReference; a car without one uses its class's targets on the track)
   const targets = await sql<{ car: string; target_ms: number; source: string | null }[]>`
     select car_key as car, target_ms, source from car_target where track_key = lower(${track}) order by car_key`;
   const cars = new Map<string, { cls: string; target: (typeof targets)[number] | null; best: number | null }>();

@@ -753,7 +753,7 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   (`metrics.fuel_l`, litres; no migration). The rating removes what the fuel above a minimum-fuel
   reference cost (`web/lib/fuel.ts`; user: hotlaps run on 5-10 L, so no bonus below it): 8 L on
   tracks under 5 km, 10 L on longer ones, 15 L on the Nordschleife. Seconds per 10 kg per track
-  measured in ACC by OhneSpeed (Nordschleife 0.78, Spa 0.2…; 0.16 for tracks not measured), 0.72 kg/L. The pace reference's team best is fuel-corrected the same way (`paceReference(…, { fuelCorrected: true })`, 2026-10-07; targets never; coaching notes use real times). Leaderboards and records keep real times; the
+  measured in ACC by OhneSpeed (Nordschleife 0.78, Spa 0.2…; 0.16 for tracks not measured), 0.72 kg/L. Only the driver's own laps are corrected, for their pace score: references and targets are always real times (user: a corrected lap was never driven, so nobody can compare with it). Leaderboards and records keep real times; the
   session page shows a Fuel column ("48 L +0.46 s"). Laps from older apps are not corrected.
 - Weights per session type (user's values, `WEIGHTS_BY_TYPE`): "Practice (Mixed running)" 55/25/10/10
   (also unknown types; separate "mixed running" type merged into it on 2026-10-07, a stored "mixed"
@@ -785,10 +785,14 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   style average those same sessions (`formParts`). **All-time best** = highest rating once no longer
   provisional (`allTimeBest`), shown as "current/best" on the Drivers list and under the rating on
   profiles. After deploying a formula change, an admin clicks "Recompute all ratings" (Settings).
-- Pace reference = the faster of the car's target (`car_target`, lib/targets.ts) and the team's best
-  valid lap **in that car**; a car without a target uses the class's team best. The user chose "a fixed
-  target, updated when someone beats it", per car (Ford and McLaren times differ by track), at LFM's
-  101 % times ("more achievable than 100 %"). Admins edit them on each leaderboard.
+- Pace score's 100 (hidden, `ratingReference` in lib/targets.ts; user's rule 2026-10-07) = the car's
+  LFM 101 % target on the track, exactly: a teammate beating it must not lower everyone else's pace
+  (team: within 1 % of LFM's all-time best = alien). A car without a target uses the average of its
+  class's targets on that track; a track without any target, the team's best real lap in the class.
+  Before: the faster of the target and the team best (the BMW at Zolder, driven by one driver, was its
+  own reference: pace 100 → 24.3 with the change). Targets: LFM's 101 % times, per car (the user chose
+  them as "more achievable than 100 %"); admins edit them on each leaderboard. The displayed reference
+  (`paceReference`: target or the team best when faster) stays for the leaderboards and coaching notes.
 - Ratings are history (`driver_rating`), not recomputed automatically when targets change; the
   admin button `rebuildRatings` replays every session in upload order (needed once on production
   after migration 0003, for sessions uploaded before ratings existed).

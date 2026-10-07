@@ -18,7 +18,7 @@ type Point = { rating: number; session_score: number; date: string; track: strin
 type Parts = { pace: number | null; consistency: number | null; clean: number | null; smoothness: number | null };
 
 const PARTS: { key: keyof Parts; label: string; help: string }[] = [
-  { key: "pace", label: "Pace", help: "best lap vs the reference lap" },
+  { key: "pace", label: "Pace", help: "best lap vs the LFM 101 % target" },
   { key: "consistency", label: "Consistency", help: "spread of your laps, invalid ones included" },
   { key: "clean", label: "Clean driving", help: "laps not lost to track limits" },
   { key: "smoothness", label: "Smoothness", help: "steering corrections vs the team" },

@@ -2,7 +2,7 @@ import "server-only";
 import type postgres from "postgres";
 import { announcePromotions, currentRatings } from "./discord";
 import { fuelSeconds } from "./fuel";
-import { paceReference } from "./targets";
+import { ratingReference } from "./targets";
 
 // Overall Driver Rating (0-100), updated after each uploaded session.
 //
@@ -11,8 +11,10 @@ import { paceReference } from "./targets";
 // (WEIGHTS_BY_TYPE, user's values): the type chosen on the session page, else ACC's (hotlap and
 // superpole = qualifying, hotstint = race, unknown = practice, which is also mixed running):
 //  - (lap times are first corrected for the fuel load: lib/fuel.ts)
-//  - pace: session best vs the reference = the faster of the car's target on the track and
-//    the team's best valid lap in that car (lib/targets.ts): 0 % slower → 100, 3 % → 50, 6 % or more → 0;
+//  - pace: the session's best lap (fuel-corrected: only the driver's own laps are) vs the car's
+//    LFM 101 % target on the track (ratingReference, lib/targets.ts; user's rule 2026-10-07: a
+//    teammate beating it must not lower everyone else's pace; within 1 % of LFM's best = alien):
+//    at or under the target → 100, 3 % slower → 50, 6 % or more → 0;
 //  - consistency (needs 3 valid laps): average gap of the laps to the best one, each gap capped at
 //    3 % (a spin or a crash counts as one maximally inconsistent lap, no more), where on runs of 6+
 //    valid laps (between pit stops) "best" follows the run's trend (lapGaps): fuel burning off, tyre
@@ -133,8 +135,9 @@ export async function rateSession(tx: Sql, sessionId: string) {
   const valid = corrected.filter((l) => l.comparable).map((l) => l.t).sort((a, b) => a - b);
   if (!valid.length) return null;                        // nothing to judge: no valid flying lap
 
-  // Fuel-corrected team best, like this session's laps (this session's valid laps count: never null here)
-  const reference = (await paceReference(tx, sessionId, { fuelCorrected: true })).reference_ms!;
+  // The LFM 101 % target (a real time, never corrected); this session's own laps are the last
+  // fallback, so never null here
+  const reference = (await ratingReference(tx, sessionId))!;
   const best = valid[0];
   const pace = clamp(100 * (1 - (best - reference) / reference / 0.06));
 
