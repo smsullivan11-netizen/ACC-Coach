@@ -113,10 +113,10 @@ export default function CarsTable({ rows }: { rows: CarRow[] }) {
                   <Link href={`/cars/${r.key}`} className="whitespace-nowrap text-white hover:underline">
                     <span className="font-medium">{r.name}</span> <span className="text-xs text-zinc-500">{r.year}</span>
                   </Link>
-                  <div className="mt-1 flex items-center gap-3 whitespace-nowrap text-xs text-zinc-500">
+                  <div className="mt-1.5 flex items-end gap-3 whitespace-nowrap text-xs text-zinc-500">
                     {drive != null && (
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Driveability</span>
+                      <span className="inline-flex flex-col items-start gap-0.5">
+                        <span className="text-[9px] font-semibold uppercase leading-none tracking-wider text-zinc-400">Driveability</span>
                         <Stars v={drive} />
                       </span>
                     )}
