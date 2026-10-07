@@ -1,6 +1,6 @@
 "use client";
 
-import { Clapperboard, Download, Flag, LayoutDashboard, MonitorPlay, Trophy, Users } from "lucide-react";
+import { CarFront, Clapperboard, Download, Flag, LayoutDashboard, MonitorPlay, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/telemetry", label: "Telemetry", icon: MonitorPlay },
   { href: "/sessions", label: "Sessions", icon: Flag },
   { href: "/tracks", label: "Leaderboards", icon: Trophy },
+  { href: "/cars", label: "Cars", icon: CarFront },
   { href: "/drivers", label: "Drivers", icon: Users },
   { href: "/youtube", label: "YouTube", icon: Clapperboard },
 ];
@@ -52,7 +53,7 @@ export function GetAppLink() {
           className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-accent/45 px-2.5 text-sm font-medium text-accent shadow-[0_0_24px_-10px] shadow-accent/50 transition-colors hover:bg-accent/10 lg:px-3 ${
             on ? "bg-accent/10" : "bg-accent/[0.03]"}`}>
       <Download size={15} />
-      <span className="hidden whitespace-nowrap lg:inline">Get the app</span>
+      <span className="hidden whitespace-nowrap lg:inline xl:hidden 2xl:inline">Get the app</span>
     </Link>
   );
 }

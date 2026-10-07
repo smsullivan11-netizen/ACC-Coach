@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Info, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowDown, ArrowUp, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
+import InfoTip from "@/components/InfoTip";
 import { Avatar, PartBar, Position, RankIcon, ScaleNumber } from "@/components/ui";
 import { rankFor } from "@/lib/ranks";
 
@@ -22,32 +23,6 @@ const COLUMNS: { key: Key; label: string; info: string }[] = [
   { key: "change", label: "Trend", info: "How much the rating moved with the driver's last session." },
   { key: "km", label: "Distance", info: "Kilometres driven in every session uploaded, all laps counted." },
 ];
-
-function InfoTip({ text, edge = false }: { text: string; edge?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
-  return (
-    <span ref={box} className="relative inline-flex">
-      <button type="button" aria-label="What is this?" title={text}
-              onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
-              className="grid h-4 w-4 place-items-center rounded-full text-zinc-500 hover:text-accent">
-        <Info size={12} />
-      </button>
-      {open && (
-        <span className={`absolute top-6 z-30 w-64 whitespace-normal rounded-lg border border-white/10 bg-raised p-3 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-zinc-300 shadow-xl ${
-                edge ? "right-0" : "left-1/2 -translate-x-1/2"}`}>
-          {text}
-        </span>
-      )}
-    </span>
-  );
-}
 
 // Parts: the number in the scale's colour at its value, the zoomed-in bar under it (components/ui.tsx)
 function Part({ v }: { v: number | null }) {

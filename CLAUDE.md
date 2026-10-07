@@ -927,6 +927,24 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Ideas not requested yet: coaching summary per session, stint view, server results import.
 - Name the corners of the team's tracks; weighted composite ranking to define with the team.
 - Safer .json matching when `head.driver` is empty: carModel ↔ car-from-file-name table.
+- Setups library (user's request, after the Cars page): ACC's six setup tabs, GOSetups-style boxes,
+  everyone can upload ACC setup .json files.
+
+## Cars page (web/app/cars, web/lib/cars.ts, 2026-10-08)
+- User's request: car ratings entered by hand (the team drives too few cars, mostly the Mustang and
+  McLaren, to rate them from laps). Table `car_rating` (migration 0016): eight sub-ratings 0-100,
+  null = not rated, with the user's names and "i" texts (`CAR_PARTS`: Top speed "min wing / max
+  wing", Acceleration, Traction, Slow corners, Fast corners, Braking, Tyre wear, Driveability), a note
+  and a source. Overall = average of those filled in. Admins edit them on the car's page (POST
+  /api/cars/[car]/rating). `CARS` = every ACC car key with the game's name, year and class
+  (GT3, GT4, Cup, GT2); `carName` adds the year when two cars share a name.
+- /cars: class switch, a sortable table like Drivers (overall, the eight parts, "Sheet pace" = the
+  average gap of the car's default-BoP sheet time to the class's fastest car per track, and the
+  team's valid laps and drivers). /cars/[car]: ratings with their texts, then per track the default
+  BoP time, the 101 % target, the LFM time with its BoP badge, the team's best lap in the car (driver,
+  LFM tag), its gap to the target, top speed and laps. "Cars" in the main menu; with it the header's
+  "Get the app" label hides from 1280 to 1535 px (icon only), or the header overflowed by 10 px.
+- `components/InfoTip.tsx`: the "i" box shared by the Drivers and Cars tables.
 
 ## YouTube (web/lib/youtube.ts, /youtube, 2026-10-06)
 - The team's channel @PCGroupRacing (id UCGSgxcvFG5fMuAOMoJAQBZA, title "PCGR"), YouTube Data API v3
