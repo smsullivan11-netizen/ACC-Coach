@@ -12,9 +12,10 @@ import { trackInfo } from "./tracks";
 
 const YELLOW = 0xffd200, GREEN = 0x22c55e;
 
-async function post(body: unknown) {
+/** True when Discord accepted the message. */
+async function post(body: unknown): Promise<boolean> {
   const url = env("DISCORD_WEBHOOK_URL");
-  if (!url) return;
+  if (!url) return false;
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -23,8 +24,10 @@ async function post(body: unknown) {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) console.error("discord webhook", res.status, await res.text());
+    return res.ok;
   } catch (e) {
     console.error("discord webhook failed", e);
+    return false;
   }
 }
 
@@ -108,10 +111,16 @@ export async function announcePromotions(before: Map<string, number>) {
 }
 
 /** A new desktop app version (lib/app-release.ts, user's request 2026-10-07), posted once: the first
- *  upload or app update check after the deploy posts it (site_state 'app_announced', migration 0015). */
+ *  page view, upload or app update check after the deploy posts it (site_state 'app_announced',
+ *  migration 0015); a post Discord refused gives the claim back, so the next one retries. */
+let releaseChecked = false;   // per server instance: one database check, not one per page view
 export async function announceRelease() {
-  if (!env("DISCORD_WEBHOOK_URL") || !(APP_RELEASE.sizeMb > 0)) return;
+  if (releaseChecked || !env("DISCORD_WEBHOOK_URL") || !(APP_RELEASE.sizeMb > 0)) return;
+  releaseChecked = true;
+  let previous: string | null = null;
   try {
+    const [row] = await sql<{ value: string }[]>`select value from site_state where key = 'app_announced'`;
+    previous = row?.value ?? null;
     const first = await sql`
       insert into site_state (key, value) values ('app_announced', ${APP_RELEASE.version})
       on conflict (key) do update set value = excluded.value, updated_at = now()
@@ -122,7 +131,7 @@ export async function announceRelease() {
     console.error("release announcement", e);   // before migration 0015
     return;
   }
-  await post({ embeds: [{
+  const ok = await post({ embeds: [{
     color: YELLOW,
     title: `🆕 ACC Coach ${APP_RELEASE.version} is out`,
     description: [
@@ -133,6 +142,14 @@ export async function announceRelease() {
     ].join("\n"),
     url: `${appUrl()}/download`,
   }] });
+  if (!ok) {
+    releaseChecked = false;
+    const back = previous == null
+      ? sql`delete from site_state where key = 'app_announced' and value = ${APP_RELEASE.version}`
+      : sql`update site_state set value = ${previous}, updated_at = now()
+            where key = 'app_announced' and value = ${APP_RELEASE.version}`;
+    await back.catch((e) => console.error("release announcement", e));
+  }
 }
 
 /** Admin test message from Settings. */

@@ -1,6 +1,8 @@
 import { BarChart3, Gauge, Route } from "lucide-react";
+import { after } from "next/server";
 import { delay, Pcgr } from "@/components/ui";
 import { currentDriver, devLoginEnabled, discordConfigured, reviewLoginEnabled } from "@/lib/auth";
+import { announceRelease } from "@/lib/discord";
 import Dashboard from "./Dashboard";
 
 const ERRORS: Record<string, string> = {
@@ -13,6 +15,7 @@ const ERRORS: Record<string, string> = {
 // Signed in: the dashboard. Signed out: the team's sign-in page.
 export default async function Home(props: PageProps<"/">) {
   const driver = await currentDriver();
+  after(() => announceRelease());   // a new app version, posted on Discord once (lib/discord.ts)
   if (driver) return <Dashboard me={driver} />;
   const { error } = await props.searchParams;
   const message = typeof error === "string" ? ERRORS[error] : undefined;

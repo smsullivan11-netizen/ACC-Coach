@@ -663,9 +663,11 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   card as the embed image, plus **rank promotions** (this upload's rating only). No achievement or
   rating-change posts. Never fails an upload. Admin button "Test the Discord channel".
 - App releases (user's request, 2026-10-07): `announceRelease` posts "🆕 ACC Coach <version> is out"
-  with `APP_RELEASE.notes` (also the download page's "What's new"), once per version: the first upload
-  or app update check (`/api/app/latest`) after the deploy claims it in `site_state` ('app_announced',
-  migration 0015). Write the notes in `web/lib/app-release.ts` before building a release.
+  with `APP_RELEASE.notes` (also the download page's "What's new"), once per version: the first home page
+  view, upload or app update check (`/api/app/latest`) after the deploy claims it in `site_state`
+  ('app_announced', migration 0015); if Discord refuses the post the claim is given back (retried).
+  The Store app never calls the update check, hence the page views (2026-10-08: 0.4's post had not
+  gone out because nothing had triggered it). Write the notes in `web/lib/app-release.ts` before building a release.
 - Ranks (`lib/ranks.ts`, user's scale): Rookie 0, Apprentice 20, Intermediate 40, Advanced 50,
   Contender 60, Front Runner 70, Expert 80, Alien 90. `RankBadge` next to ratings (drivers list,
   profile, dashboard).
