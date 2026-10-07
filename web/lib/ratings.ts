@@ -9,14 +9,18 @@ import { paceReference } from "./targets";
 // Session score = weighted average of four parts (0-100 each; a part that cannot be measured is
 // left out and the weights of the others are scaled up). The weights depend on the session type
 // (WEIGHTS_BY_TYPE, user's values): the type chosen on the session page, else ACC's (hotlap and
-// superpole = qualifying, hotstint = race, unknown = mixed running):
+// superpole = qualifying, hotstint = race, unknown = practice, which is also mixed running):
 //  - (lap times are first corrected for the fuel load: lib/fuel.ts)
 //  - pace: session best vs the reference = the faster of the car's target on the track and
 //    the team's best valid lap in that car (lib/targets.ts): 0 % slower → 100, 3 % → 50, 6 % or more → 0;
-//  - consistency (needs 3 valid laps): median gap of the laps to the best one, where on runs of 6+
+//  - consistency (needs 3 valid laps): average gap of the laps to the best one, each gap capped at
+//    3 % (a spin or a crash counts as one maximally inconsistent lap, no more), where on runs of 6+
 //    valid laps (between pit stops) "best" follows the run's trend (lapGaps): fuel burning off, tyre
 //    wear and track changes move lap times steadily over a stint, only the scatter around that
-//    trend counts. 0.1 % or less → 100, 3 % or more → 0;
+//    trend counts. Invalid flying laps count too (user's request, 2026-10-07: valid laps alone can
+//    hide a big spread): in a race fully, like valid laps (nobody abandons a lap in a race); in
+//    practice and qualifying at half weight and only within 3 % (beyond, the lap may have been
+//    abandoned once invalid: its time says nothing). 0.1 % or less → 100, 3 % → 0;
 //  - clean driving: share of flying laps not invalidated (track limits, server);
 //  - smoothness: steering activity vs the team's median on the same track and class:
 //    70 % of the team's → 100, the team's → 70, 170 % or more → 0.
@@ -30,35 +34,38 @@ import { paceReference } from "./targets";
 // session: rebuildRatings).
 
 type Weights = { pace: number; consistency: number; clean: number; smoothness: number };
-export type RatingType = "practice" | "qualifying" | "race" | "mixed";
+export type RatingType = "practice" | "qualifying" | "race";
 export const WEIGHTS_BY_TYPE: Record<RatingType, Weights> = {
-  practice: { pace: 56, consistency: 24, clean: 10, smoothness: 10 },     // drivers push, care less about track limits
+  practice: { pace: 55, consistency: 25, clean: 10, smoothness: 10 },     // also mixed running (long and short runs); the default
   qualifying: { pace: 62, consistency: 18, clean: 10, smoothness: 10 },   // also hotlap and superpole
   race: { pace: 45, consistency: 30, clean: 15, smoothness: 10 },         // also hotstint
-  mixed: { pace: 55, consistency: 25, clean: 10, smoothness: 10 },        // long runs and short runs; the default
 };
 export const RATING_TYPE_LABELS: Record<RatingType, string> = {
-  practice: "Practice", qualifying: "Qualifying simulation", race: "Race simulation", mixed: "Mixed running",
+  practice: "Practice (Mixed running)", qualifying: "Qualifying simulation", race: "Race simulation",
 };
 /** The four parts, in display order (their weights depend on the session type). */
-export const WEIGHTS = WEIGHTS_BY_TYPE.mixed;
+export const WEIGHTS = WEIGHTS_BY_TYPE.practice;
 
-/** Weights to use: the type chosen for the session, else ACC's session type. */
+/** Weights to use: the type chosen for the session, else ACC's session type. "mixed" (a separate
+ *  type until 2026-10-07, merged into practice at the user's request) reads as practice. */
 export function ratingType(chosen: string | null, acc: string | null): RatingType {
+  if (chosen === "mixed") return "practice";
   if (chosen && chosen in WEIGHTS_BY_TYPE) return chosen as RatingType;
   switch (acc) {
-    case "practice": return "practice";
     case "qualify": case "qualifying": case "hotlap": case "superpole": case "hotstint_superpole": return "qualifying";
     case "race": case "hotstint": return "race";
-    default: return "mixed";
+    default: return "practice";
   }
 }
 export const PROVISIONAL_SESSIONS = 3;
 export const FORM_DAYS = 60;
 export const FORM_MIN_LAPS = 5;
-// Consistency scale (median gap of the other valid laps to the session best): widened on 2026-10-05
-// (was 0.3 % → 100, 2 % → 0: too generous at the top, too harsh below)
+// Consistency scale (average gap to the session best): widened on 2026-10-05 (was 0.3 % → 100,
+// 2 % → 0: too generous at the top, too harsh below). Each lap's gap is capped at the zero point;
+// invalid laps outside race weigh INVALID_WEIGHT. Until 2026-10-07 it was the median gap of the
+// valid laps only (checked on the team's sessions before the change: ratings moved by 1 point or less).
 const CONSISTENCY_FULL = 0.001, CONSISTENCY_ZERO = 0.03;
+export const INVALID_WEIGHT = 0.5;
 
 const clamp = (x: number) => Math.max(0, Math.min(100, x));
 const median = (xs: number[]) => {
@@ -77,26 +84,37 @@ export const TREND_MIN_LAPS = 6;
  *  run's trend (robust line: median of the pairwise slopes), shifted down to the lap furthest below
  *  it: a steady drift from fuel burn or tyre wear (ACC does not publish tyre wear) is not counted.
  *  Shorter runs (hotlaps, qualifying runs) use a flat line: the gap to the run's best lap. The
- *  reference lap of each run is left out, like the best lap before. */
-export function lapGaps(laps: { number: number; t: number; valid: boolean; pit: boolean }[]) {
-  const runs: { n: number; t: number }[][] = [[]];
+ *  reference lap of each run is left out, like the best lap before. Invalid flying laps
+ *  (`invalid`) are measured against the same line (either side: an invalid lap can be faster than
+ *  the best valid one) and weighted as the consistency rules say (`race`: like valid laps). Each
+ *  gap comes with its weight and is capped at the scale's zero. */
+export function lapGaps(laps: { number: number; t: number; valid: boolean; invalid?: boolean; pit: boolean }[], race = false) {
+  const runs: { n: number; t: number; valid: boolean }[][] = [[]];
   for (const l of [...laps].sort((a, b) => a.number - b.number)) {
     if (l.pit) { if (runs.at(-1)!.length) runs.push([]); continue; }
-    if (l.valid) runs.at(-1)!.push({ n: l.number, t: l.t });
+    if (l.valid || l.invalid) runs.at(-1)!.push({ n: l.number, t: l.t, valid: l.valid });
   }
   const best = Math.min(...laps.filter((l) => l.valid).map((l) => l.t));
-  const gaps: number[] = [];
-  for (const run of runs.filter((r) => r.length)) {
+  const gaps: { gap: number; weight: number }[] = [];
+  for (const run of runs) {
+    const valid = run.filter((l) => l.valid);
+    if (!valid.length) continue;
     let slope = 0;
-    if (run.length >= TREND_MIN_LAPS) {
+    if (valid.length >= TREND_MIN_LAPS) {
       const slopes: number[] = [];
-      for (let i = 0; i < run.length; i++) for (let j = i + 1; j < run.length; j++) slopes.push((run[j].t - run[i].t) / (run[j].n - run[i].n));
+      for (let i = 0; i < valid.length; i++) for (let j = i + 1; j < valid.length; j++) slopes.push((valid[j].t - valid[i].t) / (valid[j].n - valid[i].n));
       slope = median(slopes);
     }
-    const d = run.map((l) => l.t - slope * l.n);
+    const d = valid.map((l) => l.t - slope * l.n);
     const base = Math.min(...d);
     const k = d.indexOf(base);
-    d.forEach((x, i) => { if (i !== k) gaps.push((x - base) / best); });
+    d.forEach((x, i) => { if (i !== k) gaps.push({ gap: Math.min(CONSISTENCY_ZERO, (x - base) / best), weight: 1 }); });
+    for (const l of run) {
+      if (l.valid) continue;
+      const gap = Math.abs(l.t - slope * l.n - base) / best;
+      if (race) gaps.push({ gap: Math.min(CONSISTENCY_ZERO, gap), weight: 1 });
+      else if (gap <= CONSISTENCY_ZERO) gaps.push({ gap, weight: INVALID_WEIGHT });
+    }
   }
   return gaps;
 }
@@ -119,13 +137,16 @@ export async function rateSession(tx: Sql, sessionId: string) {
   const best = valid[0];
   const pace = clamp(100 * (1 - (best - reference) / reference / 0.06));
 
-  const gaps = lapGaps(corrected.map((l) => ({ number: l.number, t: l.t, valid: l.comparable,
-                                             pit: l.excluded_reasons.some((r) => r.startsWith("pit_")) })));
-  const consistency = valid.length >= 3 && gaps.length
-    ? clamp(100 * (1 - (median(gaps) - CONSISTENCY_FULL) / (CONSISTENCY_ZERO - CONSISTENCY_FULL)))
+  const isFlying = (l: LapRow) => !l.excluded_reasons.some((r) => r.startsWith("pit_") || r === "distance" || r === "track_edges");
+  const type = ratingType(s.rating_type, s.session_type);
+  const gaps = lapGaps(corrected.map((l) => ({ number: l.number, t: l.t, valid: l.comparable, invalid: !l.comparable && isFlying(l),
+                                             pit: l.excluded_reasons.some((r) => r.startsWith("pit_")) })), type === "race");
+  const gapWeight = gaps.reduce((a, g) => a + g.weight, 0);
+  const consistency = valid.length >= 3 && gapWeight
+    ? clamp(100 * (1 - (gaps.reduce((a, g) => a + g.gap * g.weight, 0) / gapWeight - CONSISTENCY_FULL) / (CONSISTENCY_ZERO - CONSISTENCY_FULL)))
     : null;
 
-  const flying = laps.filter((l) => !l.excluded_reasons.some((r) => r.startsWith("pit_") || r === "distance" || r === "track_edges"));
+  const flying = laps.filter(isFlying);
   const clean = flying.length ? (100 * valid.length) / flying.length : null;
 
   // Steering activity in °/s when the steering lock is known, else in % of lock per second: only
@@ -145,7 +166,7 @@ export async function rateSession(tx: Sql, sessionId: string) {
 
   const parts = { pace, consistency, clean, smoothness };
   let total = 0, weight = 0;
-  for (const [k, w] of Object.entries(WEIGHTS_BY_TYPE[ratingType(s.rating_type, s.session_type)])) {
+  for (const [k, w] of Object.entries(WEIGHTS_BY_TYPE[type])) {
     const v = parts[k as keyof typeof parts];
     if (v != null) {
       total += v * w;

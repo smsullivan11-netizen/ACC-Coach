@@ -744,9 +744,9 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   tracks under 5 km, 10 L on longer ones, 15 L on the Nordschleife. Seconds per 10 kg per track
   measured in ACC by OhneSpeed (Nordschleife 0.78, Spa 0.2…; 0.16 for tracks not measured), 0.72 kg/L. Leaderboards and records keep real times; the
   session page shows a Fuel column ("48 L +0.46 s"). Laps from older apps are not corrected.
-- Weights per session type (user's values, `WEIGHTS_BY_TYPE`): practice 56/24/10/10, qualifying
-  62/18/10/10 (also hotlap, superpole), race 45/30/15/10 (also hotstint), mixed running 55/25/10/10
-  (default, unknown types). The type comes from ACC unless someone in the team picks another on
+- Weights per session type (user's values, `WEIGHTS_BY_TYPE`): "Practice (Mixed running)" 55/25/10/10
+  (also unknown types; separate "mixed running" type merged into it on 2026-10-07, a stored "mixed"
+  reads as practice), qualifying 62/18/10/10 (also hotlap, superpole), race 45/30/15/10 (also hotstint). The type comes from ACC unless someone in the team picks another on
   the session page (`session.rating_type`, migration 0010; `RatingType.tsx` →
   `/api/sessions/[id]/rating-type`, which replays that driver's ratings: `rebuildDriverRatings`).
 - Rank promotions are posted to Discord after rating replays too (Recompute all ratings, session
@@ -757,8 +757,16 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   laps; on runs of 6+ valid laps the reference follows the run's robust trend (median of pairwise
   slopes) shifted to its lowest lap, so steady drift (fuel, wear, track) is not counted, only the
   scatter; shorter runs (hotlaps) keep the gap to the best lap. Simulated stint: 77 → 97.
-- Consistency scale widened (user: "too nice for some, too harsh for others"): median gap of the
-  other valid laps to the session best, 0.1 % → 100, 3 % → 0 (was 0.3 % → 100, 2 % → 0).
+- Consistency scale widened (user: "too nice for some, too harsh for others"): 0.1 % → 100, 3 % → 0
+  (was 0.3 % → 100, 2 % → 0).
+- Invalid laps in consistency (user, 2026-10-07: famas' Misano qualifying sim had 4 valid laps within
+  0.2 % and 20 invalid ones scattered up to 1.7 %, consistency 100): average of the gaps (was the
+  median, which ignores how bad the bad laps are), each capped at 3 % (a spin = one maximally
+  inconsistent lap). Invalid flying laps measured against the same reference (absolute gap: they can
+  be faster): race = like valid laps; practice / qualifying = half weight (`INVALID_WEIGHT`) within 3 %,
+  ignored beyond (possibly abandoned once invalid). Checked read-only on production before the
+  change (`tools/ratings/consistency_compare.py`, reads DATABASE_URL from the gitignored web/.env.production.local): famas 100 → 88.8 on that session, ratings moved ≤ 1
+  point; no race session existed yet to check the race rule on.
 - Rating = **current form** (since 2026-10-05; before: moved 30 % towards each session score, which
   the user found too low for a driver whose learning sessions dragged it down): best session score
   per track in the 60 days before the driver's latest session, sessions with 5+ valid laps (all of

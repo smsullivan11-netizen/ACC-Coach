@@ -19,7 +19,7 @@ type Parts = { pace: number | null; consistency: number | null; clean: number | 
 
 const PARTS: { key: keyof Parts; label: string; help: string }[] = [
   { key: "pace", label: "Pace", help: "best lap vs the reference lap" },
-  { key: "consistency", label: "Consistency", help: "spread of valid laps" },
+  { key: "consistency", label: "Consistency", help: "spread of your laps, invalid ones included" },
   { key: "clean", label: "Clean driving", help: "laps not lost to track limits" },
   { key: "smoothness", label: "Smoothness", help: "steering corrections vs the team" },
 ];
@@ -171,7 +171,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
               );
             })}
           </div>
-          <p className="mt-3 text-xs text-zinc-500">Best session on each track in the last 60 days (5+ valid laps), averaged over the tracks. Weights depend on the session type (practice, qualifying, race, mixed running).</p>
+          <p className="mt-3 text-xs text-zinc-500">Best session on each track in the last 60 days (5+ valid laps), averaged over the tracks. Weights depend on the session type (practice or mixed running, qualifying, race).</p>
         </section>
         <section className="card rise p-5" style={delay(180)}>
           {/* On your own profile the title opens your progression page */}

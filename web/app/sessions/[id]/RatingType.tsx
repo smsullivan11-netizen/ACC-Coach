@@ -7,7 +7,7 @@ import { useState } from "react";
 type Option = { value: string; label: string; weights: string };
 
 // What kind of running the session was, for the rating weights: ACC's session type by default, or
-// chosen afterwards (a practice session can be a qualifying or race simulation, or mixed running).
+// chosen afterwards (a practice session can be a qualifying or race simulation).
 export default function RatingType({ sessionId, chosen, accLabel, options }: {
   sessionId: string; chosen: string | null; accLabel: string; options: Option[];
 }) {

@@ -132,7 +132,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
         </div>
       </div>
 
-      <RatingType sessionId={id} chosen={session.rating_type} options={typeOptions}
+      <RatingType sessionId={id} chosen={session.rating_type === "mixed" ? "practice" : session.rating_type} options={typeOptions}
                   accLabel={`${session.session_type ?? "unknown"} → ${RATING_TYPE_LABELS[autoType]}`} />
 
       {coaching && <Coach c={coaching} />}

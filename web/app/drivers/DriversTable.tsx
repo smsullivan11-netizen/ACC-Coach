@@ -14,9 +14,9 @@ export type DriverRow = {
 type Key = "rating" | "pace" | "consistency" | "clean" | "smoothness" | "change" | "km";
 
 const COLUMNS: { key: Key; label: string; info: string }[] = [
-  { key: "rating", label: "Rating", info: "Current form: each driver's best session on each track of the last 60 days (5+ valid laps), averaged over the tracks. After the slash: the all-time best. A session's score weighs pace, consistency, clean driving and smoothness, depending on the session type (practice, qualifying, race, mixed running)." },
+  { key: "rating", label: "Rating", info: "Current form: each driver's best session on each track of the last 60 days (5+ valid laps), averaged over the tracks. After the slash: the all-time best. A session's score weighs pace, consistency, clean driving and smoothness, depending on the session type (practice or mixed running, qualifying, race)." },
   { key: "pace", label: "Pace", info: "Best lap against the reference (the car's target on the track, or the team's best in that car if faster), with the cost of the fuel above minimum fuel removed: 0 % slower = 100, 3 % = 50, 6 % or more = 0." },
-  { key: "consistency", label: "Consistency", info: "How close the laps are to each other: on runs of 6+ laps, to the run's trend (fuel burn and tyre wear left out), otherwise to the best lap. 0.1 % = 100, 3 % or more = 0." },
+  { key: "consistency", label: "Consistency", info: "How close the laps are to each other: on runs of 6+ laps, to the run's trend (fuel burn and tyre wear left out), otherwise to the best lap. Average gap, each lap counting at most 3 % (a spin is one bad lap, no more); invalid laps count too: fully in races, at half weight within 3 % in practice and qualifying. 0.1 % = 100, 3 % = 0." },
   { key: "clean", label: "Clean driving", info: "Share of flying laps not lost to track limits." },
   { key: "smoothness", label: "Smoothness", info: "Steering corrections compared with the team on the same track and class: fewer = smoother." },
   { key: "change", label: "Trend", info: "How much the rating moved with the driver's last session." },
