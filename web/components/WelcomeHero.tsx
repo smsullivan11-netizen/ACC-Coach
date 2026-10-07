@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { QUOTE_COOKIE, type QuoteTone } from "@/lib/quotes";
+import type { QuoteTone } from "@/lib/quotes";
 
 // The dashboard's welcome (user's request): a motivating quote, a different one on each visit
 // (lib/quotes.ts), big, with room under it so the blocks start lower and the background video
@@ -17,10 +17,8 @@ const apostrophes = (text: string) =>
 
 const TONE_CLASS ={ yellow: "text-accent", red: "text-race", purple: "text-[#c04bf2]" } as const;
 
-export default function WelcomeHero({ day, name, quote, deck }: { day: string; name: string; quote: { text: string; tone: QuoteTone }[]; deck: string }) {
+export default function WelcomeHero({ day, name, quote }: { day: string; name: string; quote: { text: string; tone: QuoteTone }[] }) {
   const box = useRef<HTMLDivElement>(null);
-  // The quotes still to come (lib/quotes.ts nextQuote), kept for a year
-  useEffect(() => { document.cookie = `${QUOTE_COOKIE}=${deck}; path=/; max-age=31536000; samesite=lax`; }, [deck]);
   useEffect(() => {
     let frame = 0;
     const update = () => {

@@ -8,8 +8,7 @@ import { Avatar, Chip, delay, NextRank, PartBar, Position, RankBadge, RankIcon, 
 import type { Driver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { carShortName, lapTime, prettyKey } from "@/lib/format";
-import { nextQuote, QUOTE_COOKIE } from "@/lib/quotes";
-import { cookies } from "next/headers";
+import { nextQuote } from "@/lib/quotes";
 import { rankFor } from "@/lib/ranks";
 import { formParts, PROVISIONAL_SESSIONS, WEIGHTS } from "@/lib/ratings";
 import { recentSessions, timeOfDay, dayLabel, type SessionRow } from "@/lib/sessions";
@@ -35,13 +34,16 @@ export default async function Dashboard({ me }: { me: Driver }) {
   const pbs = mine.filter((s) => s.position != null);
   const recent = history.slice(-30);   // the preview: the last 30 sessions (all of them on /progress)
   const first = me.display_name.split(/\s+/)[0];
-  const quote = nextQuote((await cookies()).get(QUOTE_COOKIE)?.value);
+  // This visit's quote from the driver's deck (lib/quotes.ts), the rest saved for the next visit
+  const [{ quote_deck }] = await sql<{ quote_deck: string | null }[]>`select quote_deck from driver where id = ${me.id}`;
+  const quote = nextQuote(quote_deck);
+  await sql`update driver set quote_deck = ${quote.deck} where id = ${me.id}`;
 
   return (
     // The team video behind the page; the cards turn to frosted glass over it (globals.css .glass)
     <div className="glass">
       <BackgroundVideo src="/media/dashboard-bg.mp4" poster="/media/dashboard-bg.jpg" />
-      <WelcomeHero day={dayLabel(new Date())} name={first} quote={quote.quote} deck={quote.cookie} />
+      <WelcomeHero day={dayLabel(new Date())} name={first} quote={quote.quote} />
 
       <div className="grid gap-5 lg:grid-cols-2">
         {/* 1. Rating */}

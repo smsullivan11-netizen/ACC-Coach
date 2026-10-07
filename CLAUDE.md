@@ -713,11 +713,21 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   the tray's scrollbar is hidden anyway). Checked with a long name from 320 to 1920 px: no overflow. Below md the tray takes a second
   row; the wordmark hides under 380 px.
 
+## Cookies and browser storage (2026-10-07, user's question "do we ask for permission?")
+- Only the sign-in cookie (strictly necessary: exempt from consent under the EU ePrivacy rules /
+  CNIL). Per-member state that is not strictly necessary lives on the account instead (migration
+  0013, `driver.quote_deck`, `driver.guide_seen_at`), so no consent banner is needed and the privacy
+  policy ("no other cookies") stays true. The lap page's corners/sections choice stays in
+  localStorage: an interface setting the user picks (exempt), mentioned in the policy. Keep it that
+  way: anything new to remember goes on the account, not in a cookie or browser storage.
+- Dashboard quotes: a shuffled deck per driver (lib/quotes.ts `nextQuote`, "3.7.1~5" = still to
+  come ~ last shown): all 14 before any repeat, a new deck never starts with the last one.
+
 ## Guide for newcomers (components/Tutorial.tsx, 2026-10-07)
 - User's request: no new section; a "?" button in the header (next to the name, "Guide" on wide
   screens) opens a 10-slide slideshow over the page, blurred behind (portal on <body>: inside the
-  header's backdrop-filter a fixed element is held to the header). Opens by itself once on a
-  member's first visit (localStorage `accCoach.tutorialSeen`). Arrows, dots, ←/→, swipe; Esc, ✕ or a
+  header's backdrop-filter a fixed element is held to the header). Opens by itself until the
+  member first closes it (`driver.guide_seen_at`, migration 0013, set by POST /api/guide-seen). Arrows, dots, ←/→, swipe; Esc, ✕ or a
   click outside close it; page scroll locked while open. All slide texts share one grid cell so the
   window keeps one height. Pictures: `public/media/tutorial/*.webp` (1200 px, ~30 KB), screenshots
   of the local test site at 1440x900 without the header (engineer: the real Brands Hatch replay);

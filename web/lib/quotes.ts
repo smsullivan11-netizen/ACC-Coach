@@ -23,12 +23,10 @@ export const QUOTES = [
 export type QuoteTone = "yellow" | "red" | "purple" | null;
 const TONES: Record<string, QuoteTone> = { "*": "yellow", "~": "red", "^": "purple" };
 
-// A shuffled deck per browser (user: refreshing showed the same 3-4 quotes while others never came:
-// pure chance repeats soon). The cookie holds the quotes still to come and the last one shown:
-// "3.7.1~5". Every quote is shown once before any comes back; a new deck never starts with the
-// quote just shown. The server picks (no flash of another quote), the page saves the rest
-// (WelcomeHero: server components cannot set cookies).
-export const QUOTE_COOKIE = "acc_quotes";
+// A shuffled deck per driver (user: refreshing showed the same 3-4 quotes while others never came:
+// pure chance repeats soon), kept on the account (driver.quote_deck, migration 0013; not a cookie:
+// no consent needed): the quotes still to come and the last one shown, "3.7.1~5". Every quote is
+// shown once before any comes back; a new deck never starts with the quote just shown.
 
 function shuffled(avoid: number | null) {
   const d = QUOTES.map((_, k) => k);
@@ -37,14 +35,14 @@ function shuffled(avoid: number | null) {
   return d;
 }
 
-/** This visit's quote from the deck in the cookie, and the cookie's next value. */
-export function nextQuote(cookie: string | undefined) {
-  const [restPart, lastPart] = (cookie ?? "").split("~");
+/** This visit's quote from the stored deck, and the deck's next value. */
+export function nextQuote(stored: string | null | undefined) {
+  const [restPart, lastPart] = (stored ?? "").split("~");
   const valid = (x: string) => /^\d+$/.test(x) && +x < QUOTES.length;
   let deck = [...new Set((restPart ?? "").split(".").filter(valid).map(Number))];
   if (!deck.length) deck = shuffled(lastPart && valid(lastPart) ? +lastPart : null);
   const [k, ...rest] = deck;
-  return { quote: parseQuote(QUOTES[k]), cookie: `${rest.join(".")}~${k}` };
+  return { quote: parseQuote(QUOTES[k]), deck: `${rest.join(".")}~${k}` };
 }
 
 /** A quote as parts with their highlight. */

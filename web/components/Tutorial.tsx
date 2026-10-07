@@ -7,7 +7,8 @@ import { createPortal } from "react-dom";
 
 // "How to use this site" (user's request, 2026-10-07: no new section, a pop-up over the current
 // page, blurred behind, like a slideshow). The "?" button in the header opens it; it also opens
-// by itself on a member's first visit (per browser: localStorage). Arrows, dots, ←/→ keys and
+// by itself until the member first closes it (driver.guide_seen_at, migration 0013: on the account,
+// not in the browser, so no consent is needed and it works across devices). Arrows, dots, ←/→ keys and
 // swipes move between slides; Esc, ✕ or a click outside close it. Pictures: screenshots of the
 // local test site (public/media/tutorial/, 1200 px WebP; retake them when a page changes a lot).
 
@@ -88,9 +89,7 @@ const SLIDES: Slide[] = [
   },
 ];
 
-const SEEN_KEY = "accCoach.tutorialSeen";
-
-export default function Tutorial() {
+export default function Tutorial({ seen }: { seen: boolean }) {
   const [open, setOpen] = useState(false);
   const [i, setI] = useState(0);
   const [dir, setDir] = useState<"next" | "prev">("next");
@@ -107,16 +106,15 @@ export default function Tutorial() {
   }, []);
   const close = useCallback(() => {
     setOpen(false);
-    try { localStorage.setItem(SEEN_KEY, "1"); } catch { /* private mode: it will open again next time */ }
+    if (!seenRef.current) { seenRef.current = true; void fetch("/api/guide-seen", { method: "POST" }).catch(() => {}); }
     button.current?.focus();
   }, []);
 
-  // First visit: open by itself once
+  // Until the member has closed it once: open by itself
+  const seenRef = useRef(seen);
   useEffect(() => {
-    let seen = true;
-    try { seen = localStorage.getItem(SEEN_KEY) === "1"; } catch { /* no storage: never open by itself */ }
     if (!seen) { const t = setTimeout(() => { setI(0); setOpen(true); }, 700); return () => clearTimeout(t); }
-  }, []);
+  }, [seen]);
 
   // While open: keys, no page scrolling behind, focus inside
   useEffect(() => {

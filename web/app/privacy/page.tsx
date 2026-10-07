@@ -39,7 +39,8 @@ export default function PrivacyPage() {
           Sign-in uses Discord: your Discord ID, username and avatar are stored. The list of your Discord servers is
           read only to check that you are a member of the team&apos;s server; it is not stored.
         </li>
-        <li>A sign-in cookie keeps you signed in. No other cookies are used by the site; on the YouTube page, video thumbnails are loaded from YouTube and videos play through YouTube&apos;s privacy-enhanced player (no YouTube cookies before you start a video).</li>
+        <li>Small preferences are kept with your account: which welcome quotes you have already seen and whether you have closed the guide.</li>
+        <li>A sign-in cookie keeps you signed in. No other cookies are used by the site (your browser only remembers whether you prefer corners or sections on lap pages); on the YouTube page, video thumbnails are loaded from YouTube and videos play through YouTube&apos;s privacy-enhanced player (no YouTube cookies before you start a video).</li>
       </ul>
 
       <h2>Who can see it</h2>

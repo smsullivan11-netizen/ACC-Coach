@@ -7,6 +7,7 @@ import NavLinks, { GetAppLink } from "@/components/NavLinks";
 import Tutorial from "@/components/Tutorial";
 import { Avatar, Pcgr } from "@/components/ui";
 import { currentDriver } from "@/lib/auth";
+import { sql } from "@/lib/db";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -21,6 +22,10 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const driver = await currentDriver();
+  // Whether the guide has been closed once (migration 0013): it opens by itself until then
+  const guideSeen = driver
+    ? (await sql<{ seen: boolean }[]>`select guide_seen_at is not null as seen from driver where id = ${driver.id}`)[0]?.seen ?? true
+    : true;
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${konexy.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
@@ -42,7 +47,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 <div className="ml-auto flex shrink-0 items-center gap-2 2xl:gap-3">
                   <GetAppLink />
                   <div className="flex h-11 items-center rounded-full border border-white/10 bg-white/[0.04] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_4px_14px_-6px_rgb(0_0_0/0.9)]">
-                    <Tutorial />
+                    <Tutorial seen={guideSeen} />
                     <span className="mx-0.5 h-5 w-px bg-white/10" />
                     <Link href="/settings" title="Your profile and settings"
                           className="flex h-9 items-center gap-2 rounded-full pl-1 pr-1 text-sm text-zinc-200 transition-colors hover:bg-white/[0.07] hover:text-white xl:pr-3">
