@@ -28,7 +28,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           {/* Three groups (user's request 2026-10-07): the logo, the sections in a recessed tray
               (components/NavLinks), and on the right "Get the app" + the account capsule (guide,
               profile, sign out, split by thin dividers). Phones: the tray goes to a second row. */}
-          <nav className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 md:flex-nowrap lg:gap-x-4">
+          <nav className="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 md:flex-nowrap lg:gap-x-4 2xl:gap-x-8 2xl:px-6">
             <Link href="/" className="flex shrink-0 items-center gap-2.5" title="Dashboard">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/team-helmet.jpg" alt="" width={36} height={36} className="rounded-xl ring-1 ring-white/15 shadow-[0_4px_14px_-4px_rgb(0_0_0/0.9)]" />
@@ -39,7 +39,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             {driver && (
               <>
                 <NavLinks />
-                <div className="ml-auto flex shrink-0 items-center gap-2">
+                <div className="ml-auto flex shrink-0 items-center gap-2 2xl:gap-3">
                   <GetAppLink />
                   <div className="flex h-11 items-center rounded-full border border-white/10 bg-white/[0.04] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_4px_14px_-6px_rgb(0_0_0/0.9)]">
                     <Tutorial />
