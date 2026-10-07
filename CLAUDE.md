@@ -945,7 +945,7 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   team's valid laps and drivers. Ratings and sheet pace never come from the team's laps (user: the
   sheet is accurate, a team lap must not change it). /cars/[car]: ratings with their texts, then per track the default
   BoP time, the 101 % target, the LFM time with its BoP badge, the team's best lap in the car (driver,
-  LFM tag), its gap to the target, top speed and laps. "Cars" in the main menu; with it the header's
+  LFM tag), its gap to the target and laps (top speed dropped at the user's request). "Cars" in the main menu; with it the header's
   "Get the app" label hides from 1280 to 1535 px (icon only), or the header overflowed by 10 px.
 - `components/InfoTip.tsx`: the "i" box shared by the Drivers and Cars tables.
 

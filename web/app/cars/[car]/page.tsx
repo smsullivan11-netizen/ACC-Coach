@@ -17,7 +17,7 @@ import RatingForm from "./RatingForm";
 type Rating = Record<CarPart, number | null> & { note: string | null; source: string | null; updated_at: Date | null; editor: string | null };
 type Ref = { bop: "default" | "lfm"; track_key: string; time_ms: number; ballast_kg: number | null; restrictor_pct: number | null; sheet_date: string | null };
 type TeamTrack = {
-  track_key: string; track: string; laps: number; drivers: number; vmax: number | null;
+  track_key: string; track: string; laps: number; drivers: number;
   best_ms: number; best_lap: string; best_driver: string; best_bop: string;
 };
 
@@ -28,7 +28,7 @@ export async function generateMetadata(props: PageProps<"/cars/[car]">): Promise
 
 // One car (user's request, 2026-10-07): the admins' ratings with each sub-rating's text, then per
 // track the reference times (OhneSpeed's sheet, both BoPs, the 101 % rating target) next to the
-// team's best lap, laps and top speed in this car.
+// team's best lap and laps in this car.
 export default async function CarPage(props: PageProps<"/cars/[car]">) {
   const me = await requireDriver();
   const { car } = await props.params;
@@ -44,11 +44,11 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
     with laps as (
       select lower(t.key) as track_key, t.key as track, l.id, s.driver_id, d.display_name as driver,
              coalesce(l.official_lap_time_ms, l.game_lap_time_ms, l.lap_time_ms) as ms,
-             (l.metrics->>'max_speed_kmh')::float8 as vmax, coalesce(s.bop_chosen, s.bop, 'default') as bop
+             coalesce(s.bop_chosen, s.bop, 'default') as bop
       from lap l join session s on s.id = l.session_id join car c on c.id = s.car_id
       join track t on t.id = s.track_id join driver d on d.id = s.driver_id
       where c.key = ${car} and l.comparable and d.discord_id is distinct from ${REVIEW_DISCORD_ID})
-    select track_key, track, count(*)::int as laps, count(distinct driver_id)::int as drivers, max(vmax) as vmax, min(ms) as best_ms,
+    select track_key, track, count(*)::int as laps, count(distinct driver_id)::int as drivers, min(ms) as best_ms,
            (array_agg(id order by ms, id))[1] as best_lap, (array_agg(driver order by ms, id))[1] as best_driver,
            (array_agg(bop order by ms, id))[1] as best_bop
     from laps group by track_key, track`;
@@ -135,12 +135,11 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
                   <th className="text-right">LFM BoP</th>
                   <th className="text-right">Team best</th>
                   <th className="text-right">vs target</th>
-                  <th className="text-right" title="Highest speed on the team's valid laps in this car">Top speed</th>
                   <th className="text-right">Laps</th>
                 </tr>
               </thead>
               <tbody>
-                {list.length === 0 && <tr><td colSpan={8} className="text-zinc-500">No reference times or laps for this car yet.</td></tr>}
+                {list.length === 0 && <tr><td colSpan={7} className="text-zinc-500">No reference times or laps for this car yet.</td></tr>}
                 {list.map(([key, t]) => {
                   const target = t.def ? Math.round(t.def.time_ms * REFERENCE_FACTOR) : null;
                   const vs = t.team && target ? (t.team.best_ms / target - 1) * 100 : null;
@@ -171,7 +170,6 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
                       <td className={`tabular text-right ${vs == null ? "" : vs <= 0 ? "text-emerald-400" : "text-zinc-300"}`}>
                         {vs == null ? <span className="text-zinc-600">–</span> : `${vs > 0 ? "+" : ""}${vs.toFixed(2)} %`}
                       </td>
-                      <td className="tabular text-right text-zinc-300">{t.team?.vmax ? `${Math.round(t.team.vmax)} km/h` : <span className="text-zinc-600">–</span>}</td>
                       <td className="tabular text-right text-zinc-300">
                         {t.team ? <>{t.team.laps} <span className="text-xs text-zinc-500">· {t.team.drivers}</span></> : <span className="text-zinc-600">–</span>}
                       </td>
