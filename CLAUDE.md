@@ -742,7 +742,7 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   (`metrics.fuel_l`, litres; no migration). The rating removes what the fuel above a minimum-fuel
   reference cost (`web/lib/fuel.ts`; user: hotlaps run on 5-10 L, so no bonus below it): 8 L on
   tracks under 5 km, 10 L on longer ones, 15 L on the Nordschleife. Seconds per 10 kg per track
-  measured in ACC by OhneSpeed (Nordschleife 0.78, Spa 0.2…; 0.16 for tracks not measured), 0.72 kg/L. Leaderboards and records keep real times; the
+  measured in ACC by OhneSpeed (Nordschleife 0.78, Spa 0.2…; 0.16 for tracks not measured), 0.72 kg/L. The pace reference's team best is fuel-corrected the same way (`paceReference(…, { fuelCorrected: true })`, 2026-10-07; targets never; coaching notes use real times). Leaderboards and records keep real times; the
   session page shows a Fuel column ("48 L +0.46 s"). Laps from older apps are not corrected.
 - Weights per session type (user's values, `WEIGHTS_BY_TYPE`): "Practice (Mixed running)" 55/25/10/10
   (also unknown types; separate "mixed running" type merged into it on 2026-10-07, a stored "mixed"

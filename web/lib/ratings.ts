@@ -133,7 +133,8 @@ export async function rateSession(tx: Sql, sessionId: string) {
   const valid = corrected.filter((l) => l.comparable).map((l) => l.t).sort((a, b) => a - b);
   if (!valid.length) return null;                        // nothing to judge: no valid flying lap
 
-  const reference = (await paceReference(tx, sessionId)).reference_ms!;   // this session's valid laps count: never null here
+  // Fuel-corrected team best, like this session's laps (this session's valid laps count: never null here)
+  const reference = (await paceReference(tx, sessionId, { fuelCorrected: true })).reference_ms!;
   const best = valid[0];
   const pace = clamp(100 * (1 - (best - reference) / reference / 0.06));
 
