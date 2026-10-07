@@ -64,7 +64,7 @@ def game_clock(pid: np.ndarray, t_s: np.ndarray, g: dict | None = None):
 
 
 def lap_timer(g: dict, g_tg: np.ndarray, a: float, b: float, official_s: float | None):
-    """The lap on the game's own lap timer (iCurrentTime) instead of the packet clock (app 0.3.0):
+    """The lap on the game's own lap timer (iCurrentTime) instead of the packet clock (app 0.3):
     ACC keeps sending physics packets while the game is paused but its lap timer stops, so the packet
     clock counted pauses into the lap (+2 s to +149 s on real laps), and on very short sessions its
     calibration could be a few % off (-0.9 s, -6.5 s). Within each stretch where the timer runs, timer

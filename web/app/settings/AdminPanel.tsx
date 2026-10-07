@@ -24,7 +24,7 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
     router.refresh();
   }
 
-  // Lap traces timed on a faulty clock by apps before 0.3.0 (pauses, short sessions): lib/trace-repair.ts
+  // Lap traces timed on a faulty clock by apps before 0.3 (pauses, short sessions): lib/trace-repair.ts
   async function repairTraces() {
     setBusy(true);
     const res = await fetch("/api/storage/repair-traces", { method: "POST" });
@@ -80,7 +80,7 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
       <button onClick={testDiscord} disabled={busy} className="btn btn-ghost ml-2 mt-4">Test the Discord channel</button>
       <p className="mt-1 text-xs text-zinc-500">
         Recompute: replays every session in upload order with today&apos;s targets: ratings, then achievements (nothing is posted to Discord).
-        Repair: fixes the traces of laps recorded by apps before 0.3.0 whose clock counted a game pause or ran off (replay, charts, coach); lap times do not change.
+        Repair: fixes the traces of laps recorded by apps before 0.3 whose clock counted a game pause or ran off (replay, charts, coach); lap times do not change.
       </p>
       {message && <p className="mt-2 text-sm text-accent">{message}</p>}
     </div>

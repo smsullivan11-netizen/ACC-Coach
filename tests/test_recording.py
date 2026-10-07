@@ -85,7 +85,7 @@ def main():
 
 
 def lap_timer(out: Path, expect: dict):
-    """App 0.3.0: laps on the game's own lap timer. Real laps had pauses counted in (ACC keeps sending
+    """App 0.3: laps on the game's own lap timer. Real laps had pauses counted in (ACC keeps sending
     physics packets while paused, its lap timer stops: famas +1.99 s just before the line, So +149 s)
     and short sessions a clock a few % off (-0.9 s, -6.5 s)."""
     cr = expect["crossings"]              # cr[0] = end of L1 / start of L2 (car time, s)

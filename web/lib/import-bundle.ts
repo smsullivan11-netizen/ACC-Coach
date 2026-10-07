@@ -132,7 +132,7 @@ export async function importBundle(b: Bundle, driverId: string): Promise<{ sessi
       returning id`;
 
     for (const l of b.laps) {
-      // Apps before 0.3.0: a trace clock that disagrees with the lap time is repaired; its corner
+      // Apps before 0.3: a trace clock that disagrees with the lap time is repaired; its corner
       // results are then left to the site (afterUpload recomputes laps without a map: lib/trace-repair.ts)
       const retimed = repairBundleLap(l);
       let officialLapId: string | null = null;

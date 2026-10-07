@@ -50,7 +50,10 @@ Copy-Item "agent\dist\ACC Coach" $layout -Recurse
 if ($LASTEXITCODE) { throw "Store images failed" }
 Copy-Item agent\build\pri\Assets "$layout\Assets" -Recurse
 $manifest = Get-Content agent\store\AppxManifest.xml -Raw
-$values = @{ NAME = $id.name; PUBLISHER = $id.publisher; PUBLISHER_DISPLAY_NAME = $id.publisher_display_name; VERSION = "$version.0" }
+# MSIX versions have four parts, the last one 0 for the Store: "0.3" -> "0.3.0.0"
+$parts = @($version.Split('.')); while ($parts.Count -lt 4) { $parts += '0' }
+$msixVersion = ($parts[0..3] -join '.')
+$values = @{ NAME = $id.name; PUBLISHER = $id.publisher; PUBLISHER_DISPLAY_NAME = $id.publisher_display_name; VERSION = $msixVersion }
 foreach ($k in $values.Keys) { $manifest = $manifest.Replace("`$$k`$", [System.Security.SecurityElement]::Escape($values[$k])) }
 [System.IO.File]::WriteAllText((Join-Path $root "$layout\AppxManifest.xml"), $manifest)
 & "$sdk\makepri.exe" createconfig /cf agent\build\pri\priconfig.xml /dq en-US /pv 10.0.0 /o | Out-Null

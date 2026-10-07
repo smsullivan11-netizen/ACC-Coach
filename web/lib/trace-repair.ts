@@ -5,7 +5,7 @@ import { decodeChannel, type EncodedChannel } from "./trace";
 import { decodeStored, encodeChannel, packChannel } from "./trace-store";
 import { repairTraceTime } from "./trace-time";
 
-// Repairs trace clocks from apps before 0.3.0 (lib/trace-time.ts): at upload, and once for the laps
+// Repairs trace clocks from apps before 0.3 (lib/trace-time.ts): at upload, and once for the laps
 // already stored (Settings, admins). A lap without a game or server time is left as it is (its
 // time comes from the trace itself: nothing to check it against).
 

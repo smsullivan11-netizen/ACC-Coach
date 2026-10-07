@@ -1,10 +1,10 @@
 // Trace clocks that disagree with the lap's real time (user's report, 2026-10-07: the coach's entry +
-// exit did not add up to the gap at Barcelona). Apps before 0.3.0 timed the trace on ACC's physics
+// exit did not add up to the gap at Barcelona). Apps before 0.3 timed the trace on ACC's physics
 // packet counter, which keeps running while the game is paused (its lap timer stops): a pause stood
 // in the trace at one metre (famas, Mount Panorama: +1.99 s at 6,161 m; So, Zolder: +149 s), and on
 // very short sessions the counter's calibration could be a few % off (xhanet, Barcelona -0.89 s;
 // So, COTA -6.5 s). The lap times themselves (the game's or the server's) were always right.
-// App 0.3.0 times traces on the game's lap timer; laps from older apps are repaired here at upload,
+// App 0.3 times traces on the game's lap timer; laps from older apps are repaired here at upload,
 // and the ones already stored once from Settings (lib/trace-repair.ts). Safe on server and client.
 
 /** Allowed difference between the trace's last metre and the lap time before repairing (s): good
