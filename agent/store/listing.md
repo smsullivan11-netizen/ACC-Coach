@@ -50,7 +50,11 @@ team's telemetry site.
 Competizione: the first submission was refused for "Free"): telemetry, sim racing, lap times,
 racing coach, motorsport, driving analysis, racing team
 
-**What's new in this version** (0.2.0, first public version after 0.1.0):
+**What's new in this version** (0.3.0):
+- Laps are now timed on the game's own lap timer: pausing the game mid-lap no longer adds the
+  pause to that lap's telemetry, and very short sessions are timed exactly.
+
+Earlier text (0.2.0, first public version after 0.1.0):
 - New live race engineer window: fuel per lap and fuel to add, tyre pressures with the cold
   pressure to set at the next stop, tyre and brake temperatures with brake duct advice, tyre and
   brake pad wear, damage. It can be shared with a phone or a teammate on your home network.

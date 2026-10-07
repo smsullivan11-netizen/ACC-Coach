@@ -63,6 +63,55 @@ def game_clock(pid: np.ndarray, t_s: np.ndarray, g: dict | None = None):
     return count * step, step
 
 
+def lap_timer(g: dict, g_tg: np.ndarray, a: float, b: float, official_s: float | None):
+    """The lap on the game's own lap timer (iCurrentTime) instead of the packet clock (app 0.3.0):
+    ACC keeps sending physics packets while the game is paused but its lap timer stops, so the packet
+    clock counted pauses into the lap (+2 s to +149 s on real laps), and on very short sessions its
+    calibration could be a few % off (-0.9 s, -6.5 s). Within each stretch where the timer runs, timer
+    against packet clock is a straight line (fitted: no polling jitter); stretches where the timer
+    stands still for more than 50 ms (a pause) take no time. Returns (timer s → packet clock s,
+    lap time s), or None when the lap has too few timer frames (the packet clock is used instead)."""
+    k = np.flatnonzero((g_tg > a + 0.005) & (g_tg < b - 0.005))
+    if len(k) < 20:
+        return None
+    t, T = g_tg[k], g["iCurrentTime"][k].astype(float) / 1000
+    ok = (T >= 0) & (T < 3600)
+    t, T, status = t[ok], T[ok], g["status"][k][ok]
+    if len(t) < 20:
+        return None
+    # Pauses: the timer stands still (or the game says paused) for more than 50 ms
+    still = np.concatenate([[0], (np.diff(T) <= 0).astype(int)])     # the timer did not move since the last frame
+    paused = status == shm.STATUS_PAUSE
+    edges = np.flatnonzero(np.diff(np.concatenate([[0], still, [0]])))
+    for s, e in zip(edges[::2], edges[1::2]):               # frames s..e-1 stand still, from frame s-1 on
+        if t[e - 1] - t[max(0, s - 1)] > 0.05:
+            paused[s:e] = True
+    seg = np.concatenate([[0], np.cumsum(np.diff(paused.astype(int)) == -1)])   # a new stretch after each pause
+    fits = []
+    for s in np.unique(seg[~paused]):
+        m = (seg == s) & ~paused
+        ts, Ts = t[m], T[m]
+        if len(ts) >= 5 and np.ptp(ts) > 0.2:
+            slope, icept = np.polyfit(ts, Ts, 1)
+        else:
+            slope, icept = 1.0, float(np.median(Ts - ts))
+        if not 0.8 < slope < 1.25:
+            return None
+        fits.append((slope * ts[0] + icept, slope, icept))   # (timer at the stretch's start, slope, intercept)
+    if not fits:
+        return None
+    starts = np.array([f[0] for f in fits])
+    end_est = fits[-1][1] * b + fits[-1][2]
+    lap_time = official_s if official_s else end_est
+
+    def to_clock(Tq: np.ndarray) -> np.ndarray:
+        i = np.clip(np.searchsorted(starts, Tq, side="right") - 1, 0, len(fits) - 1)
+        sl = np.array([f[1] for f in fits])[i]
+        ic = np.array([f[2] for f in fits])[i]
+        return np.clip(np.maximum.accumulate((Tq - ic) / sl), a, b)
+    return to_clock, float(lap_time)
+
+
 def _position_source(p: dict, g: dict, p_tg: np.ndarray, g_tg: np.ndarray):
     """Car position per physics packet: mean of the four tyre contact points when the game fills
     them in consistently with the speed, else the player's coordinates from the graphics page."""
@@ -171,7 +220,13 @@ def load_recording(path: str, track_length: float | None = None, tol: float = 0.
     laps = []
     for n, (c0, c1) in enumerate(zip(crossings[:-1], crossings[1:]), start=1):
         a, b = c0["t"], c1["t"]
-        tq = a + np.arange(int((b - a) * f)) / f
+        # Samples evenly spaced on the game's lap timer (pauses take no time), else on the packet clock
+        timer = lap_timer(g, g_tg, a, b, c1["official_ms"] / 1000 if c1["official_ms"] > 0 else None)
+        if timer:
+            to_clock, lap_time = timer
+            tq = to_clock(np.arange(int(lap_time * f)) / f)
+        else:
+            tq, lap_time = a + np.arange(int((b - a) * f)) / f, b - a
         ip = lambda x: np.interp(tq, p_tg, x)
         data = {
             "SPEED": ip(p["speedKmh"]) / 3.6,
@@ -208,7 +263,7 @@ def load_recording(path: str, track_length: float | None = None, tol: float = 0.
             side = "out" if first < 0.1 * (b - a) else "in"
         # Fuel load (litres, physics page): the site corrects lap times for its weight in the rating
         fuel = float(np.mean(ip(p["fuel"]))) if "fuel" in p else None
-        laps.append(Lap(n, a, b, b - a, float(data["SPEED"].sum() / f), data, {k: f for k in data}, pit=side,
+        laps.append(Lap(n, a, b, lap_time, float(data["SPEED"].sum() / f), data, {k: f for k in data}, pit=side,
                         game_time=c1["official_ms"] / 1000 if c1["official_ms"] > 0 else None,
                         game_valid=bool(np.all(g["isValidLap"][in_lap] > 0)) if in_lap.any() else None,
                         fuel_l=fuel if fuel is not None and fuel > 0 else None))

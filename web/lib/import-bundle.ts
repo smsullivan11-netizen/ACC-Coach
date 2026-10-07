@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "./db";
 import type { EncodedChannel } from "./trace";
+import { repairBundleLap } from "./trace-repair";
 import { packChannels } from "./trace-store";
 
 // Import of a session bundle (format acc-coach/session v1, written by bundle.py).
@@ -131,6 +132,9 @@ export async function importBundle(b: Bundle, driverId: string): Promise<{ sessi
       returning id`;
 
     for (const l of b.laps) {
+      // Apps before 0.3.0: a trace clock that disagrees with the lap time is repaired; its corner
+      // results are then left to the site (afterUpload recomputes laps without a map: lib/trace-repair.ts)
+      const retimed = repairBundleLap(l);
       let officialLapId: string | null = null;
       if (serverSessionId && l.official_lap_time_ms != null) {
         const [o] = await tx<{ id: string }[]>`
@@ -144,9 +148,9 @@ export async function importBundle(b: Bundle, driverId: string): Promise<{ sessi
         values (${session.id}, ${l.number}, ${l.lap_time_ms}, ${l.official_lap_time_ms}, ${officialLapId},
                 ${l.game_lap_time_ms ?? null}, ${l.game_valid ?? null}, ${l.valid}, ${l.comparable},
                 ${tx.array(l.excluded_reasons)}, ${l.distance_m}, ${l.metrics ? tx.json(l.metrics) : null},
-                ${mapId && l.corners ? mapId : null})
+                ${mapId && l.corners && !retimed ? mapId : null})
         returning id`;
-      if (mapId && l.corners?.length) {
+      if (mapId && l.corners?.length && !retimed) {
         await tx`insert into corner_result ${tx(
           l.corners.map((c) => ({
             lap_id: lap.id,

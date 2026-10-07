@@ -243,6 +243,9 @@ export async function coachSession(sessionId: string): Promise<Coaching | null> 
         });
         // The straight before a braking zone depends on the previous corner's exit
         approach.forEach((x, i) => { rows[(i - 1 + rows.length) % rows.length].exit += x; });
+        // The traces end a few hundredths before the line, each in its own way: that bit goes to the
+        // finish straight (the last corner's exit), so entry + exit adds up to the gap shown
+        if (rows.length) rows[rows.length - 1].exit += gap - sum(rows.map(rowLoss));
         phases = { entry_s: sum(rows.map((x) => x.entry)), exit_s: sum(rows.map((x) => x.exit)) };
 
         const all = sections.flatMap((nums, i) => {

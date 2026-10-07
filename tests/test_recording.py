@@ -80,7 +80,58 @@ def main():
 
     print()
     assert recording.check(str(path)), "check report"
+    lap_timer(out, expect)
     print("OK —", out)
+
+
+def lap_timer(out: Path, expect: dict):
+    """App 0.3.0: laps on the game's own lap timer. Real laps had pauses counted in (ACC keeps sending
+    physics packets while paused, its lap timer stops: famas +1.99 s just before the line, So +149 s)
+    and short sessions a clock a few % off (-0.9 s, -6.5 s)."""
+    cr = expect["crossings"]              # cr[0] = end of L1 / start of L2 (car time, s)
+    path = out / "paused.accrec"
+    paused = fake_acc.write_session(path, pauses=[(cr[0] + 20.0, 30.0), (cr[2] + (cr[3] - cr[2]) - 0.6, 2.0)])
+    _, laps, ref = recording.load_recording(str(path))
+    for l, ms in zip(laps, paused["lap_ms"]):
+        print(f"  paused session L{l.number}: {acc.fmt(l.lap_time)} game {acc.fmt(ms / 1000)} {l.distance:6.0f} m")
+        assert abs(l.lap_time - ms / 1000) < 0.003, f"L{l.number}: a pause must not count ({l.lap_time - ms / 1000:+.3f} s)"
+    assert paused["lap_ms"] == expect["lap_ms"], "the pauses do not change the driving"
+    for k in (1, 3):                        # the paused laps: same distance and trace as without pause
+        assert abs(laps[k].distance - ref) / ref < 0.01, (k, laps[k].distance, ref)
+        r = acc.resample_by_distance(laps[k], ref)
+        assert np.diff(r["time"]).max() < 0.2, f"L{k + 1}: the trace must not stand still over the pause"
+        assert abs(r["time"][-1] - laps[k].lap_time) < 0.05
+
+    # A packet clock 5 % off (short sessions): the laps still follow the game's timer
+    real = recording.game_clock
+    try:
+        recording.game_clock = lambda *a, **k: tuple(x * 1.05 for x in real(*a, **k))
+        _, laps, _ = recording.load_recording(str(out / "session.accrec"))
+    finally:
+        recording.game_clock = real
+    worst = max(abs(l.lap_time - ms / 1000) for l, ms in zip(laps, expect["lap_ms"]))
+    print(f"  clock 5 % off: lap times within {1000 * worst:.1f} ms of the game's")
+    assert worst < 0.003
+    # ... and the traces too: same positions at the same distance as with the right clock, same
+    # distance covered (the lap time alone comes from the game whenever it publishes one)
+    _, good, _ = recording.load_recording(str(out / "session.accrec"))
+    for a, b in zip(laps, good):
+        assert abs(a.distance - b.distance) < 3, (a.number, a.distance, b.distance)
+    ra, rb = acc.resample_by_distance(laps[1], ref), acc.resample_by_distance(good[1], ref)
+    drift = np.abs(ra["time"] - rb["time"]).max()
+    print(f"  clock 5 % off: L2 trace within {1000 * drift:.1f} ms of the right one")
+    assert drift < 0.01
+
+    # Laps the game does not time (hotlap mode, invalid laps): the lap time comes from the timer fit
+    from accrec import read_recording
+    rec = read_recording(str(path))
+    p_tg, _ = recording.game_clock(rec.physics["packetId"], rec.physics["t_ns"] / 1e9, rec.graphics)
+    g_tg = np.interp(rec.graphics["t_ns"] / 1e9, rec.physics["t_ns"] / 1e9, p_tg)
+    cr = recording._crossings(rec.graphics, g_tg)
+    for c0, c1, ms in zip(cr[:-1], cr[1:], paused["lap_ms"]):
+        _, est = recording.lap_timer(rec.graphics, g_tg, c0["t"], c1["t"], None)
+        assert abs(est - ms / 1000) < 0.01, f"untimed lap: {est:.3f} s, game {ms / 1000:.3f} s"
+    print("  untimed laps (hotlap mode): within 10 ms of the game's timer, pauses left out")
 
 
 if __name__ == "__main__":

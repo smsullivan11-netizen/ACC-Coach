@@ -210,17 +210,28 @@ class Pages:
         return bytes(g)
 
 
-def events(phases, car: Car, pages: Pages):
+def events(phases, car: Car, pages: Pages, pauses=()):
     """(time s, page, bytes) in time order. Each phase: dict(status, seconds or None = until the
-    car's script ends, session, index). The car only moves while the status is live."""
+    car's script ends, session, index). The car only moves while the status is live. `pauses`:
+    (car time s, seconds) where the player pauses the game mid-session, like real ACC: physics
+    packets keep coming with the car frozen, the graphics page says paused and the lap timer stops."""
     t = 0.0
     dt_p, dt_g = 1 / PHYSICS_HZ, 1 / GRAPHICS_HZ
     next_g = 0.0
+    pending = sorted(pauses)
     yield t, "static", bytes(pages.st)
     for ph in phases:
         pages.session, pages.session_index = ph.get("session", 0), ph.get("index", 0)
         end = t + ph["seconds"] if ph["seconds"] is not None else float("inf")
         while t < end and not (ph["seconds"] is None and car.done and car.box_time > 2.0):
+            if ph["status"] == shm.STATUS_LIVE and pending and car.time >= pending[0][0]:
+                stop = t + pending.pop(0)[1]
+                while t < stop:
+                    t += dt_p
+                    yield t, "physics", pages.physics()      # frozen car, packet counter running
+                    if t >= next_g:
+                        next_g += dt_g
+                        yield t, "graphics", pages.graphics(shm.STATUS_PAUSE)
             t += dt_p
             if ph["status"] == shm.STATUS_LIVE:
                 car.step(dt_p)
@@ -234,10 +245,11 @@ SESSION = [{"status": shm.STATUS_LIVE, "seconds": None}]
 LAP_FACTORS = (1.0, 0.98, 1.01, 1.0, 0.99)    # L1 out-lap … L5 in-lap; L3 fastest but invalid
 
 
-def write_session(path, lap_factors=LAP_FACTORS, invalid_laps=(3,), drop_every=997, seed=0) -> dict:
+def write_session(path, lap_factors=LAP_FACTORS, invalid_laps=(3,), drop_every=997, seed=0, pauses=()) -> dict:
     """Full offline session (pit start, out-lap, flying laps, in-lap) straight into an .accrec file.
     Timestamps get polling jitter and one physics packet in `drop_every` is dropped, like a recorder
-    that missed some. Returns what the converter should find."""
+    that missed some. `pauses`: (car time s, seconds) game pauses (see events). Returns what the
+    converter should find."""
     track = Track()
     car = Car(track, "box", lap_factors, invalid_laps, in_lap=len(lap_factors))
     pages = Pages(car)
@@ -245,7 +257,7 @@ def write_session(path, lap_factors=LAP_FACTORS, invalid_laps=(3,), drop_every=9
     w = None
     crossings, lap_ms = [], []
     last_completed = 0
-    for t, page, raw in events(SESSION, car, pages):
+    for t, page, raw in events(SESSION, car, pages, pauses):
         if page == "static":
             w = accrec.Writer(path, raw, {"session": {"track": "fake_track", "car": CAR, "type": "practice"}})
             continue

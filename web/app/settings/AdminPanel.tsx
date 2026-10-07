@@ -24,6 +24,16 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
     router.refresh();
   }
 
+  // Lap traces timed on a faulty clock by apps before 0.3.0 (pauses, short sessions): lib/trace-repair.ts
+  async function repairTraces() {
+    setBusy(true);
+    const res = await fetch("/api/storage/repair-traces", { method: "POST" });
+    const data = await res.json();
+    setBusy(false);
+    setMessage(res.ok ? `Checked ${data.checked} laps: ${data.repaired} repaired in ${data.sessions} session${data.sessions === 1 ? "" : "s"}.` : data.error);
+    router.refresh();
+  }
+
   async function testDiscord() {
     const res = await fetch("/api/discord/test", { method: "POST" });
     setMessage(res.ok ? "Test message sent: check the Discord channel." : (await res.json()).error);
@@ -66,9 +76,11 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
               className="btn btn-ghost mt-4">
         {busy ? "Recomputing…" : "Recompute all ratings"}
       </button>
+      <button onClick={repairTraces} disabled={busy} className="btn btn-ghost ml-2 mt-4">Repair lap traces</button>
       <button onClick={testDiscord} disabled={busy} className="btn btn-ghost ml-2 mt-4">Test the Discord channel</button>
       <p className="mt-1 text-xs text-zinc-500">
-        Replays every session in upload order with today&apos;s targets: ratings, then achievements (nothing is posted to Discord).
+        Recompute: replays every session in upload order with today&apos;s targets: ratings, then achievements (nothing is posted to Discord).
+        Repair: fixes the traces of laps recorded by apps before 0.3.0 whose clock counted a game pause or ran off (replay, charts, coach); lap times do not change.
       </p>
       {message && <p className="mt-2 text-sm text-accent">{message}</p>}
     </div>

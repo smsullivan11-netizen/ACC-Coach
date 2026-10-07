@@ -908,6 +908,32 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Test: `python tests/test_engineer.py` (fake session replay, the real recording when present,
   live fake ACC + the page's /state). fake_acc fills pads, discs, pressures, temps, race clock.
 
+## Lap clocks (app 0.3.0, 2026-10-07)
+- User's report: the coach's entry + exit (1.99 + 2.42 s) did not add up to the gap (3.54 s) at
+  Barcelona. Audit of all 180 stored traces (read-only, lap API): 10 disagreed with their lap time.
+  (1) Pauses: ACC keeps sending physics packets while paused but its lap timer stops, and the app
+  timed laps on the packet counter, so a pause stood in the trace at one metre (famas, Mount Panorama,
+  Oct 7: +1.99 s at 6,161 m; So, Zolder: +149 s). (2) Very short sessions (1-2 laps): the counter's
+  step, calibrated on the session's laps, came out a few % off (xhanet, Barcelona: -0.89 s, the
+  coach's reference; So, COTA: -6.5 s). Lap times themselves (game / server) were always right.
+- App 0.3.0 (recording.py `lap_timer`): each lap is sampled on the game's lap timer (iCurrentTime):
+  within each stretch where it runs, timer vs packet clock is fitted with a line (no polling jitter);
+  the timer standing still > 50 ms (or status paused) = a pause, which takes no time. Lap time = the
+  game's iLastTime when published, else the fit (hotlap laps: within 1 ms on the real recording).
+  Real Brands Hatch recording: traces within 1.7 ms of the old clock (no pause there). Tests: fake ACC
+  can pause like the real game (`pauses=`: packets keep coming, car frozen, timer stopped),
+  tests/test_recording.py `lap_timer` (30 s mid-lap and 2 s pre-line pauses, a 5 %-off clock).
+- Site (lib/trace-time.ts `repairTraceTime`, lib/trace-repair.ts): a trace whose last metre is more
+  than 0.15 s off the lap's game/server time is repaired: excess time is cut where metres took far
+  longer than their speed explains (pauses), the rest (or a slow clock) is spread evenly so the trace
+  ends on the lap time. At upload (older apps: such laps skip the app's corner results; afterUpload
+  recomputes them), and once from Settings → "Repair lap traces" (admins; safe to rerun). Laps
+  without a game/server time are left alone. Checked on the 10 real faulty laps (all within 0.03 s
+  after) and 25 good ones (untouched).
+- Coach: the leftover between the summed zones and the lap-time gap (the traces end a few hundredths
+  before the line) goes to the finish straight (last corner's exit): entry + exit = the gap shown.
+- Version naming (user): 0.3.0, not 0.2.1, building up to the Store's "1.0".
+
 ## Hotlap laps, track lengths, outline from cuts (app 0.2.0, 2026-10-06)
 - Hotlap mode does not count invalid laps in `completedLaps` (user's Hungaroring hotlap session
   became one 6:38 / 13.8 km "lap"): `_crossings` also splits where the track position wraps and the

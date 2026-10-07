@@ -39,3 +39,10 @@ export const unpackChannels = (chs: Record<string, Stored>) =>
 
 /** Values of a stored channel (server side). */
 export const decodeStored = (ch: Stored) => decodeChannel(unpackChannel(ch));
+
+/** Values → plain bundle channel (int32 × scale), the way bundle.py writes them. */
+export function encodeChannel(values: ArrayLike<number>, scale: number): EncodedChannel {
+  const a = new Int32Array(values.length);
+  for (let i = 0; i < values.length; i++) a[i] = Math.round(values[i] / scale);
+  return { dtype: "int32", scale, data: Buffer.from(a.buffer).toString("base64") };
+}
