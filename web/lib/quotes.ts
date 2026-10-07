@@ -23,9 +23,32 @@ export const QUOTES = [
 export type QuoteTone = "yellow" | "red" | "purple" | null;
 const TONES: Record<string, QuoteTone> = { "*": "yellow", "~": "red", "^": "purple" };
 
-/** A quote for this visit, as parts with their highlight. */
-export function pickQuote(): { text: string; tone: QuoteTone }[] {
-  const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+// A shuffled deck per browser (user: refreshing showed the same 3-4 quotes while others never came:
+// pure chance repeats soon). The cookie holds the quotes still to come and the last one shown:
+// "3.7.1~5". Every quote is shown once before any comes back; a new deck never starts with the
+// quote just shown. The server picks (no flash of another quote), the page saves the rest
+// (WelcomeHero: server components cannot set cookies).
+export const QUOTE_COOKIE = "acc_quotes";
+
+function shuffled(avoid: number | null) {
+  const d = QUOTES.map((_, k) => k);
+  for (let k = d.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [d[k], d[j]] = [d[j], d[k]]; }
+  if (d.length > 1 && d[0] === avoid) [d[0], d[1]] = [d[1], d[0]];
+  return d;
+}
+
+/** This visit's quote from the deck in the cookie, and the cookie's next value. */
+export function nextQuote(cookie: string | undefined) {
+  const [restPart, lastPart] = (cookie ?? "").split("~");
+  const valid = (x: string) => /^\d+$/.test(x) && +x < QUOTES.length;
+  let deck = [...new Set((restPart ?? "").split(".").filter(valid).map(Number))];
+  if (!deck.length) deck = shuffled(lastPart && valid(lastPart) ? +lastPart : null);
+  const [k, ...rest] = deck;
+  return { quote: parseQuote(QUOTES[k]), cookie: `${rest.join(".")}~${k}` };
+}
+
+/** A quote as parts with their highlight. */
+function parseQuote(q: string): { text: string; tone: QuoteTone }[] {
   return q.split(/(\*[^*]+\*|~[^~]+~|\^[^^]+\^)/).filter(Boolean)
     .map((p) => (TONES[p[0]] && p.length > 2 && p.at(-1) === p[0] ? { text: p.slice(1, -1), tone: TONES[p[0]] } : { text: p, tone: null }));
 }
