@@ -138,9 +138,10 @@ export default function Tutorial() {
   return (
     <>
       <button ref={button} onClick={() => { setI(0); setDir("next"); setOpen(true); }} title="How to use this site"
-              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-white/5 hover:text-white">
+              aria-label="Guide: how to use this site"
+              className="flex h-9 items-center gap-1.5 rounded-full px-2 text-sm text-zinc-400 transition-colors hover:bg-white/[0.07] hover:text-white 2xl:pl-2.5 2xl:pr-3">
         <CircleHelp size={17} />
-        <span className="hidden xl:inline">Guide</span>
+        <span className="hidden 2xl:inline">Guide</span>
       </button>
 
       {/* On <body>: inside the header (backdrop-filter) a fixed element would be held to the header's box */}

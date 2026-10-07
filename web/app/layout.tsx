@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import { LogOut } from "lucide-react";
 import Link from "next/link";
-import NavLinks from "@/components/NavLinks";
+import NavLinks, { GetAppLink } from "@/components/NavLinks";
 import Tutorial from "@/components/Tutorial";
 import { Avatar, Pcgr } from "@/components/ui";
 import { currentDriver } from "@/lib/auth";
@@ -25,30 +25,39 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${konexy.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <header className="sticky top-0 z-30 bg-black/55 shadow-[0_12px_32px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl backdrop-saturate-150">
-          <nav className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-2">
-            <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          {/* Three groups (user's request 2026-10-07): the logo, the sections in a recessed tray
+              (components/NavLinks), and on the right "Get the app" + the account capsule (guide,
+              profile, sign out, split by thin dividers). Phones: the tray goes to a second row. */}
+          <nav className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 md:flex-nowrap lg:gap-x-4">
+            <Link href="/" className="flex shrink-0 items-center gap-2.5" title="Dashboard">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/team-helmet.jpg" alt="" width={34} height={34} className="rounded-lg ring-1 ring-white/10" />
-              <span className="display hidden text-[15px] leading-none text-white sm:inline">
+              <img src="/team-helmet.jpg" alt="" width={36} height={36} className="rounded-xl ring-1 ring-white/15 shadow-[0_4px_14px_-4px_rgb(0_0_0/0.9)]" />
+              <span className="display text-[15px] leading-none text-white max-[379px]:hidden">
                 ACC <span className="text-accent">COACH</span>
               </span>
             </Link>
             {driver && (
               <>
                 <NavLinks />
-                <span className="ml-auto flex shrink-0 items-center gap-2">
-                  <Tutorial />
-                  <Link href="/settings" className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-300 hover:bg-white/5 hover:text-white"
-                        title="Settings">
-                    <Avatar url={driver.avatar_url} name={driver.display_name} size={26} />
-                    <span className="hidden lg:inline">{driver.display_name}</span>
-                  </Link>
-                  <form action="/auth/logout" method="post">
-                    <button title="Sign out" className="rounded-md p-2 text-zinc-500 hover:bg-white/5 hover:text-white">
-                      <LogOut size={16} />
-                    </button>
-                  </form>
-                </span>
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                  <GetAppLink />
+                  <div className="flex h-11 items-center rounded-full border border-white/10 bg-white/[0.04] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_4px_14px_-6px_rgb(0_0_0/0.9)]">
+                    <Tutorial />
+                    <span className="mx-0.5 h-5 w-px bg-white/10" />
+                    <Link href="/settings" title="Your profile and settings"
+                          className="flex h-9 items-center gap-2 rounded-full pl-1 pr-1 text-sm text-zinc-200 transition-colors hover:bg-white/[0.07] hover:text-white xl:pr-3">
+                      <Avatar url={driver.avatar_url} name={driver.display_name} size={28} />
+                      <span className="hidden max-w-32 truncate xl:inline">{driver.display_name}</span>
+                    </Link>
+                    <span className="mx-0.5 h-5 w-px bg-white/10" />
+                    <form action="/auth/logout" method="post">
+                      <button title="Sign out" aria-label="Sign out"
+                              className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-race/15 hover:text-red-300">
+                        <LogOut size={16} />
+                      </button>
+                    </form>
+                  </div>
+                </div>
               </>
             )}
           </nav>

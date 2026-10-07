@@ -703,6 +703,14 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Admin gauge (Settings): database size vs 512 MB, biggest tables, traces count and average size.
 - If the team grows a lot: traces to Cloudflare R2 (10 GB free), results stay in Postgres.
 
+## Header (app/layout.tsx, components/NavLinks.tsx; redesign 2026-10-07, user's request)
+- Three groups: logo + wordmark; the sections in a recessed tray (current one = raised tile, yellow
+  icon, red bar); on the right "Get the app" (the only yellow button) and the account capsule
+  (guide | profile | sign out, thin dividers, sign out turns red on hover). Labels shown by width so
+  nothing overlaps (the old header overlapped at ~1100 px and overflowed on phones): section labels
+  from xl, "Get the app" from lg, name from xl, "Guide" from 2xl. Below md the tray takes a second
+  row; the wordmark hides under 380 px.
+
 ## Guide for newcomers (components/Tutorial.tsx, 2026-10-07)
 - User's request: no new section; a "?" button in the header (next to the name, "Guide" on wide
   screens) opens a 10-slide slideshow over the page, blurred behind (portal on <body>: inside the
