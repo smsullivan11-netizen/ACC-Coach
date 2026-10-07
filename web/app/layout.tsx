@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import { LogOut } from "lucide-react";
 import Link from "next/link";
 import NavLinks from "@/components/NavLinks";
+import Tutorial from "@/components/Tutorial";
 import { Avatar, Pcgr } from "@/components/ui";
 import { currentDriver } from "@/lib/auth";
 import "./globals.css";
@@ -36,6 +37,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <>
                 <NavLinks />
                 <span className="ml-auto flex shrink-0 items-center gap-2">
+                  <Tutorial />
                   <Link href="/settings" className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-300 hover:bg-white/5 hover:text-white"
                         title="Settings">
                     <Avatar url={driver.avatar_url} name={driver.display_name} size={26} />

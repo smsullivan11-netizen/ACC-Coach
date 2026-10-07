@@ -703,6 +703,17 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Admin gauge (Settings): database size vs 512 MB, biggest tables, traces count and average size.
 - If the team grows a lot: traces to Cloudflare R2 (10 GB free), results stay in Postgres.
 
+## Guide for newcomers (components/Tutorial.tsx, 2026-10-07)
+- User's request: no new section; a "?" button in the header (next to the name, "Guide" on wide
+  screens) opens a 10-slide slideshow over the page, blurred behind (portal on <body>: inside the
+  header's backdrop-filter a fixed element is held to the header). Opens by itself once on a
+  member's first visit (localStorage `accCoach.tutorialSeen`). Arrows, dots, ←/→, swipe; Esc, ✕ or a
+  click outside close it; page scroll locked while open. All slide texts share one grid cell so the
+  window keeps one height. Pictures: `public/media/tutorial/*.webp` (1200 px, ~30 KB), screenshots
+  of the local test site at 1440x900 without the header (engineer: the real Brands Hatch replay);
+  retake them when a page changes a lot. Titles avoid apostrophes (Konexy's sits too high).
+- The Store test account ("Store Reviewer") is left out of the Drivers list.
+
 ## Ratings and profiles (web/lib/ratings.ts, web/lib/style.ts)
 - Overall Driver Rating 0-100, computed by the site after each upload (`rateSession`), never by
   the app. Session score = weighted pace / consistency / clean / smoothness (formulas in the header

@@ -2,7 +2,7 @@ import { Swords, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageTitle, RankScale } from "@/components/ui";
-import { requireDriver } from "@/lib/auth";
+import { REVIEW_DISCORD_ID, requireDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { allTimeBest, formParts, PROVISIONAL_SESSIONS } from "@/lib/ratings";
 import DriversTable, { type DriverRow } from "./DriversTable";
@@ -23,6 +23,7 @@ export default async function DriversPage() {
     from driver d
     left join r cur on cur.driver_id = d.id and cur.n = 1
     left join r prev on prev.driver_id = d.id and prev.n = 2
+    where d.discord_id is distinct from ${REVIEW_DISCORD_ID}   -- the Store's test account is not a teammate
     order by cur.rating desc nulls last, d.display_name`;
   const best = await allTimeBest(sql);
   const parts = await Promise.all(rows.map((r) => (r.rating != null ? formParts(sql, r.id) : null)));
