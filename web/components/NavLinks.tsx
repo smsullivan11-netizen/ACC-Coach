@@ -26,7 +26,7 @@ function useActive() {
 export default function NavLinks() {
   const active = useActive();
   return (
-    <div className="order-last flex w-full min-w-0 items-center justify-between gap-0.5 overflow-x-auto rounded-xl border border-white/[0.07] bg-black/40 p-1 shadow-[inset_0_1px_3px_rgb(0_0_0/0.6)] md:order-none md:w-auto md:justify-start">
+    <div className="order-last flex w-full min-w-0 items-center justify-between gap-0.5 overflow-x-auto [scrollbar-width:none] md:shrink-0 md:overflow-visible [&::-webkit-scrollbar]:hidden rounded-xl border border-white/[0.07] bg-black/40 p-1 shadow-[inset_0_1px_3px_rgb(0_0_0/0.6)] md:order-none md:w-auto md:justify-start">
       {LINKS.map(({ href, label, icon: Icon, exact }) => {
         const on = active(href, exact);
         return (

@@ -708,7 +708,9 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   icon, red bar); on the right "Get the app" (the only yellow button) and the account capsule
   (guide | profile | sign out, thin dividers, sign out turns red on hover). Labels shown by width so
   nothing overlaps (the old header overlapped at ~1100 px and overflowed on phones): section labels
-  from xl, "Get the app" from lg, name from xl, "Guide" from 2xl. Below md the tray takes a second
+  from xl, "Get the app" from lg, name from xl (max 6 rem, truncated), "Guide" icon only (its label made
+  the row 28 px too wide at 1536 px, the user's 1920 screen at 125 %, and the tray showed a scrollbar;
+  the tray's scrollbar is hidden anyway). Checked with a long name from 320 to 1920 px: no overflow. Below md the tray takes a second
   row; the wordmark hides under 380 px.
 
 ## Guide for newcomers (components/Tutorial.tsx, 2026-10-07)

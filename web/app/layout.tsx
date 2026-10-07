@@ -47,7 +47,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                     <Link href="/settings" title="Your profile and settings"
                           className="flex h-9 items-center gap-2 rounded-full pl-1 pr-1 text-sm text-zinc-200 transition-colors hover:bg-white/[0.07] hover:text-white xl:pr-3">
                       <Avatar url={driver.avatar_url} name={driver.display_name} size={28} />
-                      <span className="hidden max-w-32 truncate xl:inline">{driver.display_name}</span>
+                      <span className="hidden max-w-24 truncate xl:inline">{driver.display_name}</span>
                     </Link>
                     <span className="mx-0.5 h-5 w-px bg-white/10" />
                     <form action="/auth/logout" method="post">
