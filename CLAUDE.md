@@ -241,6 +241,22 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
     (bump it when the method changes); recomputed after each upload (`after()` in the upload route)
     or on read when stale. Without the table it is computed on every read (not stored). Brands
     Hatch: ~1.4 s to compute on the dev server, 0.06 s when stored.
+- VERSION 4 (2026-10-07, `lib/outline-core.ts`: the computation, no database, checked offline with
+  `tools/outline/`). User's report: Barcelona's last chicane distorted (spikes), white lines twisting
+  elsewhere. Causes found on the real laps: teleports and position glitches (restart lap / back to
+  pits: chords across the map, points at 0,0), invalid laps counted after their first cut (what they
+  do next is unknown: one straight-lined the chicane), laps matched by distance index (two laps
+  measure the track up to ~60 m differently), edges following single points and cut bounds (steps),
+  inside edges levered by tiny direction wobbles of the reference. Now: glitches dropped (jump > 6 m
+  between metres, origin points, ±30 m); invalid laps only up to 50 m before their first cut; frame
+  = the cleanest valid lap (smoothed, normals over ±15 m); each lap placed by where it crosses the
+  reference's perpendicular (search window ±80 points; a crossing, not the nearest point: lines 15 m
+  out on another arc, and cut ends, gave false offsets); band = extreme offsets ± 1 m (every valid
+  point counts: ACC keeps a lap valid only with the car on the track; ignoring a wide valid lap drew
+  the white line through it, Kyalami); edges smoothed 25 × ±10 m but never inside the band; inside
+  edges never past 85 % of the turn's radius. Sharp kinks: Barcelona 28 → 0, Misano 29 → 0, Zolder
+  12 → 0, Mount Panorama 6 → 0, COTA 2 → 0; valid-lap points outside ≤ 0.07 % (was up to 0.59 %).
+  Hungaroring now passes the TUM check (laps aligned better).
 - Optional exact edges: two **edge laps** driven slowly with the left / right wheels on the white
   line (driving direction), picked by an admin on the track map page; both set = they replace the
   automatic surface. Edge = the lap's line moved outward by 1.0 m, one point every 2 m. An edge
