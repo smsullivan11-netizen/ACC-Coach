@@ -40,12 +40,17 @@ export default function RatingForm({ car, initial }: { car: string; initial: Par
       <p className="text-xs text-zinc-500">Admins only. 0-100 each; leave a box empty if you don&apos;t know. Under Top speed: the absolute top speed at min wing and at max wing, in km/h.</p>
       {CAR_PARTS.map((p) => (
         <div key={p.key}>
-          <label className="flex items-center justify-between gap-3 text-sm text-zinc-300">
-            <span>{p.label}</span>
-            <input type="number" min={0} max={100} value={v[p.key] ?? ""} placeholder="–" aria-label={p.label}
+          <div className="flex items-center justify-between gap-3 text-sm text-zinc-300">
+            <label htmlFor={`r-${p.key}`}>{p.label}</label>
+            <input id={`r-${p.key}`} type="number" min={0} max={100} value={v[p.key] ?? ""} placeholder="–"
                    onChange={(e) => setV({ ...v, [p.key]: e.target.value === "" ? null : Math.max(0, Math.min(100, Math.round(Number(e.target.value)))) })}
                    className="input w-20 py-1 text-right" />
-          </label>
+          </div>
+          {/* The slider under the label and number: full width, so it is big enough to use */}
+          <input type="range" min={0} max={100} value={v[p.key] ?? 0} aria-label={`${p.label} slider`}
+                 onChange={(e) => setV({ ...v, [p.key]: Number(e.target.value) })}
+                 style={{ "--fill": `${v[p.key] ?? 0}%` } as React.CSSProperties}
+                 className={`range-lg mt-1 w-full ${v[p.key] == null ? "opacity-40" : ""}`} />
           {p.key === "top_speed" && (
             // Under the rating: the absolute top speed at min wing and at max wing, in km/h
             <div className="mt-2 space-y-1.5 pl-3">
