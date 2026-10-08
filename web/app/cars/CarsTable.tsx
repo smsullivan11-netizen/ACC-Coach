@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import InfoTip from "@/components/InfoTip";
 import { PartBar, Position, ScaleNumber } from "@/components/ui";
+import { carSide } from "@/lib/car-images";
 import { CAR_PARTS, OVERALL_INFO, type CarPart } from "@/lib/cars";
 import { scaleColor } from "@/lib/ranks";
 
@@ -98,7 +99,7 @@ export default function CarsTable({ rows }: { rows: CarRow[] }) {
       <table className="data-table min-w-[1060px]">
         <thead>
           <tr>
-            <th className="w-12 align-bottom">#</th>
+            <th className="w-20 align-bottom">#</th>
             <th className="align-bottom">
               <span className="inline-flex items-center gap-1">Car <InfoTip text={`Under the name: ${DRIVEABILITY.label.toLowerCase()} (${DRIVEABILITY.info.toLowerCase().replace(/\.$/, "")}) in stars out of 5, and the valid laps the team has driven in the car.`} /></span>
             </th>
@@ -114,7 +115,14 @@ export default function CarsTable({ rows }: { rows: CarRow[] }) {
             const drive = r.parts.driveability;
             return (
               <tr key={r.key}>
-                <td>{n != null ? <Position n={n} /> : null}</td>
+                <td>
+                  {/* The rank, and under it the car seen from the side (lib/car-images.ts) when there is a picture */}
+                  {n != null ? <Position n={n} /> : null}
+                  {carSide(r.key) && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={carSide(r.key)!} alt="" width={80} height={24} loading="lazy" className="mt-1.5 h-auto w-20 max-w-none brightness-[1.5] contrast-[1.1]" />
+                  )}
+                </td>
                 <td>
                   <Link href={`/cars/${r.key}`} className="whitespace-nowrap text-white hover:underline">
                     <span className="font-medium">{r.name}</span> <span className="text-xs text-zinc-500">{r.year}</span>

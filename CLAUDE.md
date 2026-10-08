@@ -976,6 +976,16 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   switched the checks to 100-500 km/h), admin-entered in the same form, shown under the Top speed rating
   in the list and on the car page.
 - `components/InfoTip.tsx`: the "i" box shared by the Drivers and Cars tables.
+- Car pictures (user's request, a teammate's idea, 2026-10-08; ACC screenshots only, the user's choice):
+  `tools/car_images/process.py <car> --side <png> [--bg <png>]` → `public/media/cars/side/<car>.webp`
+  (600 px, from the setup screen's **Aero tab**: every car side-on, nose right, same place; cropped
+  around the car found by GrabCut, edges faded: a hard cut-out kept patches of the dark scene, the
+  setup cars being dark grey) and `public/media/cars/bg/<car>.webp` (1920 × 800 background), listed in
+  `lib/car-images.json` (with a cache version). The Aero tab's coloured airflow lines appear after a
+  moment: take the shot before (the BMW and Porsche shots of 2026-10-08 had them, unused). Shown: side
+  view beside the name on the car page and under the rank number in the list (brightened in CSS), the
+  background faded behind the car page's header. Cars without pictures show none. Only the Mustang
+  has a side view so far (from the user's Aero screenshot).
 - Descriptions (user's request, 2026-10-08, after writing the Ford's own: "Absolute V8 freedom power
   beast..."): `lib/car-notes.ts` holds researched starting texts for the 53 other cars in that short,
   punchy style (Coach Dave Academy, GOSetups, Traxion, GTPlanet, Overtake; only claims about ACC's
