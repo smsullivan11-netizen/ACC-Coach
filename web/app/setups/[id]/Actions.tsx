@@ -3,6 +3,7 @@
 import { Download, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import AutoTextarea from "@/components/AutoTextarea";
 import { KINDS } from "@/lib/setups";
 
 // Download (everyone) and, for the uploader or an admin, edit and delete.
@@ -46,7 +47,7 @@ export default function Actions({ id, title, kind, notes, canEdit }: { id: strin
             </select>
           </label>
           <label className="block text-sm text-zinc-300">Notes
-            <textarea value={v.notes} rows={3} maxLength={1500} onChange={(e) => setV({ ...v, notes: e.target.value })} className="input mt-1 w-full" />
+            <AutoTextarea value={v.notes} rows={3} maxLength={1500} onChange={(e) => setV({ ...v, notes: e.target.value })} className="input mt-1 w-full" />
           </label>
           <div className="flex items-center gap-2">
             <button type="button" disabled={busy} onClick={() => call("PATCH")} className="btn btn-primary">{busy ? "Saving…" : "Save"}</button>

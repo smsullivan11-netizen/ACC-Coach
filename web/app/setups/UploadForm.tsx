@@ -3,6 +3,7 @@
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import AutoTextarea from "@/components/AutoTextarea";
 import { KINDS } from "@/lib/setups";
 
 type Result = { added: { id: string; name: string }[]; duplicates: string[]; errors: { name: string; error: string }[] };
@@ -64,7 +65,7 @@ export default function UploadForm({ tracks, defaultTrack }: { tracks: { value: 
         </label>
       </div>
       <label className="block text-sm text-zinc-300">Notes <span className="text-xs text-zinc-500">(optional: conditions, tyre pressures to adjust, lap time…)</span>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={1500} className="input mt-1 w-full" />
+        <AutoTextarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={1500} className="input mt-1 w-full" />
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" disabled={busy || !files.length || !track} onClick={send} className="btn btn-primary">

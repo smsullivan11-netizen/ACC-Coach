@@ -3,6 +3,7 @@
 import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import AutoTextarea from "@/components/AutoTextarea";
 import { CAR_PARTS, TOP_SPEED_WINGS, type CarPart, type WingKey } from "@/lib/cars";
 
 type Values = Record<CarPart | WingKey, number | null> & { note: string | null; source: string | null };
@@ -71,7 +72,7 @@ export default function RatingForm({ car, initial }: { car: string; initial: Par
       ))}
       <label className="block text-sm text-zinc-300">
         Note <span className="text-xs text-zinc-500">(strengths, weaknesses, tips)</span>
-        <textarea value={v.note ?? ""} onChange={(e) => setV({ ...v, note: e.target.value })} rows={3} maxLength={1500} className="input mt-1 w-full" />
+        <AutoTextarea value={v.note ?? ""} onChange={(e) => setV({ ...v, note: e.target.value })} rows={3} maxLength={1500} className="input mt-1 w-full" />
       </label>
       <label className="block text-sm text-zinc-300">
         Source <span className="text-xs text-zinc-500">(own knowledge, a sheet, a video link…)</span>
