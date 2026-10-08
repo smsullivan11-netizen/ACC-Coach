@@ -164,10 +164,14 @@ export function readTab(tab: Tab, rows: string[][]): { refs: ReferenceRow[]; unk
 export async function importReferences(sql: Sql) {
   const all: ReferenceRow[] = [], report: { tab: string; rows: number; unknown: string[] }[] = [];
   let date: string | null = null;
-  for (const tab of TABS) {
-    const res = await fetch(`${PUB}?gid=${tab.gid}&single=true&output=csv`, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
+  // The six tabs at once: Google sends each published tab in 2-10 s, one after another took up to 40 s
+  const texts = await Promise.all(TABS.map(async (tab) => {
+    const res = await fetch(`${PUB}?gid=${tab.gid}&single=true&output=csv`, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
     if (!res.ok) throw new Error(`${tab.label}: HTTP ${res.status}`);
-    const read = readTab(tab, parseCsv(await res.text()));
+    return res.text();
+  }));
+  for (const [i, tab] of TABS.entries()) {
+    const read = readTab(tab, parseCsv(texts[i]));
     all.push(...read.refs);
     report.push({ tab: tab.label, rows: read.refs.length, unknown: read.unknown });
     date ??= read.date;

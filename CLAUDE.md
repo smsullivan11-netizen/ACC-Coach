@@ -873,6 +873,8 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   (2018) +2.84 % … NSX 2017 +5.17 %. Rows keep a `source` (estimate:guard / gosetups / older): car pages
   mark them "≈" (hover: why), session pages say "Estimate (older car)" / "GOSetups estimate". After a
   change: Settings → "Update reference times", then "Recompute all ratings". GOSetups credited on /credits.
+- The import downloads the six tabs at once (2026-10-08): Google sends each published tab in 2-10 s, one
+  after another took ~40 s (close to the route's 60 s limit); now ~8-10 s.
 - Session BoP (user: the team mostly races default-BoP championships, LFM rarely): `session.bop`
   detected at import = LFM when the server name matches "lowfuelmotorsport.com" (ACC's log names the
   server; server results files already carry a name), else default (offline = always default);
