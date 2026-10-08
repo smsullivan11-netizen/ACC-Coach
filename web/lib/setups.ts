@@ -76,7 +76,6 @@ export type Cell =
 export type Tab = { key: string; label: string; cells: Cell[]; extra?: { title: string; cells: Cell[] }[] };
 
 const psi = (click: number) => (20.3 + 0.1 * click).toFixed(1);
-const deg = (v: number) => `${v.toFixed(2)}°`;
 const clicks = (v: number) => String(v);
 const litres = (v: number) => `${Math.round(v * 10) / 10} L`;
 const pad = (v: number) => `Pad ${v + 1}`;
