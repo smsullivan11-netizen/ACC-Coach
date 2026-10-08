@@ -37,7 +37,7 @@ export default function RatingForm({ car, initial }: { car: string; initial: Par
   }
   return (
     <div className="mt-5 space-y-3 rounded-lg border border-white/10 bg-black/30 p-4">
-      <p className="text-xs text-zinc-500">Admins only. 0-100 each; leave a box empty if you don&apos;t know.</p>
+      <p className="text-xs text-zinc-500">Admins only. 0-100 each; leave a box empty if you don&apos;t know. Under Top speed, the two km/h boxes are the absolute top speed at min wing and at max wing.</p>
       {CAR_PARTS.map((p) => (
         <label key={p.key} className="flex items-center gap-3 text-sm text-zinc-300">
           <span className="w-28 shrink-0">{p.label}</span>
@@ -51,9 +51,9 @@ export default function RatingForm({ car, initial }: { car: string; initial: Par
             // the two small grey numbers shown under Top speed
             <span className="ml-1 flex shrink-0 items-center gap-1.5 text-[11px] text-zinc-500">
               {TOP_SPEED_WINGS.map((x) => (
-                <input key={x.key} type="number" min={0} max={100} value={v[x.key] ?? ""} placeholder={x.label} title={x.label} aria-label={x.label}
-                       onChange={(e) => setV({ ...v, [x.key]: e.target.value === "" ? null : Math.max(0, Math.min(100, Math.round(Number(e.target.value)))) })}
-                       className="input w-[4.5rem] py-1 text-right" />
+                <input key={x.key} type="number" min={100} max={500} value={v[x.key] ?? ""} placeholder={`${x.label} km/h`} title={`${x.label}: top speed in km/h`} aria-label={`${x.label} top speed in km/h`}
+                       onChange={(e) => setV({ ...v, [x.key]: e.target.value === "" ? null : Math.round(Number(e.target.value)) })}
+                       className="input w-[7.5rem] py-1 text-right" />
               ))}
             </span>
           )}

@@ -23,13 +23,13 @@ const DRIVEABILITY = CAR_PARTS.find((p) => p.key === "driveability")!;
 function Part({ v, wings }: { v: number | null | undefined; wings?: (number | null)[] }) {
   if (v == null) return <span className="text-zinc-600">–</span>;
   return (
-    <div className="ml-auto w-12">
+    <div className="ml-auto w-max min-w-12">
       <div className="text-right font-semibold"><ScaleNumber v={v} /></div>
       <PartBar v={v} className="mt-1 h-1" />
       {wings && wings.some((x) => x != null) && (
-        // Top speed: its two small grey numbers, min wing then max wing (user's request)
-        <div className="mt-1 flex justify-end gap-2 text-[10px] leading-none text-zinc-500">
-          <span title="Min wing">{wings[0] ?? "–"}</span><span title="Max wing">{wings[1] ?? "–"}</span>
+        // Top speed: its two small grey numbers, the absolute top speed in km/h at min wing then max wing
+        <div className="mt-1 flex justify-end gap-1.5 whitespace-nowrap text-[10px] leading-none text-zinc-500">
+          <span title="Top speed at min wing (km/h)">{wings[0] ?? "–"}</span><span title="Top speed at max wing (km/h)">{wings[1] ?? "–"}</span>
         </div>
       )}
     </div>

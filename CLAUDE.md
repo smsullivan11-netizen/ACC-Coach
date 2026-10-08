@@ -953,9 +953,10 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   BoP time, the 101 % target, the LFM time with its BoP badge, the team's best lap in the car (driver,
   LFM tag), its gap to the target and laps (top speed dropped at the user's request). "Cars" in the main menu; with it the header's
   "Get the app" label hides from 1280 to 1535 px (icon only), or the header overflowed by 10 px.
-- Top speed's two small grey numbers (user's request): `top_speed_min_wing` / `top_speed_max_wing`
-  (migration 0018, 0-100 each, admin-entered in the same form), shown under the Top speed rating in
-  the list and on the car page; Top speed left empty with both given = their average.
+- Top speed's two small grey numbers (user's request): `top_speed_min_wing` / `top_speed_max_wing` =
+  the **absolute top speed in km/h** at min and max wing (migration 0018 made them 0-100 ratings, 0019
+  switched the checks to 100-500 km/h), admin-entered in the same form, shown under the Top speed rating
+  in the list and on the car page.
 - `components/InfoTip.tsx`: the "i" box shared by the Drivers and Cars tables.
 - Descriptions (user's request, 2026-10-08, after writing the Ford's own: "Absolute V8 freedom power
   beast..."): `lib/car-notes.ts` holds researched starting texts for the 53 other cars in that short,

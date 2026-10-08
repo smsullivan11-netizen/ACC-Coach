@@ -12,15 +12,19 @@ export async function POST(request: Request, ctx: RouteContext<"/api/cars/[car]/
   if (!body) return Response.json({ error: "JSON body expected" }, { status: 400 });
 
   const row: Record<string, number | string | null> = {};
-  for (const { key } of [...CAR_PARTS, ...TOP_SPEED_WINGS]) {
+  for (const { key } of CAR_PARTS) {
     const v = body[key];
     if (v != null && (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 100))
       return Response.json({ error: `${key}: a number from 0 to 100, or null` }, { status: 400 });
     row[key] = v == null ? null : Math.round(v);
   }
-  // Top speed left empty with both wing numbers given: their average (user's Min wing / Max wing)
-  if (row.top_speed == null && row.top_speed_min_wing != null && row.top_speed_max_wing != null)
-    row.top_speed = Math.round(((row.top_speed_min_wing as number) + (row.top_speed_max_wing as number)) / 2);
+  // The two small Top speed numbers: absolute speeds in km/h at min and max wing
+  for (const { key } of TOP_SPEED_WINGS) {
+    const v = body[key];
+    if (v != null && (typeof v !== "number" || !Number.isFinite(v) || v < 100 || v > 500))
+      return Response.json({ error: `${key}: a speed in km/h from 100 to 500, or null` }, { status: 400 });
+    row[key] = v == null ? null : Math.round(v);
+  }
   const text = (v: unknown, max: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
   row.note = text(body.note, 1500);
   row.source = text(body.source, 300);

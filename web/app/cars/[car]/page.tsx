@@ -113,7 +113,7 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
                   <PartBar v={v ?? 0} className="mt-1 h-1.5" />
                   {p.key === "top_speed" && TOP_SPEED_WINGS.some((x) => rating?.[x.key] != null) && (
                     <div className="mt-1 flex gap-4 text-[11px] text-zinc-500">
-                      {TOP_SPEED_WINGS.map((x) => <span key={x.key}>{x.label} <span className="tabular text-zinc-400">{rating?.[x.key] ?? "–"}</span></span>)}
+                      {TOP_SPEED_WINGS.map((x) => <span key={x.key}>{x.label} <span className="tabular text-zinc-400">{rating?.[x.key] != null ? `${rating[x.key]} ${x.unit}` : "–"}</span></span>)}
                     </div>
                   )}
                 </li>
