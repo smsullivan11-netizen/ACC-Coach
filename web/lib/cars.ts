@@ -93,10 +93,12 @@ export const TOP_SPEED_WINGS = [
   { key: "top_speed_max_wing", label: "Max wing", unit: "km/h" },
 ] as const;
 export type WingKey = (typeof TOP_SPEED_WINGS)[number]["key"];
-export const OVERALL_INFO = "Average of the sub-ratings filled in. Entered by the team's admins from their knowledge of the cars, not computed from laps: the team drives too few cars for that.";
+export const OVERALL_INFO = "Performance in the right hands: the average of the sub-ratings filled in, driveability left out (it shows as stars: a hard car to drive can still be one of the fastest). Entered by the team's admins from their knowledge of the cars, not computed from laps: the team drives too few cars for that.";
 
-/** Average of the sub-ratings filled in; null when none is. */
+/** Average of the performance sub-ratings filled in (driveability left out, user's choice 2026-10-08:
+ *  the Porsche 992 or the Huracán EVO2 are hard to drive but among the fastest when driven well);
+ *  null when none is. */
 export function overall(r: Partial<Record<CarPart, number | null>> | null | undefined): number | null {
-  const v = CAR_PARTS.map((p) => r?.[p.key]).filter((x): x is number => x != null);
+  const v = CAR_PARTS.filter((p) => p.key !== "driveability").map((p) => r?.[p.key]).filter((x): x is number => x != null);
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 }

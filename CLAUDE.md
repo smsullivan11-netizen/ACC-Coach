@@ -956,7 +956,8 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   McLaren, to rate them from laps). Table `car_rating` (migration 0016): eight sub-ratings 0-100,
   null = not rated, with the user's names and "i" texts (`CAR_PARTS`: Top speed "min wing / max
   wing", Acceleration, Traction, Slow corners, Fast corners, Braking, Tyre wear, Driveability), a note
-  and a source. Overall = average of those filled in. Admins edit them on the car's page (POST
+  and a source. Overall = average of those filled in, **driveability left out** (user, 2026-10-08:
+  hard cars like the 992 or the EVO2 are among the fastest when driven well; it shows as stars). Admins edit them on the car's page (POST
   /api/cars/[car]/rating). `CARS` = every ACC car key with the game's name, year and class
   (GT3, GT4, Cup, GT2); `carName` adds the year when two cars share a name.
 - /cars: class switch, a sortable table like Drivers that fits the page (user's request, no sideways
