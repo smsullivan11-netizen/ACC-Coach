@@ -676,6 +676,9 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   an integer: "invalid input syntax for type integer") and failed with a 500 for every lap since the
   BoP update, so Discord got an embed without image. Cast decimals used against integer columns
   (`${x}::float8`) and fetch the card of a lap in each new local test.
+- Card titles (2026-10-08): the track name used to wrap on two lines for long names ("Circuit de Barcelona-
+  Catalunya", "Valencia (Ricardo Tormo)") and ran over the driver line; now one line sized by its length
+  (Konexy is ~0.74 em per letter, max 58 px), the same for the driver's name on rank cards.
 - Lap cards: `/api/cards/lap/<id>.png` (next/og ImageResponse, 1200 × 630, track photo, Konexy). Open
   to signed-in members, or with `?s=` = HMAC(CARD_SECRET or DISCORD_CLIENT_SECRET, lap id) so Discord
   can fetch it. Font and photos read from disk: traced via `outputFileTracingIncludes` in

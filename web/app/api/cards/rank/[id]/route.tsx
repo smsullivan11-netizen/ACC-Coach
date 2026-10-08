@@ -51,7 +51,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/cards/rank/[
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 6 }}>
           <div style={{ display: "flex", fontSize: 26, letterSpacing: 8, color: "#a1a1aa", fontWeight: 700 }}>RANK UP</div>
-          <div style={{ display: "flex", fontFamily: "Konexy", fontSize: 60, marginTop: 4 }}>{d.display_name}</div>
+          <div style={{ display: "flex", fontFamily: "Konexy", fontSize: Math.min(60, Math.floor(1000 / (d.display_name.length * 0.74))), marginTop: 4, whiteSpace: "nowrap" }}>{d.display_name}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 56, marginTop: 18 }}>
           {badge(before, 104, true)}

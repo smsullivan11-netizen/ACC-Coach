@@ -40,6 +40,10 @@ export async function GET(request: Request, ctx: RouteContext<"/api/cards/lap/[i
     hasPhoto(lap.track) ? readFile(join(process.cwd(), "public", "tracks", `${trackKey(lap.track)}.jpg`)).then(jpeg) : null,
     readFile(join(process.cwd(), "public", "team-helmet.jpg")).then(jpeg),
   ]);
+  // One line, whatever the length (Konexy is wide, ~0.74 em per letter): "Circuit de Barcelona-Catalunya" wrapped
+  // to two lines and ran over the driver line under it
+  const title = info?.name ?? lap.track;
+  const titleSize = Math.min(58, Math.floor(1060 / (title.length * 0.74)));
   const record = lap.position === 1;
   const vsTarget = lap.target_ms != null ? (lap.t - lap.target_ms) / 1000 : null;
 
@@ -64,7 +68,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/cards/lap/[i
               <span style={{ color: "#ffffff" }}>PC</span><span style={{ color: PCGR_RED }}>GR</span>
             </div>
           </div>
-          <div style={{ display: "flex", marginTop: 70, fontFamily: "Konexy", fontSize: 58, maxWidth: 900 }}>{info?.name ?? lap.track}</div>
+          <div style={{ display: "flex", marginTop: 70, fontFamily: "Konexy", fontSize: titleSize, lineHeight: 1.1, whiteSpace: "nowrap" }}>{title}</div>
           <div style={{ display: "flex", marginTop: 6, fontSize: 30, color: "#d4d4d8" }}>
             {lap.driver} · {lap.car ? carShortName(lap.car) : ""} · {lap.date}
           </div>
