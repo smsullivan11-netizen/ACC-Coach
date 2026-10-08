@@ -17,7 +17,9 @@ const LINKS = [
 function useActive() {
   const path = usePathname();
   // The progression page is part of the Dashboard (opened from its "Your progression" block)
+  // and the setups library belongs to Cars
   return (href: string, exact?: boolean) =>
+    (href === "/cars" && path.startsWith("/setups")) ||
     (exact ? path === href || (href === "/" && path === "/progress") : path === href || path.startsWith(`${href}/`));
 }
 

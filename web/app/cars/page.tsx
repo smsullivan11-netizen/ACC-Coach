@@ -52,6 +52,7 @@ export default async function CarsPage(props: PageProps<"/cars">) {
         Cars
       </PageTitle>
       <div className="mb-5 flex flex-wrap items-center gap-3">
+        <Segmented options={[{ value: "cars", label: "Cars" }, { value: "setups", label: "Setups" }]} value="cars" href={(v) => (v === "cars" ? "/cars" : "/setups")} />
         <Segmented options={CLASSES.map((c) => ({ value: c, label: c }))} value={current} href={(c) => `/cars?class=${c}`} />
         <span className="text-xs text-zinc-500">
           {rated} of {rows.length} cars rated{me.is_admin && rated < rows.length ? ": open a car to rate it" : ""}

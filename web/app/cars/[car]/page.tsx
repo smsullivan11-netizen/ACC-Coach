@@ -1,4 +1,4 @@
-import { ArrowLeft, CarFront, Gauge, Timer, Users } from "lucide-react";
+import { ArrowLeft, CarFront, Gauge, Settings2, Timer, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -68,6 +68,7 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
   for (const r of refs) row(r.track_key)[r.bop === "lfm" ? "lfm" : "def"] = r;
   for (const t of team) row(t.track_key).team = t;
   const list = [...tracks.entries()].sort((a, b) => (b[1].team?.laps ?? 0) - (a[1].team?.laps ?? 0) || a[1].name.localeCompare(b[1].name));
+  const [{ setups }] = await sql<{ setups: number }[]>`select count(*)::int as setups from setup where car_key = ${car}`.catch(() => [{ setups: 0 }]);
   const total = overall(rating);
   // An admin's description, else the researched starting one (lib/car-notes.ts)
   const note = rating?.note ?? CAR_NOTES[car] ?? null;
@@ -81,7 +82,10 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
       <div className="rise mb-6 flex flex-wrap items-end gap-x-6 gap-y-3">
         <div>
           <h1 className="display flex items-center gap-3 text-2xl text-white"><CarFront size={24} className="text-race" /> {info.name}</h1>
-          <p className="mt-1.5 flex items-center gap-2 text-sm text-zinc-400"><Chip>{info.cls}</Chip> {info.year}</p>
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-400">
+            <span className="inline-flex items-center gap-2"><Chip>{info.cls}</Chip> {info.year}</span>
+            <Link href={`/setups?car=${car}`} className="inline-flex items-center gap-1.5 text-accent hover:underline"><Settings2 size={14} /> {setups ? `${setups} setup${setups === 1 ? "" : "s"}` : "Setups"}</Link>
+          </p>
         </div>
         <div className="ml-auto text-right">
           <div className="flex items-center justify-end gap-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">

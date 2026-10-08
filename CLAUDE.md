@@ -927,8 +927,6 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Ideas not requested yet: coaching summary per session, stint view, server results import.
 - Name the corners of the team's tracks; weighted composite ranking to define with the team.
 - Safer .json matching when `head.driver` is empty: carModel ↔ car-from-file-name table.
-- Setups library (user's request, after the Cars page): ACC's six setup tabs, GOSetups-style boxes,
-  everyone can upload ACC setup .json files.
 
 ## Cars page (web/app/cars, web/lib/cars.ts, 2026-10-08)
 - User's request: car ratings entered by hand (the team drives too few cars, mostly the Mustang and
@@ -954,6 +952,26 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   car, thin for a few old models). Shown until an admin saves a note (car_rating.note wins) and
   pre-filled in the edit form; the page credits the research when it shows one. Driveability stars
   in the list carry a "Driveability" label above them; no bar under the overall score.
+
+## Setups library (web/app/setups, web/lib/setups.ts, 2026-10-08)
+- User's request: everyone can upload (for now) ACC setup files, shown like the game's own setup
+  screens with GOSetups-style boxes. Table `setup` (migration 0017): car_key, track_key (lowercase,
+  chosen at upload), title, kind (qualifying / race / wet / other, guessed from the file name: Q01, R02,
+  WET…), notes, the file as jsonb, sha256 (one copy per car + track + values), uploader, downloads.
+- The file (checked on the user's 814 real setups, `DocumentsAssetto Corsa CompetizioneSetups<car>  <track>*.json`): exactly `carName`, `basicSetup` (tyres, alignment, electronics, strategy),
+  `advancedSetup` (mechanicalBalance, dampers, aeroBalance, drivetrain) and `trackBopType` (a BoP group
+  shared by tracks: useless for finding the track). Values are the game's clicks, 0-based. `staticCamber`
+  depends on ride height and more (positive rear values on the 992), so camber is shown in clicks.
+  Tyre pressures = 20.3 psi + 0.1 per click (psi shown); fuel in litres; everything else in clicks.
+- /setups: filters (car, track, type) and an upload box (many .json at once for one track; the car comes
+  from each file; max 40 files of 60 KB; bad files are reported by name: not JSON, not an ACC setup,
+  unknown car); `/setups/[id]`: the six tabs (Tyres, Electronics, Fuel & Strategy, Mechanical Grip,
+  Dampers, Aero) with each setting in a box (four-wheel settings as a 2x2 car, axle settings Front /
+  Rear), Download (tab-indented .json, counts downloads) and where to put the file; the uploader or an
+  admin edits or deletes. Menu: no entry of its own (the header was full): a Cars | Setups switch on both
+  pages, "Cars" stays highlighted, and the car page links to its setups.
+- Not done: click-to-unit conversion per car (toe, camber, ride height, brake bias in the game's real
+  units need each car's tables), setups of a lap, "setup used" on sessions, ratings of setups.
 
 ## YouTube (web/lib/youtube.ts, /youtube, 2026-10-06)
 - The team's channel @PCGroupRacing (id UCGSgxcvFG5fMuAOMoJAQBZA, title "PCGR"), YouTube Data API v3
