@@ -10,13 +10,14 @@ import { CAR_PARTS, carInfo, carName, OVERALL_INFO, overall, TOP_SPEED_WINGS, ty
 import { sql } from "@/lib/db";
 import { dateTime, lapTime, prettyKey } from "@/lib/format";
 import { scaleColor } from "@/lib/ranks";
+import { isEstimate, sourceLabel } from "@/lib/reference-adjust";
 import { REFERENCE_FACTOR } from "@/lib/references";
 import { trackInfo } from "@/lib/tracks";
 import { CAR_NOTES, CAR_NOTES_SOURCE } from "@/lib/car-notes";
 import RatingForm from "./RatingForm";
 
 type Rating = Record<CarPart | WingKey, number | null> & { note: string | null; source: string | null; updated_at: Date | null; editor: string | null };
-type Ref = { bop: "default" | "lfm"; track_key: string; time_ms: number; ballast_kg: number | null; restrictor_pct: number | null; sheet_date: string | null };
+type Ref = { bop: "default" | "lfm"; track_key: string; time_ms: number; ballast_kg: number | null; restrictor_pct: number | null; sheet_date: string | null; source: string | null };
 type TeamTrack = {
   track_key: string; track: string; laps: number; drivers: number;
   best_ms: number; best_lap: string; best_driver: string; best_bop: string;
@@ -40,7 +41,7 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
     select r.*, d.display_name as editor from car_rating r left join driver d on d.id = r.updated_by
     where r.car_key = ${car}`.catch(() => []);   // before migration 0016: unrated
   const refs = await sql<Ref[]>`
-    select bop, track_key, time_ms, ballast_kg, restrictor_pct, sheet_date from lap_reference where car_key = ${car}`.catch(() => []);
+    select bop, track_key, time_ms, ballast_kg, restrictor_pct, sheet_date, source from lap_reference where car_key = ${car}`.catch(() => []);
   const team = await sql<TeamTrack[]>`
     with laps as (
       select lower(t.key) as track_key, t.key as track, l.id, s.driver_id, d.display_name as driver,
@@ -73,6 +74,7 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
   // An admin's description, else the researched starting one (lib/car-notes.ts)
   const note = rating?.note ?? CAR_NOTES[car] ?? null;
   const sheetDate = refs.find((r) => r.sheet_date)?.sheet_date;
+  const estimated = refs.some((r) => r.bop === "default" && isEstimate(r.source));
 
   return (
     <div className="bleed bleed-lg">
@@ -134,7 +136,7 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
           <div className="p-5 pb-0">
             <SectionTitle icon={Timer}>Reference times and the team&apos;s laps</SectionTitle>
             <p className="-mt-2 mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
-              <span>Reference: OhneSpeed&apos;s sheet{sheetDate ? ` (${sheetDate})` : ""}; target = default BoP qualifying × {REFERENCE_FACTOR} (100 pace).</span>
+              <span>Reference: OhneSpeed&apos;s sheet{sheetDate ? ` (${sheetDate})` : ""}; target = default BoP qualifying × {REFERENCE_FACTOR} (100 pace).{estimated && <> <span className="text-accent">≈</span> = corrected estimate: OhneSpeed&apos;s time for this car looked wrong (hover it).</>}</span>
               <span className="inline-flex items-center gap-1.5"><Users size={13} /> Team: {totals.drivers} drivers · {totals.sessions} sessions · {totals.laps} valid laps · {Math.round(totals.km).toLocaleString("en-GB")} km</span>
             </p>
           </div>
@@ -161,7 +163,13 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
                       <td className="whitespace-nowrap text-zinc-200">
                         {t.team ? <Link href={`/tracks/${t.team.track}`} className="hover:underline">{t.name}</Link> : t.name}
                       </td>
-                      <td className="tabular text-right text-zinc-300">{t.def ? lapTime(t.def.time_ms) : <span className="text-zinc-600">–</span>}</td>
+                      <td className="tabular text-right text-zinc-300">
+                        {t.def ? (
+                          isEstimate(t.def.source)
+                            ? <span title={sourceLabel(t.def.source)} className="cursor-help">{lapTime(t.def.time_ms)} <span className="text-accent">≈</span></span>
+                            : lapTime(t.def.time_ms)
+                        ) : <span className="text-zinc-600">–</span>}
+                      </td>
                       <td className="tabular text-right font-semibold text-white">{target ? lapTime(target) : <span className="font-normal text-zinc-600">–</span>}</td>
                       <td className="text-right">
                         {t.lfm ? (

@@ -1,5 +1,6 @@
 import "server-only";
 import type postgres from "postgres";
+import { sourceShort } from "./reference-adjust";
 import { BOP_LABELS, REFERENCE_FACTOR, type Bop } from "./references";
 
 // Reference lap times per BoP (lib/references.ts: OhneSpeed's sheet, user's choice 2026-10-07). Two
@@ -25,6 +26,7 @@ export type PaceReference = {
 
 type Refs = {
   bop: Bop; car: string | null; own: number | null; own_default: number | null; class_avg: number | null;
+  own_source: string | null; own_default_source: string | null;
   class_avg_default: number | null; car_best: number | null; class_best: number | null;
 };
 
@@ -38,6 +40,8 @@ async function references(db: Sql, sessionId: string): Promise<Refs | null> {
              where ss.track_id = (select track_id from me) and l.comparable)
     select me.bop, me.car_key as car,
       (select r.time_ms from lap_reference r where r.bop = me.bop and r.track_key = me.track_key and r.car_key = me.car_key) as own,
+      (select r.source from lap_reference r where r.bop = me.bop and r.track_key = me.track_key and r.car_key = me.car_key) as own_source,
+      (select r.source from lap_reference r where r.bop = 'default' and r.track_key = me.track_key and r.car_key = me.car_key) as own_default_source,
       (select r.time_ms from lap_reference r where r.bop = 'default' and r.track_key = me.track_key and r.car_key = me.car_key) as own_default,
       (select avg(r.time_ms)::float8 from lap_reference r
         where r.bop = me.bop and r.track_key = me.track_key and r.car_class = me.class and me.class in ('GT3', 'GT4')) as class_avg,
@@ -51,8 +55,9 @@ async function references(db: Sql, sessionId: string): Promise<Refs | null> {
 
 /** The sheet time behind a session's target, and where it comes from. */
 function sheetTime(r: Refs): { ms: number | null; source: string | null } {
-  if (r.own != null) return { ms: r.own, source: `OhneSpeed, ${BOP_LABELS[r.bop]}` };
-  if (r.own_default != null) return { ms: r.own_default, source: `OhneSpeed, ${BOP_LABELS.default}` };
+  // Older GT3s' default-BoP times are corrected estimates (lib/reference-adjust.ts): said so
+  if (r.own != null) return { ms: r.own, source: `${sourceShort(r.own_source)}, ${BOP_LABELS[r.bop]}` };
+  if (r.own_default != null) return { ms: r.own_default, source: `${sourceShort(r.own_default_source)}, ${BOP_LABELS.default}` };
   if (r.class_avg != null) return { ms: r.class_avg, source: `OhneSpeed, class average, ${BOP_LABELS[r.bop]}` };
   if (r.class_avg_default != null) return { ms: r.class_avg_default, source: `OhneSpeed, class average, ${BOP_LABELS.default}` };
   return { ms: null, source: null };

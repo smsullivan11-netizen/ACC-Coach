@@ -1,5 +1,6 @@
 import "server-only";
 import type postgres from "postgres";
+import { adjustDefault } from "./reference-adjust";
 
 // Reference lap times (user's choice, 2026-10-07): OhneSpeed's public "ACC race pace" spreadsheet,
 // read from its published CSV pages. Per car and track: the stock-BoP qualifying time and the LFM-BoP
@@ -176,11 +177,13 @@ export async function importReferences(sql: Sql) {
   const seen = new Set<string>();
   const rows = all.filter((r) => { const k = `${r.bop}|${r.track_key}|${r.car_key}`; return !seen.has(k) && seen.add(k); })
     .map((r) => ({ ...r, sheet_date: date }));
+  // The older GT3s' times and some single tracks are not usable as they are (lib/reference-adjust.ts)
+  const adjusted = adjustDefault(rows);
   await sql.begin(async (tx) => {
     await tx`delete from lap_reference`;
     for (let i = 0; i < rows.length; i += 500) await tx`insert into lap_reference ${tx(rows.slice(i, i + 500))}`;
   });
-  return { references: rows.length, sheetDate: date, tabs: report };
+  return { references: rows.length, sheetDate: date, tabs: report, adjusted };
 }
 
 /** The references, imported once when the table is still empty (first upload or rating after the

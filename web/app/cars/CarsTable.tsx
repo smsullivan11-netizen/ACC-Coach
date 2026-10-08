@@ -14,7 +14,7 @@ export type CarRow = {
 };
 type Key = "overall" | CarPart | "sheetGap";
 
-const SHEET_INFO = "Gap to the class's fastest car in OhneSpeed's sheet (default BoP qualifying times), averaged over the sheet's tracks. Comes from the sheet only: the team's laps never change it.";
+const SHEET_INFO = "Gap to the class's fastest car in OhneSpeed's sheet (default BoP qualifying times), averaged over the sheet's tracks. The sheet's older GT3s are corrected (their times were placeholders): with GOSetups' times where it has the car, else moved up behind the corrected cars in the sheet's order. The team's laps never change it.";
 // Columns of their own; driveability and the team's laps sit under the car's name (user's request:
 // the table fits the page instead of scrolling sideways)
 const COLUMNS = CAR_PARTS.filter((p) => p.key !== "driveability");

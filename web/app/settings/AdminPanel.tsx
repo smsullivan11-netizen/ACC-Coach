@@ -42,7 +42,7 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
     setBusy(false);
     const unknown = res.ok ? (data.tabs as { unknown: string[] }[]).flatMap((t) => t.unknown) : [];
     setMessage(res.ok
-      ? `Read ${data.references} reference times (sheet of ${data.sheetDate ?? "unknown date"})${unknown.length ? `; cars not recognised: ${unknown.join(", ")}` : ""}. Click "Recompute all ratings" to apply them.`
+      ? `Read ${data.references} reference times (sheet of ${data.sheetDate ?? "unknown date"})${unknown.length ? `; cars not recognised: ${unknown.join(", ")}` : ""}${data.adjusted?.length ? `; ${data.adjusted.length} cars corrected (older GT3s, placeholder tracks)` : ""}. Click "Recompute all ratings" to apply them.`
       : data.error);
     router.refresh();
   }

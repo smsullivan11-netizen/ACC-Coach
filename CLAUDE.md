@@ -858,6 +858,21 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   by the import), track names in `TRACKS` (accents stripped: "Nürburgring"). Imported automatically
   when the table is empty (`ensureReferences`: upload, Recompute); admins: Settings → "Update reference
   times" after he updates the sheet, then "Recompute all ratings".
+- Corrected references (lib/reference-adjust.ts, user's report 2026-10-08: "the 488 has never been
+  5.64 % off pace"): OhneSpeed's default-BoP times for older GT3s are placeholders (2018 488 at 105.2 %,
+  nine cars exactly +14.8 % at Laguna Seca, all without race setups in the sheet; current cars 0.2-0.9 %,
+  worst track +1.8 %). Applied at every import (`adjustDefault`), in order: (1) a track more than 3
+  points worse than the car's own median gap is a placeholder: track fastest × (1 + median) (GT3 and
+  GT4: BMW M4 GT4 +11.1 % at Zolder, Aston GT4 +7.5 % Snetterton, Camaro GT4, 991 II and 720S 2019 at
+  Red Bull Ring); (2) GT3s averaging over 2 % that GOSetups has (user's xlsx →
+  `lib/reference-data/gosetups-gt3.json`, 18 cars, default BoP): GOSetups' gap to the Mustang on each
+  track × OhneSpeed's Mustang time (Huracán Evo 2019 +1.09 %, Jaguar G3 +2.31 %); (3) the other older
+  GT3s, user's rule: OhneSpeed's order and spacing kept, the group moved up so its fastest sits behind
+  the slowest corrected car by the gap between the two slowest corrected cars; the Jaguar is left out
+  of that step (user's choice: with it the 488 stayed at +5.2 %). Result 2026-10-08: M6 +1.21 % … 488
+  (2018) +2.84 % … NSX 2017 +5.17 %. Rows keep a `source` (estimate:guard / gosetups / older): car pages
+  mark them "≈" (hover: why), session pages say "Estimate (older car)" / "GOSetups estimate". After a
+  change: Settings → "Update reference times", then "Recompute all ratings". GOSetups credited on /credits.
 - Session BoP (user: the team mostly races default-BoP championships, LFM rarely): `session.bop`
   detected at import = LFM when the server name matches "lowfuelmotorsport.com" (ACC's log names the
   server; server results files already carry a name), else default (offline = always default);

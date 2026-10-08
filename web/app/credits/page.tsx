@@ -52,7 +52,11 @@ export default function CreditsPage() {
         <a href="https://www.youtube.com/@ohne_speed" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-white hover:underline">
           OhneSpeed on YouTube
         </a>
-        ), read from its published pages.
+        ), read from its published pages. Older GT3s whose times there look wrong are corrected with{" "}
+        <a href="https://gosetups.gg/laptimes-sheet" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-white hover:underline">
+          GO Setups&apos; lap times sheet
+        </a>{" "}
+        where it has the car.
       </p>
     </div>
   );
