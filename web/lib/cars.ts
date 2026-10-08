@@ -86,6 +86,12 @@ export const CAR_PARTS = [
   { key: "driveability", label: "Driveability", info: "Ease of driving." },
 ] as const;
 export type CarPart = (typeof CAR_PARTS)[number]["key"];
+/** The two small grey numbers under Top speed: the rating at min wing and at max wing (migration 0018). */
+export const TOP_SPEED_WINGS = [
+  { key: "top_speed_min_wing", label: "Min wing" },
+  { key: "top_speed_max_wing", label: "Max wing" },
+] as const;
+export type WingKey = (typeof TOP_SPEED_WINGS)[number]["key"];
 export const OVERALL_INFO = "Average of the sub-ratings filled in. Entered by the team's admins from their knowledge of the cars, not computed from laps: the team drives too few cars for that.";
 
 /** Average of the sub-ratings filled in; null when none is. */

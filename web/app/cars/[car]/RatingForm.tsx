@@ -3,9 +3,9 @@
 import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CAR_PARTS, type CarPart } from "@/lib/cars";
+import { CAR_PARTS, TOP_SPEED_WINGS, type CarPart, type WingKey } from "@/lib/cars";
 
-type Values = Record<CarPart, number | null> & { note: string | null; source: string | null };
+type Values = Record<CarPart | WingKey, number | null> & { note: string | null; source: string | null };
 
 // Admins: rate a car (0-100 per sub-rating, empty = not rated), with a note and a source.
 export default function RatingForm({ car, initial }: { car: string; initial: Partial<Values> | null }) {
@@ -14,7 +14,7 @@ export default function RatingForm({ car, initial }: { car: string; initial: Par
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [v, setV] = useState<Values>(() => ({
-    ...(Object.fromEntries(CAR_PARTS.map((p) => [p.key, initial?.[p.key] ?? null])) as Record<CarPart, number | null>),
+    ...(Object.fromEntries([...CAR_PARTS, ...TOP_SPEED_WINGS].map((p) => [p.key, initial?.[p.key] ?? null])) as Record<CarPart | WingKey, number | null>),
     note: initial?.note ?? "", source: initial?.source ?? "",
   }));
 
@@ -47,6 +47,16 @@ export default function RatingForm({ car, initial }: { car: string; initial: Par
           <input type="number" min={0} max={100} value={v[p.key] ?? ""} placeholder="–"
                  onChange={(e) => setV({ ...v, [p.key]: e.target.value === "" ? null : Math.max(0, Math.min(100, Math.round(Number(e.target.value)))) })}
                  className="input w-16 py-1 text-right" />
+          {p.key === "top_speed" && (
+            // the two small grey numbers shown under Top speed
+            <span className="ml-1 flex shrink-0 items-center gap-1.5 text-[11px] text-zinc-500">
+              {TOP_SPEED_WINGS.map((x) => (
+                <input key={x.key} type="number" min={0} max={100} value={v[x.key] ?? ""} placeholder={x.label} title={x.label} aria-label={x.label}
+                       onChange={(e) => setV({ ...v, [x.key]: e.target.value === "" ? null : Math.max(0, Math.min(100, Math.round(Number(e.target.value)))) })}
+                       className="input w-[4.5rem] py-1 text-right" />
+              ))}
+            </span>
+          )}
         </label>
       ))}
       <label className="block text-sm text-zinc-300">

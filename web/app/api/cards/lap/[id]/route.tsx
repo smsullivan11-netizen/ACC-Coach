@@ -27,7 +27,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/cards/lap/[i
            d.display_name as driver, t.key as track, c.key as car, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY') as date,
            r.position::int, r.gap_ms,
            (select count(*) from lap_ranking x where x.track_id = s.track_id and x.car_class is not distinct from c.class)::int as drivers,
-           (select round(rf.time_ms * ${REFERENCE_FACTOR})::int from lap_reference rf
+           (select round(rf.time_ms * ${REFERENCE_FACTOR}::float8)::int from lap_reference rf
              where rf.bop = coalesce(s.bop_chosen, s.bop, 'default') and rf.track_key = lower(t.key) and rf.car_key = c.key) as target_ms
     from lap l join session s on s.id = l.session_id join driver d on d.id = s.driver_id join track t on t.id = s.track_id
     left join car c on c.id = s.car_id left join lap_ranking r on r.lap_id = l.id

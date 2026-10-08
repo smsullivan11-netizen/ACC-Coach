@@ -2,7 +2,7 @@ import { CarFront } from "lucide-react";
 import type { Metadata } from "next";
 import { PageTitle, Segmented } from "@/components/ui";
 import { REVIEW_DISCORD_ID, requireDriver } from "@/lib/auth";
-import { CAR_PARTS, CARS, CLASSES, overall, type CarClass, type CarPart } from "@/lib/cars";
+import { CAR_PARTS, CARS, CLASSES, overall, type CarClass, type CarPart, type WingKey } from "@/lib/cars";
 import { sql } from "@/lib/db";
 import CarsTable, { type CarRow } from "./CarsTable";
 
@@ -17,7 +17,7 @@ export default async function CarsPage(props: PageProps<"/cars">) {
   const current: CarClass = CLASSES.find((c) => c === cls) ?? "GT3";
 
   // Without migration 0016 the page still shows the cars, unrated
-  const ratings = await sql<(Record<CarPart, number | null> & { car_key: string })[]>`select * from car_rating`.catch(() => []);
+  const ratings = await sql<(Record<CarPart | WingKey, number | null> & { car_key: string })[]>`select * from car_rating`.catch(() => []);
   const sheet = await sql<{ car_key: string; gap_pct: number; tracks: number }[]>`
     with d as (select car_key, time_ms, min(time_ms) over (partition by track_key, car_class) as best
                from lap_reference where bop = 'default')
@@ -37,6 +37,7 @@ export default async function CarsPage(props: PageProps<"/cars">) {
       key: c.key, name: c.name, year: c.year,
       overall: overall(rating),
       parts: Object.fromEntries(CAR_PARTS.map((p) => [p.key, rating?.[p.key] ?? null])) as Record<CarPart, number | null>,
+      wings: [rating?.top_speed_min_wing ?? null, rating?.top_speed_max_wing ?? null],
       sheetGap: sh.get(c.key)?.gap_pct ?? null, sheetTracks: sh.get(c.key)?.tracks ?? 0,
       drivers: tm.get(c.key)?.drivers ?? 0, laps: tm.get(c.key)?.laps ?? 0, km: tm.get(c.key)?.km ?? 0,
     };

@@ -72,8 +72,8 @@ const Grid = ({ cells }: { cells: Cell[] }) => (
   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{cells.map((c, i) => <CellBox key={`${c.label}${i}`} cell={c} />)}</div>
 );
 
-export default function SetupViewer({ file }: { file: SetupFile }) {
-  const tabs = setupTabs(file);
+export default function SetupViewer({ file, carClass }: { file: SetupFile; carClass?: string | null }) {
+  const tabs = setupTabs(file, carClass);
   const [tab, setTab] = useState(tabs[0].key);
   const current = tabs.find((t) => t.key === tab) ?? tabs[0];
   return (

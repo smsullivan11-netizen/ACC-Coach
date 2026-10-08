@@ -6,7 +6,7 @@ import BopBadge from "@/components/Bop";
 import InfoTip from "@/components/InfoTip";
 import { Chip, delay, PartBar, SectionTitle } from "@/components/ui";
 import { REVIEW_DISCORD_ID, requireDriver } from "@/lib/auth";
-import { CAR_PARTS, carInfo, carName, OVERALL_INFO, overall, type CarPart } from "@/lib/cars";
+import { CAR_PARTS, carInfo, carName, OVERALL_INFO, overall, TOP_SPEED_WINGS, type CarPart, type WingKey } from "@/lib/cars";
 import { sql } from "@/lib/db";
 import { dateTime, lapTime, prettyKey } from "@/lib/format";
 import { scaleColor } from "@/lib/ranks";
@@ -15,7 +15,7 @@ import { trackInfo } from "@/lib/tracks";
 import { CAR_NOTES, CAR_NOTES_SOURCE } from "@/lib/car-notes";
 import RatingForm from "./RatingForm";
 
-type Rating = Record<CarPart, number | null> & { note: string | null; source: string | null; updated_at: Date | null; editor: string | null };
+type Rating = Record<CarPart | WingKey, number | null> & { note: string | null; source: string | null; updated_at: Date | null; editor: string | null };
 type Ref = { bop: "default" | "lfm"; track_key: string; time_ms: number; ballast_kg: number | null; restrictor_pct: number | null; sheet_date: string | null };
 type TeamTrack = {
   track_key: string; track: string; laps: number; drivers: number;
@@ -111,6 +111,11 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
                     </span>
                   </div>
                   <PartBar v={v ?? 0} className="mt-1 h-1.5" />
+                  {p.key === "top_speed" && TOP_SPEED_WINGS.some((x) => rating?.[x.key] != null) && (
+                    <div className="mt-1 flex gap-4 text-[11px] text-zinc-500">
+                      {TOP_SPEED_WINGS.map((x) => <span key={x.key}>{x.label} <span className="tabular text-zinc-400">{rating?.[x.key] ?? "–"}</span></span>)}
+                    </div>
+                  )}
                 </li>
               );
             })}

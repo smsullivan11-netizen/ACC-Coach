@@ -73,74 +73,92 @@ export type Cell =
   | { kind: "axles"; label: string; front: string; rear: string; frontLabel?: string; rearLabel?: string; hint?: string }
   | { kind: "wheels"; label: string; values: string[]; hint?: string }          // FL FR RL RR
   | { kind: "pair"; label: string; values: [string, string]; labels: [string, string]; hint?: string };
+import { fmt, unitsFor } from "./setup-units";
 export type Tab = { key: string; label: string; cells: Cell[]; extra?: { title: string; cells: Cell[] }[] };
 
 const psi = (click: number) => (20.3 + 0.1 * click).toFixed(1);
 const clicks = (v: number) => String(v);
-const litres = (v: number) => `${Math.round(v * 10) / 10} L`;
-const pad = (v: number) => `Pad ${v + 1}`;
+const litres = (v: number) => `${v} L`;
 const compound = (v: number) => (v === 1 ? "Wet" : "Dry");
+const oneBased = (v: number) => String(v + 1);   // tyre set, brake pads, ECU map and pit stops count from 1 in the menu
 
 /** The setup as the game's six setup tabs lay it out (Tyres, Electronics, Fuel & Strategy, Mechanical
- *  Grip, Dampers, Aero). Tolerant: a field missing from an older file is left out. */
-export function setupTabs(f: SetupFile): Tab[] {
+ *  Grip, Dampers, Aero), with the units of the game's menu where they are known for this car
+ *  (lib/setup-units.ts: the clicks are shown otherwise) and the game's own names and order.
+ *  Tolerant: a field missing from an older file is left out. */
+export function setupTabs(f: SetupFile, carClass?: string | null): Tab[] {
+  const u = unitsFor(f.carName, carClass);
   const b = f.basicSetup, a = f.advancedSetup, al = b.alignment, st = b.strategy, mb = a.mechanicalBalance, ae = a.aeroBalance;
   const cells = (list: (Cell | null)[]) => list.filter((c): c is Cell => c != null);
-  const w = (label: string, v: number[] | undefined, fmt: (x: number) => string, hint?: string): Cell | null =>
-    v && v.length === 4 ? { kind: "wheels", label, values: v.map(fmt), hint } : null;
-  const s = (label: string, v: number | undefined, fmt: (x: number) => string = clicks, hint?: string): Cell | null =>
-    v == null ? null : { kind: "single", label, value: fmt(v), hint };
+  // Four wheels: in units when this car's table is known (the label says which), else clicks
+  const w = (label: string, v: number[] | undefined, conv: ((c: number[]) => string[] | null) | null, unit: string, hint?: string): Cell | null => {
+    if (!v || v.length !== 4) return null;
+    const shown = conv?.(v);
+    return shown ? { kind: "wheels", label: `${label}${unit ? ` (${unit})` : ""}`, values: shown, hint }
+                 : { kind: "wheels", label: `${label} (clicks)`, values: v.map(clicks), hint };
+  };
+  const s = (label: string, v: number | undefined, fmtv: (x: number) => string = clicks, hint?: string): Cell | null =>
+    v == null ? null : { kind: "single", label, value: fmtv(v), hint };
+  const axles = (label: string, front: string, rear: string): Cell => ({ kind: "axles", label, front, rear });
 
-  const tyres = cells([
-    s("Compound", b.tyres.tyreCompound, compound),
-    w("Tyre pressures (cold, psi)", b.tyres.tyrePressure, psi, "The game's range starts at 20.3 psi in 0.1 psi clicks"),
-    w("Camber (clicks)", al.camber, clicks, "Clicks as in the game's menu (the degrees depend on ride height and the rest of the setup)"),
-    w("Toe (clicks)", al.toe, clicks),
-    { kind: "pair", label: "Caster (clicks)", values: [clicks(al.casterLF), clicks(al.casterRF)], labels: ["Left", "Right"] },
-    s("Steering ratio", al.steerRatio),
+  const tyres: Cell[] = cells([
+    s("Tyre compound", b.tyres.tyreCompound, compound),
+    w("Tyre pressures", b.tyres.tyrePressure, (c) => c.map(psi), "psi, cold", "The game's range starts at 20.3 psi in 0.1 psi steps"),
+    w("Toe", al.toe, (c) => fmt.toe(u, c), "°"),
+    w("Camber", al.camber, (c) => fmt.camber(u, c), "°"),
+    (() => {
+      const l = fmt.caster(u, al.casterLF), r = fmt.caster(u, al.casterRF);
+      return l && r
+        ? { kind: "pair", label: "Caster", values: [l, r], labels: ["Left", "Right"], hint: u.caster?.estimated ? "The step per click (0.1°) is estimated" : undefined } as Cell
+        : { kind: "pair", label: "Caster (clicks)", values: [clicks(al.casterLF), clicks(al.casterRF)], labels: ["Left", "Right"] } as Cell;
+    })(),
   ]);
   const el = b.electronics;
   const electronics = cells([
-    s("Traction control", el.tC1), s("TC cut (TC2)", el.tC2), s("ABS", el.abs),
-    s("ECU map", el.eCUMap, (v) => `Map ${v + 1}`), s("Fuel mix", el.fuelMix), s("Telemetry laps", el.telemetryLaps),
+    s("TC", el.tC1), s("ABS", el.abs), s("ECU map", el.eCUMap, oneBased), s("Telemetry laps", el.telemetryLaps), s("TC2", el.tC2),
   ]);
   const strategy: Tab = {
     key: "strategy", label: "Fuel & Strategy",
     cells: cells([
-      s("Fuel", st.fuel, litres), s("Pit stops", st.nPitStops), s("Tyre set", st.tyreSet, (v) => String(v + 1)),
-      { kind: "axles", label: "Brake pads", front: pad(st.frontBrakePadCompound), rear: pad(st.rearBrakePadCompound) },
-      s("Fuel per lap (measured)", st.fuelPerLap, (v) => `${v.toFixed(2)} L`),
+      s("Fuel", st.fuel + 2, litres, "The file stores the litres above 2 L"), s("Tyre", b.tyres.tyreCompound, compound), s("Tyre set", st.tyreSet, oneBased),
+      axles("Brakes (pad compound)", oneBased(st.frontBrakePadCompound), oneBased(st.rearBrakePadCompound)),
+      s("Fuel per lap (estimate)", st.fuelPerLap, (v) => `${v.toFixed(2)} L`, "The game's estimate when the setup was saved; it recalculates it for the session you load it in"),
     ]),
-    extra: (st.pitStrategy ?? []).slice(0, Math.max(st.nPitStops, 0)).map((p, i) => ({
-      title: `Pit stop ${i + 1}`,
+    // The game's "N° pitstop" starts at 1: the first stop is pitStrategy[0]
+    extra: (st.pitStrategy ?? []).slice(0, Math.max(st.nPitStops, 0) + 1).map((p, i, all) => ({
+      title: all.length > 1 ? `Pit stop ${i + 1}` : "Pit stop",
       cells: cells([
-        s("Fuel to add", p.fuelToAdd, litres), s("Compound", p.tyres.tyreCompound, compound), s("Tyre set", p.tyreSet, (v) => String(v + 1)),
-        w("Tyre pressures (cold, psi)", p.tyres.tyrePressure, psi),
-        { kind: "axles", label: "Brake pads", front: pad(p.frontBrakePadCompound), rear: pad(p.rearBrakePadCompound) },
+        s("Fuel to add", p.fuelToAdd, litres), s("Tyre", p.tyres.tyreCompound, compound),
+        w("Tyre pressures", p.tyres.tyrePressure, (c) => c.map(psi), "psi, cold"),
+        axles("Brakes (pad compound)", oneBased(p.frontBrakePadCompound), oneBased(p.rearBrakePadCompound)),
       ]),
     })),
   };
+  const bias = fmt.brakeBias(u, mb.brakeBias);
   const mechanical = cells([
-    { kind: "axles", label: "Anti-roll bar", front: clicks(mb.aRBFront), rear: clicks(mb.aRBRear) },
-    w("Wheel rate (springs)", mb.wheelRate, clicks),
-    w("Bump stop rate (up)", mb.bumpStopRateUp, clicks),
-    w("Bump stop rate (down)", mb.bumpStopRateDn, clicks),
-    w("Bump stop range", mb.bumpStopWindow, clicks),
-    s("Brake power", mb.brakeTorque, clicks, "Clicks, as in the game's menu"),
-    s("Brake bias", mb.brakeBias, (v) => (v > 0 ? `+${v}` : String(v)), "Clicks from the car's default"),
-    s("Preload (diff)", a.drivetrain?.preload),
+    axles("Anti-roll bar", clicks(mb.aRBFront), clicks(mb.aRBRear)),
+    s("Brake power", mb.brakeTorque + 80, (v) => `${v} %`, "The file stores the clicks above 80 %"),
+    bias ? { kind: "single", label: "Brake bias", value: bias, hint: u.brakeBias?.estimated ? "0.2 % per click is estimated from the game's screens" : undefined }
+         : s("Brake bias (clicks)", mb.brakeBias, (v) => (v > 0 ? `+${v}` : String(v))),
+    f.basicSetup.alignment.steerRatio != null
+      ? (() => { const v = fmt.steer(u, al.steerRatio); return v ? { kind: "single", label: "Steer ratio", value: v } as Cell : s("Steer ratio (clicks)", al.steerRatio); })()
+      : null,
+    w("Wheel rate", mb.wheelRate, (c) => fmt.wheelRate(u, c), ""),
+    w("Bump stop rate", mb.bumpStopRateUp, (c) => fmt.bumpStopRate(u, c), ""),
+    w("Bump stop range", mb.bumpStopWindow, (c) => c.map(clicks), ""),
+    a.drivetrain?.preload != null ? { kind: "single", label: "Preload differential", value: `${20 + 10 * a.drivetrain.preload} Nm`, hint: "20 Nm + 10 Nm per click" } as Cell : null,
   ]);
   const d = a.dampers;
   const dampers = cells([
-    w("Bump (slow)", d.bumpSlow, clicks), w("Bump (fast)", d.bumpFast, clicks),
-    w("Rebound (slow)", d.reboundSlow, clicks), w("Rebound (fast)", d.reboundFast, clicks),
+    w("Bump", d.bumpSlow, (c) => c.map(clicks), ""), w("Fast bump", d.bumpFast, (c) => c.map(clicks), ""),
+    w("Rebound", d.reboundSlow, (c) => c.map(clicks), ""), w("Fast rebound", d.reboundFast, (c) => c.map(clicks), ""),
   ]);
+  const rh = fmt.rideHeight(u, ae.rideHeight);
   const aero = cells([
-    w("Ride height", ae.rideHeight, clicks, "Clicks above the minimum, as in the game's menu"),
-    s("Splitter", ae.splitter), s("Rear wing", ae.rearWing),
-    ae.brakeDuct?.length === 2
-      ? { kind: "pair", label: "Brake ducts", values: [clicks(ae.brakeDuct[0]), clicks(ae.brakeDuct[1])], labels: ["Front", "Rear"] }
-      : null,
+    rh ? { kind: "axles", label: "Ride height (mm)", front: `${rh[0]}`, rear: `${rh[1]}` } as Cell
+       : axles("Ride height (clicks)", clicks(ae.rideHeight[0]), clicks(ae.rideHeight[2])),
+    s("Rear wing", ae.rearWing), s("Splitter", ae.splitter),
+    ae.brakeDuct?.length === 2 ? axles("Brake ducts", clicks(ae.brakeDuct[0]), clicks(ae.brakeDuct[1])) : null,
   ]);
   return [
     { key: "tyres", label: "Tyres", cells: tyres },

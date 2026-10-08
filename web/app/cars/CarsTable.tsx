@@ -9,7 +9,7 @@ import { CAR_PARTS, OVERALL_INFO, type CarPart } from "@/lib/cars";
 import { scaleColor } from "@/lib/ranks";
 
 export type CarRow = {
-  key: string; name: string; year: number; overall: number | null; parts: Record<CarPart, number | null>;
+  key: string; name: string; year: number; overall: number | null; parts: Record<CarPart, number | null>; wings: (number | null)[];
   sheetGap: number | null; sheetTracks: number; drivers: number; laps: number; km: number;
 };
 type Key = "overall" | CarPart | "sheetGap";
@@ -20,12 +20,18 @@ const SHEET_INFO = "Gap to the class's fastest car in OhneSpeed's sheet (default
 const COLUMNS = CAR_PARTS.filter((p) => p.key !== "driveability");
 const DRIVEABILITY = CAR_PARTS.find((p) => p.key === "driveability")!;
 
-function Part({ v }: { v: number | null | undefined }) {
+function Part({ v, wings }: { v: number | null | undefined; wings?: (number | null)[] }) {
   if (v == null) return <span className="text-zinc-600">–</span>;
   return (
     <div className="ml-auto w-12">
       <div className="text-right font-semibold"><ScaleNumber v={v} /></div>
       <PartBar v={v} className="mt-1 h-1" />
+      {wings && wings.some((x) => x != null) && (
+        // Top speed: its two small grey numbers, min wing then max wing (user's request)
+        <div className="mt-1 flex justify-end gap-2 text-[10px] leading-none text-zinc-500">
+          <span title="Min wing">{wings[0] ?? "–"}</span><span title="Max wing">{wings[1] ?? "–"}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -128,7 +134,7 @@ export default function CarsTable({ rows }: { rows: CarRow[] }) {
                     <span className="tabular text-lg font-bold" style={{ color: scaleColor(r.overall) }}>{r.overall.toFixed(1)}</span>
                   )}
                 </td>
-                {COLUMNS.map((p) => <td key={p.key} className="text-right"><Part v={r.parts[p.key]} /></td>)}
+                {COLUMNS.map((p) => <td key={p.key} className="text-right"><Part v={r.parts[p.key]} wings={p.key === "top_speed" ? r.wings : undefined} /></td>)}
                 <td className="tabular whitespace-nowrap text-right" title={r.sheetTracks ? `Averaged over ${r.sheetTracks} tracks` : undefined}>
                   {r.sheetGap == null ? <span className="text-zinc-600">–</span>
                     : r.sheetGap < 0.005 ? <span className="text-xs font-semibold uppercase tracking-wider text-accent">Fastest</span>

@@ -671,6 +671,11 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 - Ranks (`lib/ranks.ts`, user's scale): Rookie 0, Apprentice 20, Intermediate 40, Advanced 50,
   Contender 60, Front Runner 70, Expert 80, Alien 90. `RankBadge` next to ratings (drivers list,
   profile, dashboard).
+- Webhook bug of 2026-10-08 (the record post of Kyalami had no card): the card route's target query
+  multiplied an integer column by a decimal parameter (`rf.time_ms * $1`, postgres.js sent the 1.01 as
+  an integer: "invalid input syntax for type integer") and failed with a 500 for every lap since the
+  BoP update, so Discord got an embed without image. Cast decimals used against integer columns
+  (`${x}::float8`) and fetch the card of a lap in each new local test.
 - Lap cards: `/api/cards/lap/<id>.png` (next/og ImageResponse, 1200 × 630, track photo, Konexy). Open
   to signed-in members, or with `?s=` = HMAC(CARD_SECRET or DISCORD_CLIENT_SECRET, lap id) so Discord
   can fetch it. Font and photos read from disk: traced via `outputFileTracingIncludes` in
@@ -945,6 +950,9 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   BoP time, the 101 % target, the LFM time with its BoP badge, the team's best lap in the car (driver,
   LFM tag), its gap to the target and laps (top speed dropped at the user's request). "Cars" in the main menu; with it the header's
   "Get the app" label hides from 1280 to 1535 px (icon only), or the header overflowed by 10 px.
+- Top speed's two small grey numbers (user's request): `top_speed_min_wing` / `top_speed_max_wing`
+  (migration 0018, 0-100 each, admin-entered in the same form), shown under the Top speed rating in
+  the list and on the car page; Top speed left empty with both given = their average.
 - `components/InfoTip.tsx`: the "i" box shared by the Drivers and Cars tables.
 - Descriptions (user's request, 2026-10-08, after writing the Ford's own: "Absolute V8 freedom power
   beast..."): `lib/car-notes.ts` holds researched starting texts for the 53 other cars in that short,
@@ -961,8 +969,19 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - The file (checked on the user's 814 real setups, `DocumentsAssetto Corsa CompetizioneSetups<car>  <track>*.json`): exactly `carName`, `basicSetup` (tyres, alignment, electronics, strategy),
   `advancedSetup` (mechanicalBalance, dampers, aeroBalance, drivetrain) and `trackBopType` (a BoP group
   shared by tracks: useless for finding the track). Values are the game's clicks, 0-based. `staticCamber`
-  depends on ride height and more (positive rear values on the 992), so camber is shown in clicks.
-  Tyre pressures = 20.3 psi + 0.1 per click (psi shown); fuel in litres; everything else in clicks.
+  depends on ride height and more (positive rear values on the 992): not used.
+- Units (`lib/setup-units.ts`, user sent three files with screenshots of the game's own setup screens,
+  ACC 1.10.4: Ford Mustang, BMW M4, Porsche 992): the same on all three, so used for every car: tyre
+  pressure 20.3 psi + 0.1 per click; fuel = click + 2 L; tyre set, brake pads, ECU map and the number of
+  pit stops are 1-based in the menu (a file with nPitStops 0 shows "N° pitstop 1": the first stop is
+  pitStrategy[0]); brake power 80 % + 1 per click; preload 20 Nm + 10 per click; GT3 camber -4.0° front /
+  -3.5° rear + 0.1° per click. Per car (known for those three, the others show clicks, labelled
+  "(clicks)"): toe base + 0.01°, caster (0.1° per click is a guess), steering ratio, ride height (front =
+  rideHeight[0], rear = [2]; [1] and [3] were 11 and 18 in every file, unknown), brake bias (0.2 % per
+  click is a guess, bases 48.5 / 49.2 / 43.0), wheel rate (only the values seen) and bump stop rate
+  (BMW 200 + 50 per click, Porsche 300 + 100; `bumpStopRateDn` is not in the game's menu). To add a car:
+  its file next to screenshots of the Tyres, Fuel & Strategy, Mechanical Grip and Aero screens, then
+  its entry in `UNITS` (check with the node snippet in the git history: values must equal the screens).
 - /setups: filters (car, track, type) and an upload box (many .json at once for one track; the car comes
   from each file; max 40 files of 60 KB; bad files are reported by name: not JSON, not an ACC setup,
   unknown car); `/setups/[id]`: the six tabs (Tyres, Electronics, Fuel & Strategy, Mechanical Grip,
@@ -970,8 +989,7 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   Rear), Download (tab-indented .json, counts downloads) and where to put the file; the uploader or an
   admin edits or deletes. Menu: no entry of its own (the header was full): a Cars | Setups switch on both
   pages, "Cars" stays highlighted, and the car page links to its setups.
-- Not done: click-to-unit conversion per car (toe, camber, ride height, brake bias in the game's real
-  units need each car's tables), setups of a lap, "setup used" on sessions, ratings of setups.
+- Not done: units of the other cars, setups of a lap, "setup used" on sessions, ratings of setups.
 
 ## YouTube (web/lib/youtube.ts, /youtube, 2026-10-06)
 - The team's channel @PCGroupRacing (id UCGSgxcvFG5fMuAOMoJAQBZA, title "PCGR"), YouTube Data API v3

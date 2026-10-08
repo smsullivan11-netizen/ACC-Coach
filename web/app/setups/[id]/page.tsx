@@ -64,7 +64,7 @@ export default async function SetupPage(props: PageProps<"/setups/[id]">) {
         </p>
       </div>
 
-      <SetupViewer file={s.data} />
+      <SetupViewer file={s.data} carClass={car?.cls} />
     </div>
   );
 }
