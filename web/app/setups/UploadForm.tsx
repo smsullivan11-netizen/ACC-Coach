@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import AutoTextarea from "@/components/AutoTextarea";
 import { KINDS } from "@/lib/setups";
 
+const NEED_TRACK = "Choose the track these setups are for.";
 type Result = { added: { id: string; name: string }[]; duplicates: string[]; errors: { name: string; error: string }[] };
 
 // Upload ACC setup files (everyone, user's choice for now): one or many .json files at once for one
@@ -23,6 +24,9 @@ export default function UploadForm({ tracks, defaultTrack }: { tracks: { value: 
   const [result, setResult] = useState<Result | null>(null);
 
   async function send() {
+    // Say what is missing (a greyed-out button hid that the track has to be chosen)
+    if (!files.length) return setError("Choose one or more setup files first (the .json files from the Setups folder).");
+    if (!track) return setError(NEED_TRACK);
     setBusy(true);
     setError(null);
     setResult(null);
@@ -51,9 +55,10 @@ export default function UploadForm({ tracks, defaultTrack }: { tracks: { value: 
       <input ref={input} type="file" accept=".json,application/json" multiple onChange={(e) => setFiles([...(e.target.files ?? [])])}
              className="block w-full text-sm text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-sm file:text-white" />
       <div className="flex flex-wrap gap-3">
-        <label className="text-sm text-zinc-300">Track
-          <select value={track} onChange={(e) => setTrack(e.target.value)} className="input ml-2 py-1.5">
-            <option value="">Choose…</option>
+        <label className="text-sm text-zinc-300">Track <span className="text-red-400">*</span>
+          <select value={track} onChange={(e) => { setTrack(e.target.value); setError(null); }}
+                  className={`input ml-2 py-1.5 ${error === NEED_TRACK ? "border-red-400" : ""}`}>
+            <option value="">Choose the track…</option>
             {tracks.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         </label>
@@ -68,8 +73,8 @@ export default function UploadForm({ tracks, defaultTrack }: { tracks: { value: 
         <AutoTextarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={1500} className="input mt-1 w-full" />
       </label>
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" disabled={busy || !files.length || !track} onClick={send} className="btn btn-primary">
-          {busy ? "Uploading…" : `Upload ${files.length || ""} ${files.length === 1 ? "file" : "files"}`.replace("  ", " ")}
+        <button type="button" disabled={busy} onClick={send} className="btn btn-primary">
+          {busy ? "Uploading…" : files.length > 1 ? `Upload ${files.length} files` : "Upload"}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="btn btn-ghost">Close</button>
         {error && <span className="text-xs text-red-400">{error}</span>}

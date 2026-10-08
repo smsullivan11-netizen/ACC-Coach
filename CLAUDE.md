@@ -966,34 +966,26 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   in the list carry a "Driveability" label above them; no bar under the overall score.
 
 ## Setups library (web/app/setups, web/lib/setups.ts, 2026-10-08)
-- User's request: everyone can upload (for now) ACC setup files, shown like the game's own setup
-  screens with GOSetups-style boxes. Table `setup` (migration 0017): car_key, track_key (lowercase,
-  chosen at upload), title, kind (qualifying / race / wet / other, guessed from the file name: Q01, R02,
-  WET…), notes, the file as jsonb, sha256 (one copy per car + track + values), uploader, downloads.
-- The file (checked on the user's 814 real setups, `DocumentsAssetto Corsa CompetizioneSetups<car>  <track>*.json`): exactly `carName`, `basicSetup` (tyres, alignment, electronics, strategy),
-  `advancedSetup` (mechanicalBalance, dampers, aeroBalance, drivetrain) and `trackBopType` (a BoP group
-  shared by tracks: useless for finding the track). Values are the game's clicks, 0-based. `staticCamber`
-  depends on ride height and more (positive rear values on the 992): not used.
-- Units (`lib/setup-units.ts`, user sent three files with screenshots of the game's own setup screens,
-  ACC 1.10.4: Ford Mustang, BMW M4, Porsche 992): the same on all three, so used for every car: tyre
-  pressure 20.3 psi + 0.1 per click; fuel = click + 2 L; tyre set, brake pads, ECU map and the number of
-  pit stops are 1-based in the menu (a file with nPitStops 0 shows "N° pitstop 1": the first stop is
-  pitStrategy[0]); brake power 80 % + 1 per click; preload 20 Nm + 10 per click; GT3 camber -4.0° front /
-  -3.5° rear + 0.1° per click. Per car (known for those three, the others show clicks, labelled
-  "(clicks)"): toe base + 0.01°, caster (0.1° per click is a guess), steering ratio, ride height (front =
-  rideHeight[0], rear = [2]; [1] and [3] were 11 and 18 in every file, unknown), brake bias (0.2 % per
-  click is a guess, bases 48.5 / 49.2 / 43.0), wheel rate (only the values seen) and bump stop rate
-  (BMW 200 + 50 per click, Porsche 300 + 100; `bumpStopRateDn` is not in the game's menu). To add a car:
-  its file next to screenshots of the Tyres, Fuel & Strategy, Mechanical Grip and Aero screens, then
-  its entry in `UNITS` (check with the node snippet in the git history: values must equal the screens).
+- User's request: everyone can upload (for now) ACC setup files; a plain **library**, no viewer (the
+  user dropped the GOSetups-style visualizer: "too inconsistent" from car to car). Table `setup`
+  (migration 0017): car_key, track_key (lowercase, chosen at upload), title, kind (qualifying / race /
+  wet / other, guessed from the file name: Q01, R02, WET…), notes, the file as jsonb, sha256 (one copy
+  per car + track + values), uploader, downloads.
+- The file (checked on the user's 814 real setups, `Documents\Assetto Corsa Competizione\Setups\<car>\
+  <track>\*.json`): exactly `carName`, `basicSetup`, `advancedSetup` and `trackBopType` (a BoP group
+  shared by tracks: useless for finding the track). All 814 pass `setupProblem`; no zip is needed, the
+  .json files are uploaded as they are.
 - /setups: filters (car, track, type) and an upload box (many .json at once for one track; the car comes
   from each file; max 40 files of 60 KB; bad files are reported by name: not JSON, not an ACC setup,
-  unknown car); `/setups/[id]`: the six tabs (Tyres, Electronics, Fuel & Strategy, Mechanical Grip,
-  Dampers, Aero) with each setting in a box (four-wheel settings as a 2x2 car, axle settings Front /
-  Rear), Download (tab-indented .json, counts downloads) and where to put the file; the uploader or an
-  admin edits or deletes. Menu: no entry of its own (the header was full): a Cars | Setups switch on both
-  pages, "Cars" stays highlighted, and the car page links to its setups.
-- Not done: units of the other cars, setups of a lap, "setup used" on sessions, ratings of setups.
+  unknown car). The track is required: the button used to stay grey without saying why (the user "could
+  not post a setup"); it now says "Choose the track these setups are for". `/setups/[id]`: who shared
+  it, type, notes, Download (tab-indented .json, counts downloads) and where to put the file; the
+  uploader or an admin edits or deletes. Menu: no entry of its own (the header was full): a Cars |
+  Setups switch on both pages, "Cars" stays highlighted, the car page links to its setups.
+- History (git c61b07c and before): a viewer with the game's six setup tabs and real units derived from
+  three files + game screenshots (Ford, BMW M4, Porsche 992: pressure 20.3 psi + 0.1 per click, fuel =
+  click + 2 L, tyre set / pads / ECU map / pit stops 1-based, brake power 80 % + click, preload 20 Nm +
+  10 per click, GT3 camber -4.0 / -3.5° + 0.1 per click, per-car toe, ride height, springs...). Dropped.
 
 ## YouTube (web/lib/youtube.ts, /youtube, 2026-10-06)
 - The team's channel @PCGroupRacing (id UCGSgxcvFG5fMuAOMoJAQBZA, title "PCGR"), YouTube Data API v3

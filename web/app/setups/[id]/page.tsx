@@ -7,13 +7,12 @@ import { requireDriver } from "@/lib/auth";
 import { carInfo, carName } from "@/lib/cars";
 import { sql } from "@/lib/db";
 import { dateTime } from "@/lib/format";
-import { KINDS, type SetupFile } from "@/lib/setups";
+import { KINDS } from "@/lib/setups";
 import { trackInfo } from "@/lib/tracks";
 import Actions from "./Actions";
-import SetupViewer from "./SetupViewer";
 
 type Row = {
-  id: string; car_key: string; track_key: string; title: string; kind: string; notes: string | null; data: SetupFile;
+  id: string; car_key: string; track_key: string; title: string; kind: string; notes: string | null;
   uploaded_by: string | null; uploader: string | null; avatar: string | null; created_at: Date; downloads: number; track_folder: string | null;
 };
 
@@ -23,14 +22,13 @@ export async function generateMetadata(props: PageProps<"/setups/[id]">): Promis
   return { title: s?.title ?? "Setup" };
 }
 
-// One setup (Setups library): who shared it for which car and track, the game's six setup tabs,
-// download, and where to put the file.
+// One setup (Setups library): who shared it for which car and track, download, and where to put the file.
 export default async function SetupPage(props: PageProps<"/setups/[id]">) {
   const me = await requireDriver();
   const { id } = await props.params;
   if (!/^\d+$/.test(id)) notFound();
   const [s] = await sql<Row[]>`
-    select s.id, s.car_key, s.track_key, s.title, s.kind, s.notes, s.data, s.uploaded_by, d.display_name as uploader, d.avatar_url as avatar,
+    select s.id, s.car_key, s.track_key, s.title, s.kind, s.notes, s.uploaded_by, d.display_name as uploader, d.avatar_url as avatar,
            s.created_at, s.downloads, (select t.key from track t where lower(t.key) = s.track_key limit 1) as track_folder
     from setup s left join driver d on d.id = s.uploaded_by where s.id = ${id}`;
   if (!s) notFound();
@@ -64,7 +62,6 @@ export default async function SetupPage(props: PageProps<"/setups/[id]">) {
         </p>
       </div>
 
-      <SetupViewer file={s.data} carClass={car?.cls} />
     </div>
   );
 }

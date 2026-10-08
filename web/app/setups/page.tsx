@@ -15,11 +15,11 @@ export const metadata: Metadata = { title: "Setups" };
 
 type Row = {
   id: string; car_key: string; track_key: string; title: string; kind: string; uploader: string | null; avatar: string | null;
-  created_at: Date; downloads: number; wing: number | null; psi_f: number | null; psi_r: number | null; tc: string | null; abs: number | null; bias: number | null;
+  created_at: Date; downloads: number;
 };
 
 // Setups library (user's request, 2026-10-08): ACC setup files shared by the team, by car and track.
-// Everyone can upload for now; each setup opens as the game's own setup screens.
+// Everyone can upload for now; a plain library: find, download, share (no viewer).
 export default async function SetupsPage(props: PageProps<"/setups">) {
   await requireDriver();
   const sp = await props.searchParams;
@@ -28,12 +28,7 @@ export default async function SetupsPage(props: PageProps<"/setups">) {
 
   // Without migration 0017 the page still opens, empty
   const rows = await sql<Row[]>`
-    select s.id, s.car_key, s.track_key, s.title, s.kind, d.display_name as uploader, d.avatar_url as avatar, s.created_at, s.downloads,
-           (s.data #>> '{advancedSetup,aeroBalance,rearWing}')::int as wing,
-           (s.data #>> '{basicSetup,tyres,tyrePressure,0}')::float8 as psi_f, (s.data #>> '{basicSetup,tyres,tyrePressure,2}')::float8 as psi_r,
-           (s.data #>> '{basicSetup,electronics,tC1}') || '/' || (s.data #>> '{basicSetup,electronics,tC2}') as tc,
-           (s.data #>> '{basicSetup,electronics,abs}')::int as abs,
-           (s.data #>> '{advancedSetup,mechanicalBalance,brakeBias}')::int as bias
+    select s.id, s.car_key, s.track_key, s.title, s.kind, d.display_name as uploader, d.avatar_url as avatar, s.created_at, s.downloads
     from setup s left join driver d on d.id = s.uploaded_by
     where (${car} = '' or s.car_key = ${car}) and (${track} = '' or s.track_key = ${track}) and (${kind} = '' or s.kind = ${kind})
     order by s.created_at desc, s.id desc limit 300`.catch(() => [] as Row[]);
@@ -41,11 +36,10 @@ export default async function SetupsPage(props: PageProps<"/setups">) {
   const cars = [...new Set(facets.map((f) => f.car_key))].map((c) => ({ value: c, label: carName(c) })).sort((a, b) => a.label.localeCompare(b.label));
   const tracksWith = [...new Set(facets.map((f) => f.track_key))].map((t) => ({ value: t, label: TRACKS[t]?.name ?? t })).sort((a, b) => a.label.localeCompare(b.label));
   const allTracks = Object.entries(TRACKS).map(([value, t]) => ({ value, label: t.name })).sort((a, b) => a.label.localeCompare(b.label));
-  const psi = (click: number | null) => (click == null ? "–" : (20.3 + 0.1 * click).toFixed(1));
 
   return (
     <div className="bleed bleed-lg">
-      <PageTitle icon={Settings2} sub="ACC setups shared by the team: open one to see it like the game's setup screens, download it into your own setups folder.">
+      <PageTitle icon={Settings2} sub="The team's ACC setup files, by car and track: download one into your own setups folder.">
         Setups
       </PageTitle>
       <div className="mb-5 flex flex-wrap items-start gap-x-4 gap-y-3">
@@ -55,19 +49,16 @@ export default async function SetupsPage(props: PageProps<"/setups">) {
       </div>
 
       <div className="card card-red rise overflow-x-auto">
-        <table className="data-table min-w-[900px]">
+        <table className="data-table min-w-[760px]">
           <thead>
             <tr>
               <th>Setup</th><th>Car</th><th>Track</th><th>Type</th>
-              <th className="text-right" title="Rear wing, in the game's clicks">Wing</th>
-              <th className="text-right" title="Cold tyre pressures, front left / rear left, in psi">Pressures</th>
-              <th className="text-right" title="Traction control / TC cut / ABS">TC / ABS</th>
               <th>By</th><th className="text-right">Downloads</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={9} className="py-8 text-center text-zinc-500">
+              <tr><td colSpan={6} className="py-8 text-center text-zinc-500">
                 {car || track || kind ? "No setup matches these filters." : "No setup yet: be the first, use “Upload setups”."}
               </td></tr>
             )}
@@ -80,9 +71,6 @@ export default async function SetupsPage(props: PageProps<"/setups">) {
                 <td className="whitespace-nowrap text-zinc-300">{carName(r.car_key)}</td>
                 <td className="whitespace-nowrap text-zinc-300">{TRACKS[r.track_key]?.name ?? r.track_key}</td>
                 <td><Chip tone={r.kind === "qualifying" ? "yellow" : r.kind === "race" ? "red" : r.kind === "wet" ? "blue" : "grey"}>{KINDS.find((k) => k.value === r.kind)?.label ?? r.kind}</Chip></td>
-                <td className="tabular text-right text-zinc-300">{r.wing ?? "–"}</td>
-                <td className="tabular whitespace-nowrap text-right text-zinc-300">{psi(r.psi_f)} / {psi(r.psi_r)}</td>
-                <td className="tabular whitespace-nowrap text-right text-zinc-300">{r.tc ?? "–"} / {r.abs ?? "–"}</td>
                 <td>
                   <span className="inline-flex items-center gap-2 whitespace-nowrap text-zinc-300"><Avatar url={r.avatar} name={r.uploader ?? "?"} size={20} /> {r.uploader ?? "–"}</span>
                 </td>
