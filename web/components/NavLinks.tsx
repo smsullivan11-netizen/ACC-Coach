@@ -23,7 +23,7 @@ function useActive() {
     (exact ? path === href || (href === "/" && path === "/progress") : path === href || path.startsWith(`${href}/`));
 }
 
-// Main navigation (header redesign, user's request 2026-10-07): the sections sit in a recessed tray,
+// Main navigation (header redesign, user's request 2026-10-07; lighter 2026-10-09): the sections sit in trays,
 // the current one is a raised tile with a yellow icon and the red bar. Labels from xl up (icons with
 // tooltips below); on phones the tray takes a row of its own under the logo (see app/layout.tsx).
 export default function NavLinks() {
@@ -32,15 +32,15 @@ export default function NavLinks() {
     // Each group in its own recessed tray, the trays apart (user's request: the groups must read as groups)
     <div className="order-last flex w-full min-w-0 items-center justify-between gap-1.5 overflow-x-auto [scrollbar-width:none] md:shrink-0 md:overflow-visible [&::-webkit-scrollbar]:hidden md:order-none md:w-auto md:justify-start md:gap-2.5 xl:gap-3.5">
       {GROUPS.map((group, g) => (
-        <div key={g} className="flex shrink-0 items-center gap-0.5 rounded-xl border border-white/[0.07] bg-black/40 p-1 shadow-[inset_0_1px_3px_rgb(0_0_0/0.6)]">
+        <div key={g} className="flex shrink-0 items-center gap-0.5 rounded-xl border border-white/[0.11] bg-white/[0.05] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.07),0_4px_14px_-6px_rgb(0_0_0/0.8)]">
       {group.map(({ href, label, icon: Icon, exact, iconOnly }) => {
         const on = active(href, exact);
         return (
           <Link key={href} href={href} title={label} aria-current={on ? "page" : undefined}
-                className={`relative flex h-9 shrink-0 items-center gap-2 rounded-lg px-2.5 text-sm transition-colors xl:px-3 ${
-                  on ? "bg-white/[0.09] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.08),0_2px_6px_-2px_rgb(0_0_0/0.8)] ring-1 ring-white/10"
-                     : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"}`}>
-            <Icon size={16} className={on ? "text-accent" : ""} />
+                className={`group relative flex h-9 shrink-0 items-center gap-2 rounded-lg px-2.5 text-sm transition-colors xl:px-3 ${
+                  on ? "bg-white/[0.13] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_2px_8px_-2px_rgb(0_0_0/0.7)] ring-1 ring-white/15"
+                     : "text-zinc-300 hover:bg-white/[0.08] hover:text-white"}`}>
+            <Icon size={16} className={on ? "text-accent" : "text-zinc-400 transition-colors group-hover:text-white"} />
             {!iconOnly && <span className="hidden whitespace-nowrap xl:inline">{label}</span>}
             {on && <span className="absolute inset-x-2.5 bottom-[3px] h-0.5 rounded-full bg-race xl:inset-x-3" />}
           </Link>

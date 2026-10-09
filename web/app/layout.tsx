@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${konexy.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        <header className="sticky top-0 z-30 bg-black/55 shadow-[0_12px_32px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl backdrop-saturate-150">
+        <header className="sticky top-0 z-30 border-t border-white/[0.06] bg-[linear-gradient(180deg,rgb(34_34_38/0.92),rgb(22_22_25/0.92))] shadow-[0_12px_32px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl backdrop-saturate-150">
           {/* Three groups (user's request 2026-10-07): the logo, the sections in a recessed tray
               (components/NavLinks), and on the right "Get the app" + the account capsule (guide,
               profile, sign out, split by thin dividers). Phones: the tray goes to a second row. */}
@@ -46,18 +46,18 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 <NavLinks />
                 <div className="ml-auto flex shrink-0 items-center gap-2 2xl:gap-3">
                   <GetAppLink />
-                  <div className="flex h-11 items-center rounded-full border border-white/10 bg-white/[0.04] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_4px_14px_-6px_rgb(0_0_0/0.9)]">
+                  <div className="flex h-11 items-center rounded-full border border-white/[0.12] bg-white/[0.06] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.09),0_4px_14px_-6px_rgb(0_0_0/0.8)]">
                     <Tutorial seen={guideSeen} />
                     <span className="mx-0.5 h-5 w-px bg-white/10" />
                     <Link href="/settings" title="Your profile and settings"
-                          className="flex h-9 items-center gap-2 rounded-full pl-1 pr-1 text-sm text-zinc-200 transition-colors hover:bg-white/[0.07] hover:text-white xl:pr-3">
+                          className="flex h-9 items-center gap-2 rounded-full pl-1 pr-1 text-sm text-zinc-100 transition-colors hover:bg-white/[0.09] hover:text-white xl:pr-3">
                       <Avatar url={driver.avatar_url} name={driver.display_name} size={28} />
                       <span className="hidden max-w-24 truncate xl:inline">{driver.display_name}</span>
                     </Link>
                     <span className="mx-0.5 h-5 w-px bg-white/10" />
                     <form action="/auth/logout" method="post">
                       <button title="Sign out" aria-label="Sign out"
-                              className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-race/15 hover:text-red-300">
+                              className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-race/15 hover:text-red-300">
                         <LogOut size={16} />
                       </button>
                     </form>
