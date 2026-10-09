@@ -1,17 +1,17 @@
 "use client";
 
-import { CarFront, Clapperboard, Download, Flag, LayoutDashboard, MonitorPlay, Trophy, Users } from "lucide-react";
+import { CarFront, Clapperboard, Download, Flag, House, MonitorPlay, Trophy, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const LINKS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/telemetry", label: "Telemetry", icon: MonitorPlay },
-  { href: "/sessions", label: "Sessions", icon: Flag },
-  { href: "/tracks", label: "Leaderboards", icon: Trophy },
-  { href: "/cars", label: "Cars", icon: CarFront },
-  { href: "/drivers", label: "Drivers", icon: Users },
-  { href: "/youtube", label: "YouTube", icon: Clapperboard },
+type NavLink = { href: string; label: string; icon: LucideIcon; exact?: boolean; iconOnly?: boolean };
+// Sections that go together, the groups slightly apart (user's request, 2026-10-09): the Dashboard alone as
+// a home button, then analysis (Telemetry, Cars & Setups), the team (Sessions, Leaderboards, Drivers), YouTube
+const GROUPS: NavLink[][] = [
+  [{ href: "/", label: "Dashboard", icon: House, exact: true, iconOnly: true }],
+  [{ href: "/telemetry", label: "Telemetry", icon: MonitorPlay }, { href: "/cars", label: "Cars & Setups", icon: CarFront }],
+  [{ href: "/sessions", label: "Sessions", icon: Flag }, { href: "/tracks", label: "Leaderboards", icon: Trophy }, { href: "/drivers", label: "Drivers", icon: Users }],
+  [{ href: "/youtube", label: "YouTube", icon: Clapperboard }],
 ];
 
 function useActive() {
@@ -29,8 +29,10 @@ function useActive() {
 export default function NavLinks() {
   const active = useActive();
   return (
-    <div className="order-last flex w-full min-w-0 items-center justify-between gap-0.5 overflow-x-auto [scrollbar-width:none] md:shrink-0 md:overflow-visible [&::-webkit-scrollbar]:hidden rounded-xl border border-white/[0.07] bg-black/40 p-1 shadow-[inset_0_1px_3px_rgb(0_0_0/0.6)] md:order-none md:w-auto md:justify-start">
-      {LINKS.map(({ href, label, icon: Icon, exact }) => {
+    <div className="order-last flex w-full min-w-0 items-center justify-between gap-2 overflow-x-auto [scrollbar-width:none] md:shrink-0 md:overflow-visible [&::-webkit-scrollbar]:hidden rounded-xl border border-white/[0.07] bg-black/40 p-1 shadow-[inset_0_1px_3px_rgb(0_0_0/0.6)] md:order-none md:w-auto md:justify-start xl:gap-3">
+      {GROUPS.map((group, g) => (
+        <div key={g} className="flex shrink-0 items-center gap-0.5">
+      {group.map(({ href, label, icon: Icon, exact, iconOnly }) => {
         const on = active(href, exact);
         return (
           <Link key={href} href={href} title={label} aria-current={on ? "page" : undefined}
@@ -38,11 +40,13 @@ export default function NavLinks() {
                   on ? "bg-white/[0.09] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.08),0_2px_6px_-2px_rgb(0_0_0/0.8)] ring-1 ring-white/10"
                      : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"}`}>
             <Icon size={16} className={on ? "text-accent" : ""} />
-            <span className="hidden whitespace-nowrap xl:inline">{label}</span>
+            {!iconOnly && <span className="hidden whitespace-nowrap xl:inline">{label}</span>}
             {on && <span className="absolute inset-x-2.5 bottom-[3px] h-0.5 rounded-full bg-race xl:inset-x-3" />}
           </Link>
         );
       })}
+        </div>
+      ))}
     </div>
   );
 }
