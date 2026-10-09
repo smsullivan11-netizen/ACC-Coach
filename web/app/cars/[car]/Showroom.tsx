@@ -1,6 +1,6 @@
 import { Settings2 } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import InfoTip from "@/components/InfoTip";
 import { Chip, PartBar } from "@/components/ui";
 import { brandLogo } from "@/lib/brand-logos";
@@ -38,6 +38,10 @@ function Hud({ side, title, info, children }: { side: "left" | "right"; title: s
 // the HUDs sit flat under the stage, and below 640 px the description too.
 export default function Showroom({ car, name, cls, year, cutout, overall, setups, parts, wings, rated, specs, note, noteInfo }: Props) {
   const logo = brandLogo(car);
+  // A wide logo (the Mustang's pony, Jaguar's leaper, Ginetta's wordmark) keeps its proportions and is
+  // made lower, so it is about as big on the wall as a round one
+  const [, , vw, vh] = (logo?.viewBox ?? "0 0 24 24").split(" ").map(Number);
+  const logoBox = { aspectRatio: `${vw} / ${vh}`, "--logo-k": Math.min(1, 1.8 / (vw / vh)) } as CSSProperties;
   const specRows: Row[] = specs ? ([
     { k: "Engine", v: specs.engine.replace(/ \(.*\)$/, ""), sub: specs.aspiration },
     specs.displacement && { k: "Displacement", v: specs.displacement.toLocaleString("en-GB"), unit: "cc" },
@@ -85,8 +89,8 @@ export default function Showroom({ car, name, cls, year, cutout, overall, setups
         <div className="stage-panel stage-panel-in" style={{ right: "13%", top: "33%", height: "24%" }} />
         <div className="stage-panel red stage-panel-out" style={{ right: "6%" }} />
         <div className="stage-beam" />
-        <div className="stage-logo" aria-hidden>
-          {logo ? <svg viewBox="0 0 24 24"><path d={logo.path} /></svg> : <span>{name.split(" ")[0].replace(/^Emil$/, "Jaguar").toUpperCase()}</span>}
+        <div className="stage-logo" aria-hidden style={logoBox}>
+          {logo ? <svg viewBox={logo.viewBox ?? "0 0 24 24"}><path d={logo.path} fillRule="evenodd" /></svg> : <span>{name.split(" ")[0].toUpperCase()}</span>}
         </div>
         <div className="stage-floor" />
         <div className="stage-horizon" />

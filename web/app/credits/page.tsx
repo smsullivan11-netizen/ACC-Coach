@@ -35,6 +35,23 @@ export default function CreditsPage() {
         Icons: Lucide (ISC licence).
       </p>
       <p className="mt-3 text-sm text-zinc-500">
+        Car makers&apos; logos on the car pages: the trademarks of Alpine, Aston Martin, Audi, Bentley, BMW, Chevrolet,
+        Ferrari, Ford (and its Mustang pony), Ginetta, Honda, Jaguar, KTM, Lamborghini, Lexus, Maserati, McLaren,
+        Mercedes-AMG, Nissan and Porsche, shown only to identify their cars; no endorsement implied. Drawings from{" "}
+        <a href="https://simpleicons.org" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-white hover:underline">
+          Simple Icons
+        </a>{" "}
+        (CC0),{" "}
+        <a href="https://commons.wikimedia.org" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-white hover:underline">
+          Wikimedia Commons
+        </a>
+        , Wikipedia and{" "}
+        <a href="https://worldvectorlogo.com" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-white hover:underline">
+          worldvectorlogo.com
+        </a>
+        , redrawn in one colour.
+      </p>
+      <p className="mt-3 text-sm text-zinc-500">
         Track widths on the maps of Barcelona, Brands Hatch, COTA, Hungaroring, Monza, Nürburgring GP, Red Bull Ring,
         Silverstone, Spa, Suzuka and Zandvoort:{" "}
         <a href="https://github.com/TUMFTM/racetrack-database" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-white hover:underline">

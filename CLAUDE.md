@@ -998,9 +998,16 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   "photoshopped in") by a wide soft shadow, a tight dark one and its own silhouette flattened onto the
   floor (`.contact`: brightness(0), scaleY(-0.09) from its bottom edge), with its reflection under
   them; its description (admin's note or lib/car-notes.ts) under it on the stage (under the stage on
-  phones). Logos: `lib/brand-logos.ts`, monochrome paths from Simple Icons (CC0; AMG for the
-  Mercedes; Alpine, Ginetta, Jaguar and Lexus are not in it: the make is written, glowing). The make
-  written huge in outline was tried first and replaced by the logo (user's choice).
+  phones). Logos: `lib/brand-logos.ts`, monochrome paths: Simple Icons (CC0; AMG for the Mercedes) for
+  most makes; Alpine's "A", Ginetta's wordmark, Jaguar's leaper (solid), the Lexus emblem and, for the
+  Mustang only (CAR_LOGOS), its running pony: the makers' own logos (user's choice 2026-10-09:
+  commercial logos are fine, credited on /credits, shown only to identify the cars), from Wikimedia
+  Commons, Wikipedia and worldvectorlogo.com, the wanted parts rendered big and traced into one even-odd
+  path (OpenCV contours). A wide logo keeps its proportions (viewBox) and is made lower (--logo-k) so
+  it is about as big as a round one. The make written huge in outline was tried first (user's choice
+  to replace it). The logo looks 3D and floating (user's request): a 5 px extruded edge (stacked 1 px
+  drop-shadows going darker), a shadow cast on the wall below it, a slow bob (its wall shadow shrinks
+  as it rises).
   Two HUDs on the stage beside the car (user's request: "part of the stage, something our eyes can
   touch", in Konexy): `.hud` glass totems with no solid background, turned towards the car
   (rotateY ±14°), team-coloured top line, sharp 1 px frame, lit base edge, contact shadow; they zoom
