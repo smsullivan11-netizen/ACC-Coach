@@ -111,7 +111,7 @@ export default function Showroom({ car, name, cls, year, cutout, overall, setups
         {huds}
 
         {/* Name plate and overall rating on the wall */}
-        <div className="pointer-events-auto! left-4 top-4 max-w-[60%] sm:left-7 sm:top-6 sm:max-w-[38%]">
+        <div className="pointer-events-auto! left-4 top-4 max-w-[52%] sm:left-7 sm:top-6 sm:max-w-[38%]">
           <div className="flex items-center gap-2 text-xs text-zinc-300"><Chip tone="yellow">{cls}</Chip> {year}</div>
           <h1 className={`display mt-1.5 text-xl leading-tight text-white drop-shadow-[0_2px_12px_rgb(0_0_0/0.8)] sm:text-3xl ${name.length > 22 ? "" : "xl:text-4xl"}`}>{name}</h1>
           <Link href={`/setups?car=${car}`} className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-accent hover:underline sm:text-sm">
@@ -123,7 +123,7 @@ export default function Showroom({ car, name, cls, year, cutout, overall, setups
             Overall <InfoTip text={OVERALL_INFO} side="right" />
           </div>
           {overall == null ? <div className="text-sm text-zinc-500">not rated yet</div>
-            : <div className="tabular display text-3xl drop-shadow-[0_2px_12px_rgb(0_0_0/0.8)] sm:text-5xl" style={{ color: scaleColor(overall) }}>{overall.toFixed(1)}</div>}
+            : <div className="tabular display mt-1 text-5xl leading-none drop-shadow-[0_4px_18px_rgb(0_0_0/0.85)] sm:text-7xl xl:text-[7.5rem]" style={{ color: scaleColor(overall) }}>{overall.toFixed(1)}</div>}
         </div>
       </section>
 

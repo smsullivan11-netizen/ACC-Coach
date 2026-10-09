@@ -1003,8 +1003,11 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   written huge in outline was tried first and replaced by the logo (user's choice).
   Two HUDs on the stage beside the car (user's request: "part of the stage, something our eyes can
   touch", in Konexy): `.hud` glass totems with no solid background, turned towards the car
-  (rotateY ±20°), team-coloured top line, lit base edge, contact shadow, reflection in the floor
-  (-webkit-box-reflect); they zoom in and turn towards the viewer under the cursor. Left "Ratings"
+  (rotateY ±14°), team-coloured top line, sharp 1 px frame, lit base edge, contact shadow; they zoom
+  in and face the viewer under the cursor. Kept crisp (user: they looked "blurry, low resolution"): no
+  backdrop-filter, text glow, preserve-3d or -webkit-box-reflect (Chrome then draws the HUD as a
+  texture and resamples its text; the floor reflection went with it), labels at least 0.64rem.
+  Overall score on the wall 2.5 × bigger (user's request: 7.5rem from 1280 px). Left "Ratings"
   (the admins' sub-ratings with their coloured bars, top speed at min and max wing, "Rated by"),
   right "The car" (specs). The car is smaller there (48 %) and the inner LED panels hide. Below 1280 px
   the same HUDs sit flat under the stage. Under the stage: "Edit the ratings" (admins), then the
