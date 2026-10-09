@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${konexy.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        <header className="sticky top-0 z-30 border-t border-white/[0.06] bg-[linear-gradient(180deg,rgb(34_34_38/0.92),rgb(22_22_25/0.92))] shadow-[0_12px_32px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl backdrop-saturate-150">
+        <header className="header-skin sticky top-0 z-30 border-t border-white/[0.07] shadow-[0_12px_32px_-12px_rgb(0_0_0/0.9)]">
           {/* Three groups (user's request 2026-10-07): the logo, the sections in a recessed tray
               (components/NavLinks), and on the right "Get the app" + the account capsule (guide,
               profile, sign out, split by thin dividers). Phones: the tray goes to a second row. */}
@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 <NavLinks />
                 <div className="ml-auto flex shrink-0 items-center gap-2 2xl:gap-3">
                   <GetAppLink />
-                  <div className="flex h-11 items-center rounded-full border border-white/[0.12] bg-white/[0.06] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.09),0_4px_14px_-6px_rgb(0_0_0/0.8)]">
+                  <div className="flex h-11 items-center rounded-full border border-white/[0.12] bg-[rgb(12_12_14/0.55)] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.08),0_4px_14px_-6px_rgb(0_0_0/0.8)] backdrop-blur-sm">
                     <Tutorial seen={guideSeen} />
                     <span className="mx-0.5 h-5 w-px bg-white/10" />
                     <Link href="/settings" title="Your profile and settings"
