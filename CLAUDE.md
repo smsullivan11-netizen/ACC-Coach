@@ -991,17 +991,26 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Car page showroom (user's request, 2026-10-09: "a cool show-off stage", the car "much much bigger",
   "every stat we can think of, we'll filter later"): `app/cars/[car]/Showroom.tsx` replaces the old
   header (side view beside the name, background picture: both dropped). A stage drawn in CSS only
-  (`.stage*` in globals.css: slatted wall with the make in huge outlined letters, LED panels in team
-  yellow / white / red, ceiling bar and light beam, polished floor with a perspective grid, turntable,
-  glows, vignette), the name, class, year, setups link and overall on the wall; the car as a transparent
-  cut-out with a contact shadow and its reflection in the floor ("Car picture to come" without one).
+  (`.stage*` in globals.css: slatted wall, LED panels in team yellow / white / red, the make's logo
+  glowing in the middle with the light beam it throws on the car, polished floor with a perspective
+  grid, turntable, glows, vignette), the name, class, year, setups link and overall on the wall; the
+  car as a transparent cut-out ("Car picture to come" without one), grounded (user: it looked
+  "photoshopped in") by a wide soft shadow, a tight dark one and its own silhouette flattened onto the
+  floor (`.contact`: brightness(0), scaleY(-0.09) from its bottom edge), with its reflection under
+  them; its description (admin's note or lib/car-notes.ts) under it on the stage (under the stage on
+  phones). Logos: `lib/brand-logos.ts`, monochrome paths from Simple Icons (CC0; AMG for the
+  Mercedes; Alpine, Ginetta, Jaguar and Lexus are not in it: the make is written, glowing). The make
+  written huge in outline was tried first and replaced by the logo (user's choice).
   Two HUDs on the stage beside the car (user's request: "part of the stage, something our eyes can
   touch", in Konexy): `.hud` glass totems with no solid background, turned towards the car
   (rotateY ±20°), team-coloured top line, lit base edge, contact shadow, reflection in the floor
-  (-webkit-box-reflect); left "The car" (specs), right "On track" (measured top speed at min and max
-  wing, sheet pace with its rank in the class, team laps, distance). The car is smaller there (50 %)
-  and the inner LED panels hide. Below 1280 px the same HUDs sit flat under the stage. A headline-numbers
-  row and a "Racing record" (real-world wins) were shown first and dropped (user's choice).
+  (-webkit-box-reflect); they zoom in and turn towards the viewer under the cursor. Left "Ratings"
+  (the admins' sub-ratings with their coloured bars, top speed at min and max wing, "Rated by"),
+  right "The car" (specs). The car is smaller there (48 %) and the inner LED panels hide. Below 1280 px
+  the same HUDs sit flat under the stage. Under the stage: "Edit the ratings" (admins), then the
+  reference times table across the page's full width. Shown first and dropped (user's choices): a
+  headline-numbers row, a "Racing record" (real-world wins), an "On track" HUD (team laps, sheet pace)
+  and the Ratings card beside the table.
   Cut-outs: `tools/car_images/cutout.py` (rembg's "birefnet-general"; isnet lost wings) → `public/media/
   cars/cutout/<car>.webp` (1600 px, alpha; `cutout` in car-images.json). The default livery's white "0"
   number plate is painted over (user's request): small plate (+ #FANATECGT strip) or big panel

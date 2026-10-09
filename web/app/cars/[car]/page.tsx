@@ -1,17 +1,16 @@
-import { ArrowLeft, Gauge, Timer, Users } from "lucide-react";
+import { ArrowLeft, Timer, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import BopBadge from "@/components/Bop";
 import InfoTip from "@/components/InfoTip";
-import { delay, PartBar, SectionTitle } from "@/components/ui";
+import { delay, SectionTitle } from "@/components/ui";
 import { REVIEW_DISCORD_ID, requireDriver } from "@/lib/auth";
 import { carCutout } from "@/lib/car-images";
 import { carSpecs } from "@/lib/car-specs";
-import { CAR_PARTS, carInfo, carName, overall, TOP_SPEED_WINGS, type CarPart, type WingKey } from "@/lib/cars";
+import { CAR_PARTS, carInfo, carName, overall, type CarPart, type WingKey } from "@/lib/cars";
 import { sql } from "@/lib/db";
 import { dateTime, lapTime, prettyKey } from "@/lib/format";
-import { scaleColor } from "@/lib/ranks";
 import { isEstimate, sourceLabel } from "@/lib/reference-adjust";
 import { REFERENCE_FACTOR } from "@/lib/references";
 import { trackInfo } from "@/lib/tracks";
@@ -31,8 +30,9 @@ export async function generateMetadata(props: PageProps<"/cars/[car]">): Promise
   return { title: carInfo(car) ? carName(car) : "Cars" };
 }
 
-// One car (user's request, 2026-10-07): the admins' ratings with each sub-rating's text, then per
-// track the reference times (OhneSpeed's sheet, both BoPs, the 101 % rating target) next to the
+// One car (user's request, 2026-10-07): the showroom (Showroom.tsx: the car on a stage with the admins'
+// ratings and the real car's specs beside it, its description under it), then, the page's full width,
+// per track the reference times (OhneSpeed's sheet, both BoPs, the 101 % rating target) next to the
 // team's best lap and laps in this car.
 export default async function CarPage(props: PageProps<"/cars/[car]">) {
   const me = await requireDriver();
@@ -76,14 +76,6 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
   const total = overall(rating);
   // An admin's description, else the researched starting one (lib/car-notes.ts)
   const note = rating?.note ?? CAR_NOTES[car] ?? null;
-  // Sheet pace: the gap to the class's fastest car, averaged over the tracks (as on the Cars page)
-  const sheet = await sql<{ car_key: string; gap_pct: number }[]>`
-    with d as (select car_key, time_ms, min(time_ms) over (partition by track_key, car_class) as best
-               from lap_reference where bop = 'default')
-    select car_key, avg(time_ms::float8 / best - 1) * 100 as gap_pct from d group by car_key`.catch(() => []);
-  const classGaps = sheet.filter((s) => carInfo(s.car_key)?.cls === info.cls).sort((a, b) => a.gap_pct - b.gap_pct);
-  const mine = classGaps.findIndex((s) => s.car_key === car);
-  const sheetPace = mine < 0 ? null : { gap: classGaps[mine].gap_pct - classGaps[0].gap_pct, rank: mine + 1, of: classGaps.length };
   const sheetDate = refs.find((r) => r.sheet_date)?.sheet_date;
   const estimated = refs.some((r) => r.bop === "default" && isEstimate(r.source));
 
@@ -94,46 +86,17 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
       </Link>
       <Showroom
         car={car} name={info.name} cls={info.cls} year={info.year} cutout={carCutout(car)} overall={total} setups={setups}
-        specs={carSpecs(car)} wings={[rating?.top_speed_min_wing ?? null, rating?.top_speed_max_wing ?? null]}
-        sheet={sheetPace} team={totals}
+        parts={CAR_PARTS.map((p) => ({ key: p.key, label: p.label, info: p.info, v: rating?.[p.key] ?? null }))}
+        wings={[rating?.top_speed_min_wing ?? null, rating?.top_speed_max_wing ?? null]}
+        rated={rating?.updated_at
+          ? <>Rated by {rating.editor ?? "an admin"}, {dateTime(rating.updated_at)}{rating.source && <InfoTip text={`Source: ${rating.source}`} />}</>
+          : <>Not rated yet <InfoTip text="The team's admins rate the cars from their knowledge of them." /></>}
+        specs={carSpecs(car)} note={note}
+        noteInfo={!rating?.note && note ? `Description: ${CAR_NOTES_SOURCE}. An admin's own description replaces it.` : null}
       />
+      {me.is_admin && <div className="-mt-2 mb-5"><RatingForm car={car} initial={{ ...rating, note }} /></div>}
 
-      <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <section className="card card-red rise p-5" style={delay(40)}>
-          <SectionTitle icon={Gauge}>Ratings</SectionTitle>
-          <ul className="space-y-3">
-            {CAR_PARTS.map((p) => {
-              const v = rating?.[p.key];
-              return (
-                <li key={p.key}>
-                  <div className="flex items-center gap-1.5 text-sm text-zinc-300">
-                    {p.label} <InfoTip text={p.info} />
-                    <span className="tabular ml-auto font-semibold" style={v != null ? { color: scaleColor(v) } : undefined}>
-                      {v != null ? v : <span className="text-zinc-600">–</span>}
-                    </span>
-                  </div>
-                  <PartBar v={v ?? 0} className="mt-1 h-1.5" />
-                  {p.key === "top_speed" && TOP_SPEED_WINGS.some((x) => rating?.[x.key] != null) && (
-                    <div className="mt-1 flex gap-4 text-[11px] text-zinc-500">
-                      {TOP_SPEED_WINGS.map((x) => <span key={x.key}>{x.label} <span className="tabular text-zinc-400">{rating?.[x.key] != null ? `${rating[x.key]} ${x.unit}` : "–"}</span></span>)}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          {note && <p className="mt-5 whitespace-pre-line text-sm text-zinc-300">{note}</p>}
-          {/* Short line; the details behind "i" icons (user's request: no long grey text) */}
-          <p className="mt-4 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-            {rating?.updated_at
-              ? <>Rated by {rating.editor ?? "an admin"}, {dateTime(rating.updated_at)}{rating.source && <InfoTip text={`Source: ${rating.source}`} />}</>
-              : <>Not rated yet <InfoTip text="The team's admins rate the cars from their knowledge of them (Edit the ratings)." /></>}
-            {!rating?.note && note && <><span>· Description</span><InfoTip text={`Description: ${CAR_NOTES_SOURCE}. An admin's own description replaces it.`} /></>}
-          </p>
-          {me.is_admin && <RatingForm car={car} initial={{ ...rating, note }} />}
-        </section>
-
-        <section className="card rise overflow-hidden" style={delay(80)}>
+      <section className="card rise overflow-hidden" style={delay(40)}>
           <div className="p-5 pb-0">
             <SectionTitle icon={Timer} info={`Reference times: OhneSpeed's sheet${sheetDate ? ` (${sheetDate})` : ""}. Target = default BoP qualifying × ${REFERENCE_FACTOR}: a lap on the target scores 100 pace.${estimated ? " ≈ = corrected estimate: OhneSpeed's time for this car looked wrong (hover it to see why)." : ""}`}>
               Reference times and the team&apos;s laps
@@ -205,7 +168,6 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
             </table>
           </div>
         </section>
-      </div>
     </div>
   );
 }
