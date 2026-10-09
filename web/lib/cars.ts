@@ -78,7 +78,7 @@ export function carName(key: string) {
 export const CAR_PARTS = [
   { key: "top_speed", label: "Top speed", info: "Top speed on the straights, from min wing to max wing. The two small grey numbers are the absolute top speed in km/h at min wing and at max wing." },
   { key: "acceleration", label: "Acceleration", info: "Mid to high speed acceleration: pure power acceleration." },
-  { key: "traction", label: "Traction", info: "Low-end acceleration and rear grip on corner exit." },
+  { key: "traction", label: "Traction", info: "Low-end acceleration and initial punch on corner exit." },
   { key: "slow_corners", label: "Slow corners", info: "How fast and nimble the car is in low-speed corners." },
   { key: "fast_corners", label: "Fast corners", info: "How fast and planted the car is on high-speed portions." },
   { key: "braking", label: "Braking", info: "Brake performance and stopping power." },
