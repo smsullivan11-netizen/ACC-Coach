@@ -1,13 +1,14 @@
-import { ArrowLeft, CarFront, Gauge, Settings2, Timer, Users } from "lucide-react";
+import { ArrowLeft, Gauge, Timer, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import BopBadge from "@/components/Bop";
 import InfoTip from "@/components/InfoTip";
-import { Chip, delay, PartBar, SectionTitle } from "@/components/ui";
+import { delay, PartBar, SectionTitle } from "@/components/ui";
 import { REVIEW_DISCORD_ID, requireDriver } from "@/lib/auth";
-import { carBackground, carSide } from "@/lib/car-images";
-import { CAR_PARTS, carInfo, carName, OVERALL_INFO, overall, TOP_SPEED_WINGS, type CarPart, type WingKey } from "@/lib/cars";
+import { carCutout } from "@/lib/car-images";
+import { carSpecs } from "@/lib/car-specs";
+import { CAR_PARTS, carInfo, carName, overall, TOP_SPEED_WINGS, type CarPart, type WingKey } from "@/lib/cars";
 import { sql } from "@/lib/db";
 import { dateTime, lapTime, prettyKey } from "@/lib/format";
 import { scaleColor } from "@/lib/ranks";
@@ -16,6 +17,7 @@ import { REFERENCE_FACTOR } from "@/lib/references";
 import { trackInfo } from "@/lib/tracks";
 import { CAR_NOTES, CAR_NOTES_SOURCE } from "@/lib/car-notes";
 import RatingForm from "./RatingForm";
+import Showroom from "./Showroom";
 
 type Rating = Record<CarPart | WingKey, number | null> & { note: string | null; source: string | null; updated_at: Date | null; editor: string | null };
 type Ref = { bop: "default" | "lfm"; track_key: string; time_ms: number; ballast_kg: number | null; restrictor_pct: number | null; sheet_date: string | null; source: string | null };
@@ -74,7 +76,14 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
   const total = overall(rating);
   // An admin's description, else the researched starting one (lib/car-notes.ts)
   const note = rating?.note ?? CAR_NOTES[car] ?? null;
-  const side = carSide(car), bg = carBackground(car);
+  // Sheet pace: the gap to the class's fastest car, averaged over the tracks (as on the Cars page)
+  const sheet = await sql<{ car_key: string; gap_pct: number }[]>`
+    with d as (select car_key, time_ms, min(time_ms) over (partition by track_key, car_class) as best
+               from lap_reference where bop = 'default')
+    select car_key, avg(time_ms::float8 / best - 1) * 100 as gap_pct from d group by car_key`.catch(() => []);
+  const classGaps = sheet.filter((s) => carInfo(s.car_key)?.cls === info.cls).sort((a, b) => a.gap_pct - b.gap_pct);
+  const mine = classGaps.findIndex((s) => s.car_key === car);
+  const sheetPace = mine < 0 ? null : { gap: classGaps[mine].gap_pct - classGaps[0].gap_pct, rank: mine + 1, of: classGaps.length };
   const sheetDate = refs.find((r) => r.sheet_date)?.sheet_date;
   const estimated = refs.some((r) => r.bop === "default" && isEstimate(r.source));
 
@@ -83,40 +92,11 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
       <Link href={`/cars?class=${info.cls}`} className="relative z-10 mb-3 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white">
         <ArrowLeft size={15} /> {info.cls} cars
       </Link>
-      {/* The car's in-game picture behind the header, fading into the page (lib/car-images.ts) */}
-      <div className="relative">
-      {bg && (
-        <div aria-hidden className="pointer-events-none absolute -inset-x-4 -top-10 h-80 overflow-hidden rounded-3xl sm:-inset-x-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={bg} alt="" className="h-full w-full object-cover opacity-45" />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#070707]/20 via-[#070707]/60 to-[#070707]" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#070707]/85 via-[#070707]/30 to-transparent" />
-        </div>
-      )}
-      <div className="rise relative mb-6 flex flex-wrap items-end gap-x-6 gap-y-3">
-        <div>
-          <h1 className="display flex items-center gap-3 text-2xl text-white">
-            {side
-              // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={side} alt="" width={168} height={49} className="h-12 w-auto shrink-0 brightness-[1.4] contrast-[1.1]" />
-              : <CarFront size={24} className="text-race" />}
-            {info.name}
-          </h1>
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-400">
-            <span className="inline-flex items-center gap-2"><Chip>{info.cls}</Chip> {info.year}</span>
-            <Link href={`/setups?car=${car}`} className="inline-flex items-center gap-1.5 text-accent hover:underline"><Settings2 size={14} /> {setups ? `${setups} setup${setups === 1 ? "" : "s"}` : "Setups"}</Link>
-          </p>
-        </div>
-        <div className="ml-auto text-right">
-          <div className="flex items-center justify-end gap-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Overall <InfoTip text={OVERALL_INFO} edge />
-          </div>
-          {total == null ? <div className="text-sm text-zinc-500">not rated yet</div>
-            : <div className="tabular display text-4xl" style={{ color: scaleColor(total) }}>{total.toFixed(1)}</div>}
-        </div>
-      </div>
-
-      </div>
+      <Showroom
+        car={car} name={info.name} cls={info.cls} year={info.year} cutout={carCutout(car)} overall={total} setups={setups}
+        specs={carSpecs(car)} wings={[rating?.top_speed_min_wing ?? null, rating?.top_speed_max_wing ?? null]}
+        sheet={sheetPace} team={totals}
+      />
 
       <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
         <section className="card card-red rise p-5" style={delay(40)}>

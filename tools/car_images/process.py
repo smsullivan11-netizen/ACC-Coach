@@ -1,7 +1,7 @@
 """Car pictures for the Cars pages (user's request, 2026-10-08): ACC screenshots only (the user's choice,
 no commercial pictures).
 
-  python tools/car_images/process.py <car key> --side shot.png [--source showroom|aero] [--bg nice_shot.png]
+  python tools/car_images/process.py <car key> --side shot.png [--source showroom|aero]
   python tools/car_images/process.py --batch <folder> --order <file>     many cars at once
 
 --side: a side-on screenshot of the car, nose to the right:
@@ -13,10 +13,10 @@ no commercial pictures).
         cut-out was tried and dropped (the cars are dark grey on a dark grey showroom: it lost rear
         wings and kept patches of wall and floor; a median "empty showroom" of all shots failed too,
         the cars overlap too much). Saved as web/public/media/cars/side/<car>.webp (600 px wide).
---bg:   any good in-game shot of the car, cropped to 12:5: web/public/media/cars/bg/<car>.webp (1920 x 800).
 --batch/--order: every .png of the folder sorted by name, matched line by line with the car keys of
         the order file (one key per line), all as --side.
 Then web/lib/car-images.json says which pictures exist (with a version for the browser cache).
+The car page's big transparent cut-outs come from cutout.py (same screenshots).
 Needs opencv-python-headless and numpy (CV_PATH: a folder they are installed in, if not in the venv).
 """
 import argparse, json, os, sys, time
@@ -85,24 +85,11 @@ def side_view(path: str, out: str, source: str, flip: bool):
     return rgba.shape
 
 
-def background(path: str, out: str):
-    img = cv2.imread(path)
-    if img is None: raise SystemExit(f"cannot read {path}")
-    h, w = img.shape[:2]
-    target = 12 / 5
-    if w / h > target: nw = int(h * target); img = img[:, (w - nw) // 2:(w - nw) // 2 + nw]
-    else: nh = int(w / target); img = img[(h - nh) // 2:(h - nh) // 2 + nh]
-    img = cv2.resize(img, (1920, 800), interpolation=cv2.INTER_AREA)
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    cv2.imwrite(out, img, [cv2.IMWRITE_WEBP_QUALITY, 72])
-
-
 def main():
     p = argparse.ArgumentParser(description="Car pictures from ACC screenshots")
     p.add_argument("car", nargs="?", help="ACC car key, e.g. ford_mustang_gt3 (web/lib/cars.ts)")
     p.add_argument("--side", help="side-on screenshot of the car")
     p.add_argument("--source", choices=sorted(BOXES), default="showroom", help="where the side shot comes from")
-    p.add_argument("--bg", help="in-game shot for the car page's background")
     p.add_argument("--flip", action="store_true", help="mirror the side view (nose must point right)")
     p.add_argument("--batch", help="folder of side shots (sorted by name), with --order")
     p.add_argument("--order", help="file with one car key per line, in the folder's order")
@@ -114,19 +101,15 @@ def main():
         files = sorted(f for f in os.listdir(a.batch) if f.lower().endswith(".png"))
         keys = [k.strip() for k in open(a.order, encoding="utf-8") if k.strip()]
         if len(files) != len(keys): raise SystemExit(f"{len(files)} pictures but {len(keys)} cars")
-        jobs = [(k, os.path.join(a.batch, f), None) for k, f in zip(keys, files)]
-    elif a.car:
-        jobs = [(a.car, a.side, a.bg)]
+        jobs = [(k, os.path.join(a.batch, f)) for k, f in zip(keys, files)]
+    elif a.car and a.side:
+        jobs = [(a.car, a.side)]
     else:
-        p.error("give a car key or --batch")
-    for car, side, bg in jobs:
+        p.error("give a car key and --side, or --batch")
+    for car, side in jobs:
         entry = manifest.get(car, {})
-        if side:
-            shape = side_view(side, os.path.join(WEB, "public", "media", "cars", "side", f"{car}.webp"), a.source, a.flip)
-            entry["side"] = v; print(f"{car}: side view {shape[1]} x {shape[0]}")
-        if bg:
-            background(bg, os.path.join(WEB, "public", "media", "cars", "bg", f"{car}.webp"))
-            entry["bg"] = v; print(f"{car}: background 1920 x 800")
+        shape = side_view(side, os.path.join(WEB, "public", "media", "cars", "side", f"{car}.webp"), a.source, a.flip)
+        entry["side"] = v; print(f"{car}: side view {shape[1]} x {shape[0]}")
         manifest[car] = entry
     with open(MANIFEST, "w", encoding="utf-8") as f: json.dump(dict(sorted(manifest.items())), f, indent=1); f.write("\n")
 
