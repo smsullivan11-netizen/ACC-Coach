@@ -48,7 +48,7 @@ export default async function Dashboard({ me }: { me: Driver }) {
       <div className="grid gap-5 lg:grid-cols-2">
         {/* 1. Rating */}
         <section className="card card-red rise min-w-0 p-5" style={delay(40)}>
-          <SectionTitle icon={Gauge} href={`/drivers/${me.id}`}>
+          <SectionTitle icon={Gauge} href={`/drivers/${me.id}`} info="Your best session on each track in the last 60 days (5+ valid laps), averaged over the tracks.">
             Your rating
           </SectionTitle>
           <div className="flex items-end gap-4">
@@ -75,7 +75,6 @@ export default async function Dashboard({ me }: { me: Driver }) {
               );
             })}
           </div>
-          <p className="mt-3 text-xs text-zinc-500">Your best session on each track in the last 60 days (5+ valid laps), averaged over the tracks.</p>
         </section>
 
         {/* 2. Progression */}

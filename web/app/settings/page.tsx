@@ -20,7 +20,7 @@ export default async function SettingsPage() {
   const storage = driver.is_admin ? await storageStats() : null;
   return (
     <div className="max-w-3xl">
-      <PageTitle icon={Settings} sub={
+      <PageTitle icon={Settings} note={
         <span className="inline-flex items-center gap-2">
           <Avatar url={driver.avatar_url} name={driver.display_name} size={20} />
           Signed in as <Link href={`/drivers/${driver.id}`} className="text-white underline">{driver.display_name}</Link>

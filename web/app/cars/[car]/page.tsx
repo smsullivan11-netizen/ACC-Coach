@@ -143,22 +143,26 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
             })}
           </ul>
           {note && <p className="mt-5 whitespace-pre-line text-sm text-zinc-300">{note}</p>}
-          <p className="mt-4 text-xs text-zinc-500">
+          {/* Short line; the details behind "i" icons (user's request: no long grey text) */}
+          <p className="mt-4 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
             {rating?.updated_at
-              ? <>Rated by {rating.editor ?? "an admin"}, {dateTime(rating.updated_at)}{rating.source ? <> · Source: {rating.source}</> : null}</>
-              : "Not rated yet: the team's admins rate the cars from their knowledge of them."}
-            {!rating?.note && note && <> · Description: {CAR_NOTES_SOURCE}</>}
+              ? <>Rated by {rating.editor ?? "an admin"}, {dateTime(rating.updated_at)}{rating.source && <InfoTip text={`Source: ${rating.source}`} />}</>
+              : <>Not rated yet <InfoTip text="The team's admins rate the cars from their knowledge of them (Edit the ratings)." /></>}
+            {!rating?.note && note && <><span>· Description</span><InfoTip text={`Description: ${CAR_NOTES_SOURCE}. An admin's own description replaces it.`} /></>}
           </p>
           {me.is_admin && <RatingForm car={car} initial={{ ...rating, note }} />}
         </section>
 
         <section className="card rise overflow-hidden" style={delay(80)}>
           <div className="p-5 pb-0">
-            <SectionTitle icon={Timer}>Reference times and the team&apos;s laps</SectionTitle>
-            <p className="-mt-2 mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
-              <span>Reference: OhneSpeed&apos;s sheet{sheetDate ? ` (${sheetDate})` : ""}; target = default BoP qualifying × {REFERENCE_FACTOR} (100 pace).{estimated && <> <span className="text-accent">≈</span> = corrected estimate: OhneSpeed&apos;s time for this car looked wrong (hover it).</>}</span>
-              <span className="inline-flex items-center gap-1.5"><Users size={13} /> Team: {totals.drivers} drivers · {totals.sessions} sessions · {totals.laps} valid laps · {Math.round(totals.km).toLocaleString("en-GB")} km</span>
-            </p>
+            <SectionTitle icon={Timer} info={`Reference times: OhneSpeed's sheet${sheetDate ? ` (${sheetDate})` : ""}. Target = default BoP qualifying × ${REFERENCE_FACTOR}: a lap on the target scores 100 pace.${estimated ? " ≈ = corrected estimate: OhneSpeed's time for this car looked wrong (hover it to see why)." : ""}`}>
+              Reference times and the team&apos;s laps
+            </SectionTitle>
+            {totals.laps > 0 && (
+              <p className="-mt-1 mb-3 inline-flex items-center gap-1.5 text-xs text-zinc-500">
+                <Users size={13} /> {totals.drivers} {totals.drivers === 1 ? "driver" : "drivers"} · {totals.laps} valid laps · {Math.round(totals.km).toLocaleString("en-GB")} km
+              </p>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="data-table min-w-[860px]">

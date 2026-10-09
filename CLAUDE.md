@@ -38,6 +38,9 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 
 ## Conventions
 - Everything in English (code, comments, CLI messages, docs): not everyone on the team speaks French.
+- Site explanations go behind "i" icons (`components/InfoTip.tsx`; `PageTitle sub`, `SectionTitle info`), not in grey
+  paragraphs (user, 2026-10-09: "way too long, nobody's reading that"). Visible text stays for instructions
+  people need (sign-in, linking, download steps, where to put a setup file) and short facts (`PageTitle note`).
 - Data keys (metrics, bundle, SQL columns) in snake_case, unit as suffix (`_m`, `_s`, `_ms`, `_kmh`, `_pct`).
 - Laps are "L1, L2…", corners are "T1, T2…" (turns).
 - Distances in m from the line, on the track's reference length.

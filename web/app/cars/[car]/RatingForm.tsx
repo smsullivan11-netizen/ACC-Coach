@@ -4,6 +4,7 @@ import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import AutoTextarea from "@/components/AutoTextarea";
+import InfoTip from "@/components/InfoTip";
 import { CAR_PARTS, TOP_SPEED_WINGS, type CarPart, type WingKey } from "@/lib/cars";
 
 type Values = Record<CarPart | WingKey, number | null> & { note: string | null; source: string | null };
@@ -38,7 +39,7 @@ export default function RatingForm({ car, initial }: { car: string; initial: Par
   }
   return (
     <div className="mt-5 space-y-3 rounded-lg border border-white/10 bg-black/30 p-4">
-      <p className="text-xs text-zinc-500">Admins only. 0-100 each; leave a box empty if you don&apos;t know. Under Top speed: the absolute top speed at min wing and at max wing, in km/h.</p>
+      <p className="flex items-center gap-1.5 text-xs text-zinc-500">Admins only <InfoTip side="left" text="0-100 each; leave a box empty if you don't know. Under Top speed: the absolute top speed at min wing and at max wing, in km/h." /></p>
       {CAR_PARTS.map((p) => (
         <div key={p.key}>
           <div className="flex items-center justify-between gap-3 text-sm text-zinc-300">

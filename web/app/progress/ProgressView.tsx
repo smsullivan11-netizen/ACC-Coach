@@ -72,13 +72,12 @@ export default function ProgressView({ history, sessions, teamBest }: {
   const slowest = Math.min(Math.max(...times), Math.min(...times) * 1.06);   // very slow sessions (learning) leave the chart
   const pad = Math.max(150, (slowest - fastest) * 0.08);
   const lapDomain: [number, number] = [fastest - pad, slowest + pad];
-  const [trackKey, carClass] = shown ? shown[0].split("|") : ["", ""];
 
   return (
     <div className="space-y-5">
       {/* 1. Rating after each session, on the rank bands */}
       <section className="card card-red rise p-5">
-        <SectionTitle icon={Gauge}>Overall Driver Rating</SectionTitle>
+        <SectionTitle icon={Gauge} info="The rating after each rated session (your current form: best session per track in the last 60 days). ▲ = a new rank.">Overall Driver Rating</SectionTitle>
         <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Figure label="now">{now != null ? <span className="text-accent">{now.toFixed(1)}</span> : "–"} {now != null && <RankBadge rating={now} />}</Figure>
           <Figure label="all-time best">{best != null ? best.toFixed(1) : "–"}</Figure>
@@ -88,23 +87,21 @@ export default function ProgressView({ history, sessions, teamBest }: {
           <Figure label="rated sessions">{history.length}</Figure>
         </div>
         <TrendChart values={ratings} labels={labels} details={details} domain={ratingDomain(ratings)} bands markers={markers} height={300} name="Rating" />
-        <p className="mt-2 text-xs text-zinc-500">The rating after each rated session (your current form: best session per track in the last 60 days). ▲ a new rank.</p>
       </section>
 
       {/* 2. The four parts of the current form */}
       <section className="card rise p-5">
         <div className="mb-3 flex flex-wrap items-center gap-3">
-          <SectionTitle icon={Layers}>Sub-ratings</SectionTitle>
+          <SectionTitle icon={Layers} info={`${partInfo.label}: ${partInfo.help}, in your current form after each session.`}>Sub-ratings</SectionTitle>
           <Segmented options={PARTS} value={part} onChange={setPart} className="-mt-3" />
           <span className="-mt-3 ml-auto text-sm text-zinc-400">now <ScaleNumber v={partValues.at(-1)} className="text-lg font-bold" /></span>
         </div>
         <TrendChart key={part} values={partValues} labels={labels} details={details} domain={ratingDomain(partValues)} height={220} name={partInfo.label} />
-        <p className="mt-2 text-xs text-zinc-500">{partInfo.label}: {partInfo.help}, in your current form after each session.</p>
       </section>
 
       {/* 3. Lap times per track: each session's best, the PB line, the team best */}
       <section className="card rise p-5">
-        <SectionTitle icon={Timer}>Lap times</SectionTitle>
+        <SectionTitle icon={Timer} info="Dots = each session's best valid lap (faster is higher), yellow = your PB, dashed = the team best.">Lap times</SectionTitle>
         {!shown ? <p className="text-sm text-zinc-500">No valid lap yet.</p> : (
           <>
             <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1">
@@ -134,9 +131,6 @@ export default function ProgressView({ history, sessions, teamBest }: {
                           ...(team != null ? [{ values: laps.map(() => team), color: "#a1a1aa", label: "Team best", dash: true }] : []),
                         ]}
                         height={260} />
-            <p className="mt-2 text-xs text-zinc-500">
-              {prettyKey(trackKey)}{carClass ? ` · ${carClass}` : ""}: dots = each session&apos;s best valid lap (faster is higher), yellow = your PB, dashed = the team best.
-            </p>
           </>
         )}
       </section>

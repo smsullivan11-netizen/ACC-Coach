@@ -7,6 +7,7 @@ import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 import Boards, { type Board } from "@/components/Boards";
 import Conditions, { type SessionConditions } from "@/components/Conditions";
+import InfoTip from "@/components/InfoTip";
 import TrackSurface, { type Edges } from "@/components/TrackSurface";
 import { Segmented, ZONE_OPTIONS } from "@/components/ui";
 import { lapTime, prettyKey, REASONS } from "@/lib/format";
@@ -263,9 +264,8 @@ export default function LapView({ lapId, vsId, candidates, otherHref, corner, by
           </label>
         </div>
       </div>
-      <p className="mt-2 text-xs text-zinc-500">
-        Drag on a chart to zoom, double-click to reset; the Turn buttons zoom every chart on that corner, or on a whole section
-        (corners driven as one) with Sections.
+      <p className="mt-2 inline-flex items-center gap-1 text-xs text-zinc-500">
+        Chart controls <InfoTip side="left" text="Drag on a chart to zoom, double-click to reset. The Turn buttons zoom every chart on that corner, or on a whole section (corners driven as one) with Sections." />
       </p>
 
       {a.t && replay && (
@@ -627,12 +627,10 @@ function CornerTable({ laps, zones, by, onSelect }: { laps: Loaded[]; zones: Zon
   return (
     <div className="card rise mt-5 overflow-hidden">
       <div className="px-5 pt-4">
-      <h2 className="display text-sm uppercase tracking-wider text-white">Corners</h2>
-      <p className="mt-1 text-sm text-zinc-500">
-        {compare ? "Time and speed: this lap minus the reference. " : ""}
-        Braking: metres before each corner&apos;s turn-in point (the team&apos;s, where the boards count down to). Throttle: metres
-        from the apex, + after it. Click a row to zoom on the corner.
-      </p>
+      <h2 className="display flex items-center gap-2 text-sm uppercase tracking-wider text-white">
+        Corners
+        <InfoTip side="left" text={`${compare ? "Time and speed: this lap minus the reference. " : ""}Braking: metres before each corner's turn-in point (the team's, where the boards count down to). Throttle: metres from the apex, + after it. Click a row to zoom on the corner.`} />
+      </h2>
       </div>
       <div className="overflow-x-auto">
       <table className="data-table mt-2">
@@ -714,11 +712,10 @@ function SectionTable({ a, bc, compare, zones, onSelect }: {
   return (
     <div className="card rise mt-5 overflow-hidden">
       <div className="px-5 pt-4">
-        <h2 className="display text-sm uppercase tracking-wider text-white">Sections</h2>
-        <p className="mt-1 text-sm text-zinc-500">
-          Corners driven as one are grouped: giving up time in one to be faster through the next shows in the split.
-          {compare ? " Differences are this lap minus the reference." : ""} Click a row to zoom on the section.
-        </p>
+        <h2 className="display flex items-center gap-2 text-sm uppercase tracking-wider text-white">
+          Sections
+          <InfoTip side="left" text={`Corners driven as one are grouped: giving up time in one to be faster through the next shows in the split.${compare ? " Differences are this lap minus the reference." : ""} Click a row to zoom on the section.`} />
+        </h2>
       </div>
       <div className="overflow-x-auto">
         <table className="data-table mt-2">

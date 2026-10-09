@@ -3,9 +3,12 @@
 import { Info } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-/** The "i" next to a column or rating name: its text on hover (title) and in a box on click.
- *  `edge`: the box opens leftwards (last columns of a table). */
-export default function InfoTip({ text, edge = false }: { text: string; edge?: boolean }) {
+/** The "i" next to a column, rating or title: its text on hover (title) and in a box on click. The
+ *  site's explanations live here rather than in grey paragraphs (user's request, 2026-10-09: "nobody's
+ *  reading that"). `edge` or side "right": the box opens leftwards (last columns of a table); side
+ *  "left": it opens rightwards (titles at the left edge). */
+export default function InfoTip({ text, edge = false, side }: { text: string; edge?: boolean; side?: "left" | "center" | "right" }) {
+  const at = side ?? (edge ? "right" : "center");
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -22,8 +25,8 @@ export default function InfoTip({ text, edge = false }: { text: string; edge?: b
         <Info size={12} />
       </button>
       {open && (
-        <span className={`absolute top-6 z-30 w-64 whitespace-normal rounded-lg border border-white/10 bg-raised p-3 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-zinc-300 shadow-xl ${
-                edge ? "right-0" : "left-1/2 -translate-x-1/2"}`}>
+        <span className={`absolute top-6 z-30 w-72 max-w-[85vw] whitespace-normal rounded-lg border border-white/10 bg-raised p-3 text-left font-sans text-xs font-normal normal-case leading-relaxed tracking-normal text-zinc-300 shadow-xl ${
+                at === "right" ? "right-0" : at === "left" ? "-left-2" : "left-1/2 -translate-x-1/2"}`}>
           {text}
         </span>
       )}

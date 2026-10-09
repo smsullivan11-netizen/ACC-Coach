@@ -1,6 +1,7 @@
 import { ArrowUpRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
+import InfoTip from "./InfoTip";
 import { RANKS, rankFor, rankLevel, ROOKIE_HOLD, SCALE_GRADIENT, scaleColor, scaleGradient, type Rank } from "@/lib/ranks";
 
 // Small shared pieces of the interface (server and client components).
@@ -79,7 +80,7 @@ export function Chip({ tone = "grey", icon: Icon, children, title }: { tone?: ke
 }
 
 /** Section heading: icon, title in the team font, optional link or action on the right. */
-export function SectionTitle({ icon: Icon, children, action, href }: { icon?: LucideIcon; children: ReactNode; action?: ReactNode; href?: string }) {
+export function SectionTitle({ icon: Icon, children, action, href, info }: { icon?: LucideIcon; children: ReactNode; action?: ReactNode; href?: string; info?: string }) {
   const title = <h2 className="display text-sm uppercase tracking-wider text-white">{children}</h2>;
   return (
     <div className="mb-3 flex items-center gap-2">
@@ -90,6 +91,7 @@ export function SectionTitle({ icon: Icon, children, action, href }: { icon?: Lu
           {title}<ArrowUpRight size={14} className="text-zinc-500 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-accent" />
         </Link>
       ) : title}
+      {info && <InfoTip text={info} side="left" />}
       {action && <div className="ml-auto text-xs">{action}</div>}
     </div>
   );
@@ -125,15 +127,17 @@ export function ScaleNumber({ v, className = "" }: { v: number | null | undefine
     : <span className={`tabular ${className}`} style={{ color: scaleColor(v) }}>{Math.round(v)}</span>;
 }
 
-/** Page heading in the team font, with an optional line under it. */
-export function PageTitle({ children, sub, icon: Icon }: { children: ReactNode; sub?: ReactNode; icon?: LucideIcon }) {
+/** Page heading in the team font. `sub`: what the page is, behind an "i" next to the title (user's
+ *  request: no grey paragraphs nobody reads); `note`: a short line that must stay visible (a date). */
+export function PageTitle({ children, sub, note, icon: Icon }: { children: ReactNode; sub?: string; note?: ReactNode; icon?: LucideIcon }) {
   return (
     <div className="rise mb-6">
       <h1 className="display flex items-center gap-3 text-2xl text-white">
         {Icon && <Icon size={24} className="text-race" />}
         {children}
+        {sub && <span className="text-base"><InfoTip text={sub} side="left" /></span>}
       </h1>
-      {sub && <p className="mt-1.5 text-sm text-zinc-400">{sub}</p>}
+      {note && <p className="mt-1.5 text-sm text-zinc-400">{note}</p>}
     </div>
   );
 }

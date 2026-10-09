@@ -155,7 +155,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
       {coaching && <Coach c={coaching} />}
 
       <section className="card rise mt-5 overflow-hidden" style={delay(120)}>
-        <div className="p-5 pb-0"><SectionTitle icon={Timer}>Laps</SectionTitle></div>
+        <div className="p-5 pb-0"><SectionTitle icon={Timer} info={`Lap times are the game's when recorded live (${session.source_kind === "shared_memory" ? "recorder" : "MoTeC"}, ${session.source_file}).`}>Laps</SectionTitle></div>
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
@@ -227,9 +227,6 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
         {me.is_admin && (
           <div className="flex justify-end px-5 pt-3"><DeleteSession sessionId={id} /></div>
         )}
-        <p className="px-5 py-3 text-xs text-zinc-500">
-          Lap times are the game&apos;s when recorded live ({session.source_kind === "shared_memory" ? "recorder" : "MoTeC"}, {session.source_file}).
-        </p>
       </section>
     </div>
   );

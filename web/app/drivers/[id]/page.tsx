@@ -156,7 +156,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
         </section>
 
         <section className="card rise p-5" style={delay(140)}>
-          <SectionTitle icon={Gauge}>Rating breakdown</SectionTitle>
+          <SectionTitle icon={Gauge} info="Best session on each track in the last 60 days (5+ valid laps), averaged over the tracks. Weights depend on the session type (practice or mixed running, qualifying, race).">Rating breakdown</SectionTitle>
           <div className="space-y-3.5">
             {PARTS.map((p, i) => {
               const v = parts?.[p.key];
@@ -171,7 +171,6 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
               );
             })}
           </div>
-          <p className="mt-3 text-xs text-zinc-500">Best session on each track in the last 60 days (5+ valid laps), averaged over the tracks. Weights depend on the session type (practice or mixed running, qualifying, race).</p>
         </section>
         <section className="card rise p-5" style={delay(180)}>
           {/* On your own profile the title opens your progression page */}

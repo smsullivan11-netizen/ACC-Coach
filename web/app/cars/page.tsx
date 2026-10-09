@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Cars" };
 // the gap to the class's fastest car in OhneSpeed's sheet (default BoP, averaged over the tracks), and
 // how much the team drives it. Each car opens its own page.
 export default async function CarsPage(props: PageProps<"/cars">) {
-  const me = await requireDriver();
+  await requireDriver();
   const { class: cls } = await props.searchParams;
   const current: CarClass = CLASSES.find((c) => c === cls) ?? "GT3";
 
@@ -55,9 +55,7 @@ export default async function CarsPage(props: PageProps<"/cars">) {
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Segmented options={[{ value: "cars", label: "Cars" }, { value: "setups", label: "Setups" }]} value="cars" href={(v) => (v === "cars" ? "/cars" : "/setups")} />
         <Segmented options={CLASSES.map((c) => ({ value: c, label: c }))} value={current} href={(c) => `/cars?class=${c}`} />
-        <span className="text-xs text-zinc-500">
-          {rated} of {rows.length} cars rated{me.is_admin && rated < rows.length ? ": open a car to rate it" : ""}
-        </span>
+        <span className="text-xs text-zinc-500">{rated}/{rows.length} rated</span>
       </div>
       <CarsTable key={current} rows={rows} />
     </div>

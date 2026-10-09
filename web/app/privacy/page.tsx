@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Privacy policy" };
 export default function PrivacyPage() {
   return (
     <div className="max-w-3xl">
-      <PageTitle icon={ShieldCheck} sub="Last updated: October 5, 2026">Privacy policy</PageTitle>
+      <PageTitle icon={ShieldCheck} note="Last updated: October 5, 2026">Privacy policy</PageTitle>
       <div className="card p-6 text-zinc-300 [&_h2]:mt-8 [&_h2]:font-medium [&_h2]:text-white [&_li]:mt-1.5 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5">
       <p>
         ACC Coach (this site and the ACC Coach desktop app) is a private tool run by a sim-racing team for its own

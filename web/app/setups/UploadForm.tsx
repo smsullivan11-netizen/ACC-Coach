@@ -4,6 +4,7 @@ import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import AutoTextarea from "@/components/AutoTextarea";
+import InfoTip from "@/components/InfoTip";
 import { KINDS } from "@/lib/setups";
 
 const NEED_TRACK = "Choose the track these setups are for.";
@@ -49,8 +50,8 @@ export default function UploadForm({ tracks, defaultTrack }: { tracks: { value: 
   }
   return (
     <div className="card rise w-full max-w-2xl space-y-3 p-5">
-      <p className="text-xs text-zinc-500">
-        ACC&apos;s setup files are in <code className="rounded bg-white/10 px-1 py-0.5">Documents\Assetto Corsa Competizione\Setups\&lt;car&gt;\&lt;track&gt;</code>. Pick one or several <code>.json</code> files for the same track; the car is read from each file.
+      <p className="flex items-center gap-1.5 text-xs text-zinc-500">
+        Your ACC setup files (.json) <InfoTip side="left" text={"In Documents\\Assetto Corsa Competizione\\Setups\\<car>\\<track>. Pick one or several .json files for the same track; the car is read from each file."} />
       </p>
       <input ref={input} type="file" accept=".json,application/json" multiple onChange={(e) => setFiles([...(e.target.files ?? [])])}
              className="block w-full text-sm text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-sm file:text-white" />
