@@ -260,18 +260,20 @@ body {
 /* The make's logo, glowing, and the beam it throws on the car (no logo: the make written) */
 .stage-logo { left: 50%; top: 37%; height: calc(11% * var(--logo-k, 1)); aspect-ratio: 1; translate: -50% 0; display: grid; place-items: center; }
 @media (min-width: 640px) { .stage-logo { top: 7%; height: calc(17% * var(--logo-k, 1)); } }
-.stage-logo::before { content: ""; position: absolute; inset: -90%; border-radius: 50%; background: radial-gradient(closest-side, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.04) 45%, transparent); }
-/* 3D and floating (user's request): a 5 px extruded edge (stacked 1 px shadows going darker), the glow,
-   a shadow cast on the wall below it; the logo bobs gently and its wall shadow shrinks as it rises */
-.stage-logo svg { position: relative; width: 100%; height: 100%; fill: rgb(255 255 255 / 0.94); filter: drop-shadow(0 0 5px rgb(255 255 255 / 0.35)) drop-shadow(0 1px 0 rgb(205 205 212)) drop-shadow(0 1px 0 rgb(165 165 172)) drop-shadow(0 1px 0 rgb(128 128 136)) drop-shadow(0 1px 0 rgb(96 96 104)) drop-shadow(0 1px 0 rgb(68 68 75)) drop-shadow(0 0 18px rgb(255 255 255 / 0.18)) drop-shadow(0 12px 7px rgb(0 0 0 / 0.95)); animation: logo-float 6s ease-in-out infinite; }
-.stage-logo span { position: relative; font-family: var(--font-display); font-size: clamp(1.1rem, 2.6vw, 2.4rem); letter-spacing: 0.2em; color: rgb(255 255 255 / 0.94); white-space: nowrap; text-shadow: 0 1px 0 rgb(205 205 212), 0 2px 0 rgb(165 165 172), 0 3px 0 rgb(128 128 136), 0 4px 0 rgb(96 96 104), 0 5px 0 rgb(68 68 75), 0 0 10px rgb(255 255 255 / 0.4), 0 0 30px rgb(255 255 255 / 0.2), 0 16px 8px rgb(0 0 0 / 0.95); animation: logo-float 6s ease-in-out infinite; }
-.stage-logo::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: -22%; height: 16%; border-radius: 50%; background: radial-gradient(closest-side, rgb(0 0 0 / 0.95), rgb(0 0 0 / 0.5) 55%, transparent); filter: blur(4px); animation: logo-shadow 6s ease-in-out infinite; }
-@keyframes logo-float { 50% { transform: translateY(-5%); opacity: 0.88; } }
-@keyframes logo-shadow { 50% { transform: scale(0.82); opacity: 0.6; } }
+.stage-logo::before { content: ""; position: absolute; inset: -70%; border-radius: 50%; background: radial-gradient(closest-side, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.02) 45%, transparent); }
+/* 3D and floating (user's request): a 5 px extruded edge (stacked 1 px shadows going darker) and a soft
+   glow, the logo bobbing gently. No shadow under it (user: it suggested a floor beneath): it lights
+   the stage like a lamp instead, a bright glow under it opening into the beam on the car. */
+.stage-logo svg { position: relative; width: 100%; height: 100%; fill: rgb(255 255 255 / 0.92); filter: drop-shadow(0 0 3px rgb(255 255 255 / 0.22)) drop-shadow(0 1px 0 rgb(205 205 212)) drop-shadow(0 1px 0 rgb(165 165 172)) drop-shadow(0 1px 0 rgb(128 128 136)) drop-shadow(0 1px 0 rgb(96 96 104)) drop-shadow(0 1px 0 rgb(68 68 75)) drop-shadow(0 0 10px rgb(255 255 255 / 0.08)); animation: logo-float 6s ease-in-out infinite; }
+.stage-logo span { position: relative; font-family: var(--font-display); font-size: clamp(1.1rem, 2.6vw, 2.4rem); letter-spacing: 0.2em; color: rgb(255 255 255 / 0.92); white-space: nowrap; text-shadow: 0 1px 0 rgb(205 205 212), 0 2px 0 rgb(165 165 172), 0 3px 0 rgb(128 128 136), 0 4px 0 rgb(96 96 104), 0 5px 0 rgb(68 68 75), 0 0 6px rgb(255 255 255 / 0.25); animation: logo-float 6s ease-in-out infinite; }
+/* The lamp: light pouring out under the logo, brightest at the top, widening into the beam */
+.stage-logo::after { content: ""; position: absolute; left: 5%; right: 5%; top: 88%; height: 85%; mix-blend-mode: screen; background: radial-gradient(45% 100% at 50% 0%, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.18) 40%, rgb(255 255 255 / 0.05) 70%, transparent 90%); filter: blur(5px); animation: logo-lamp 6s ease-in-out infinite; }
+@keyframes logo-float { 50% { transform: translateY(-5%); opacity: 0.9; } }
+@keyframes logo-lamp { 50% { opacity: 0.8; } }
 .stage-beam {
   top: 43%; bottom: 20%; left: 18%; right: 18%; mix-blend-mode: screen;
   clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.04) 60%, transparent);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.19), rgb(255 255 255 / 0.06) 45%, transparent);
   filter: blur(8px);
 }
 @media (min-width: 640px) { .stage-beam { top: 16%; } }
