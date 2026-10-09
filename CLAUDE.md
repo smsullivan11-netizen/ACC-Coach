@@ -977,15 +977,18 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   in the list and on the car page.
 - `components/InfoTip.tsx`: the "i" box shared by the Drivers and Cars tables.
 - Car pictures (user's request, a teammate's idea, 2026-10-08; ACC screenshots only, the user's choice):
-  `tools/car_images/process.py <car> --side <png> [--bg <png>]` → `public/media/cars/side/<car>.webp`
-  (600 px, from the setup screen's **Aero tab**: every car side-on, nose right, same place; cropped
-  around the car found by GrabCut, edges faded: a hard cut-out kept patches of the dark scene, the
-  setup cars being dark grey) and `public/media/cars/bg/<car>.webp` (1920 × 800 background), listed in
-  `lib/car-images.json` (with a cache version). The Aero tab's coloured airflow lines appear after a
-  moment: take the shot before (the BMW and Porsche shots of 2026-10-08 had them, unused). Shown: side
-  view beside the name on the car page and under the rank number in the list (brightened in CSS), the
-  background faded behind the car page's header. Cars without pictures show none. Only the Mustang
-  has a side view so far (from the user's Aero screenshot).
+  side views of the 36 GT3 / Cup / Super Trofeo / Challenge cars from the user's Showroom screenshots
+  (2026-10-09, `DesktopACCSIDE_PROFILES`, in the game's car-selection order: `tools/car_images/
+  showroom-order-2026-10-09.txt`; GT4, GT2 and the M2 not done). `tools/car_images/process.py` (one car or
+  `--batch`): GrabCut on a third of the size finds the car, then a crop with faded edges and darkened
+  surroundings, at most 0.34 × the length high (the floor and turntable ring were taken otherwise) →
+  `public/media/cars/side/<car>.webp` (600 px); `--bg` → `public/media/cars/bg/<car>.webp`; listed in
+  `lib/car-images.json`. Hard cut-outs were tried and dropped (dark grey cars in a dark grey showroom:
+  lost rear wings, kept wall patches; a median "empty showroom" failed too, the cars overlap). Shown:
+  under the rank number in the list (brightened in CSS), beside the name on the car page; backgrounds
+  (none yet) behind the car page's header.
+- Top speeds (user's tests at Paul Ricard, 2026-10-09, min and max wing, all 36 cars): entered on Neon
+  by the user with an upsert into car_rating; shown in grey under Top speed even for an unrated car.
 - Descriptions (user's request, 2026-10-08, after writing the Ford's own: "Absolute V8 freedom power
   beast..."): `lib/car-notes.ts` holds researched starting texts for the 53 other cars in that short,
   punchy style (Coach Dave Academy, GOSetups, Traxion, GTPlanet, Overtake; only claims about ACC's
