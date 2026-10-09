@@ -325,8 +325,7 @@ body {
   .stage-car { width: 48%; bottom: 23%; }
   .stage-table { left: 22%; right: 22%; bottom: 12%; height: 22%; }
   .stage-panel-in { display: none; }
-  .stage > .stage-panel-out.yellow { left: 1.6% !important; }
-  .stage > .stage-panel-out.red { right: 1.6% !important; }
+  .stage > .stage-panel-out { display: none; }   /* the HUDs carry the yellow and red bars there */
 }
 /* Crisp (user: they looked "blurry, low resolution"): no backdrop blur, no glow on the text, no
    preserve-3d or box-reflect (Chrome then draws the HUD as a texture and resamples its text), a gentler
@@ -356,7 +355,12 @@ body {
 .hud-rate .hud-v { font-size: 0.95rem; }
 .hud-foot { margin-top: 0.45rem; font-size: 0.64rem; letter-spacing: 0.04em; color: rgb(140 140 150); display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
 @media (min-width: 1280px) {
-  .stage > .hud { position: absolute; top: 20%; bottom: 21.5%; width: 22.5%; perspective: 1600px; pointer-events: auto; display: flex; flex-direction: column; justify-content: flex-end; }
+  /* No top: the HUD is as tall as its glass, standing on the floor line */
+  .stage > .hud { position: absolute; bottom: 21.5%; width: 22.5%; perspective: 1600px; pointer-events: auto; }
+  /* The team-coloured light bar on the wall beside each HUD, as tall as it (user's request) */
+  .stage > .hud::before { content: ""; position: absolute; top: 0; bottom: 0; width: 4px; border-radius: 9999px; }
+  .stage > .hud.left::before { left: -1.75rem; background: linear-gradient(180deg, transparent, rgb(255 210 0 / 0.85) 8%, rgb(255 210 0 / 0.9) 50%, rgb(255 210 0 / 0.85) 92%, transparent); box-shadow: 0 0 18px 2px rgb(255 210 0 / 0.30), 0 0 70px 14px rgb(255 210 0 / 0.07); }
+  .stage > .hud.right::before { right: -1.75rem; background: linear-gradient(180deg, transparent, rgb(225 6 0 / 0.9) 8%, rgb(255 40 30 / 0.95) 50%, rgb(225 6 0 / 0.9) 92%, transparent); box-shadow: 0 0 18px 2px rgb(225 6 0 / 0.38), 0 0 70px 14px rgb(225 6 0 / 0.09); }
   .stage > .hud.left { left: 3.5%; }
   .stage > .hud.right { right: 3.5%; }
   .stage > .hud.left .hud-glass { transform: rotateY(14deg); transform-origin: left center; border-left-color: rgb(255 255 255 / 0.28); }

@@ -1007,7 +1007,9 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   in and face the viewer under the cursor. Kept crisp (user: they looked "blurry, low resolution"): no
   backdrop-filter, text glow, preserve-3d or -webkit-box-reflect (Chrome then draws the HUD as a
   texture and resamples its text; the floor reflection went with it), labels at least 0.64rem.
-  Overall score on the wall 2.5 × bigger (user's request: 7.5rem from 1280 px). Left "Ratings"
+  Overall score on the wall 2.5 × bigger (user's request: 7.5rem from 1280 px), with a soft glow in its
+  own colour. From 1280 px the yellow and red wall bars are drawn by the HUDs (`.hud::before`), as tall
+  as each HUD (user's request), the stage's own outer bars hidden. Left "Ratings"
   (the admins' sub-ratings with their coloured bars, top speed at min and max wing, "Rated by"),
   right "The car" (specs). The car is smaller there (48 %) and the inner LED panels hide. Below 1280 px
   the same HUDs sit flat under the stage. Under the stage: "Edit the ratings" (admins), then the

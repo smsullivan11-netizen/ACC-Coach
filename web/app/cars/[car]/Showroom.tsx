@@ -123,7 +123,7 @@ export default function Showroom({ car, name, cls, year, cutout, overall, setups
             Overall <InfoTip text={OVERALL_INFO} side="right" />
           </div>
           {overall == null ? <div className="text-sm text-zinc-500">not rated yet</div>
-            : <div className="tabular display mt-1 text-5xl leading-none drop-shadow-[0_4px_18px_rgb(0_0_0/0.85)] sm:text-7xl xl:text-[7.5rem]" style={{ color: scaleColor(overall) }}>{overall.toFixed(1)}</div>}
+            : <div className="tabular display mt-1 text-5xl leading-none drop-shadow-[0_4px_18px_rgb(0_0_0/0.85)] sm:text-7xl xl:text-[7.5rem]" style={{ color: scaleColor(overall), textShadow: `0 0 16px color-mix(in srgb, ${scaleColor(overall)} 45%, transparent), 0 0 44px color-mix(in srgb, ${scaleColor(overall)} 22%, transparent)` }}>{overall.toFixed(1)}</div>}
         </div>
       </section>
 
