@@ -32,7 +32,7 @@ export default function NavLinks() {
     // Each group in its own recessed tray, the trays apart (user's request: the groups must read as groups)
     <div className="order-last flex w-full min-w-0 items-center justify-between gap-1.5 overflow-x-auto [scrollbar-width:none] md:shrink-0 md:overflow-visible [&::-webkit-scrollbar]:hidden md:order-none md:w-auto md:justify-start md:gap-2.5 xl:gap-3.5">
       {GROUPS.map((group, g) => (
-        <div key={g} className="flex shrink-0 items-center gap-0.5 rounded-xl border border-white/[0.12] bg-[rgb(12_12_14/0.55)] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.08),0_4px_14px_-6px_rgb(0_0_0/0.8)] backdrop-blur-sm">
+        <div key={g} className="flex shrink-0 items-center gap-0.5 rounded-xl border border-white/[0.12] bg-white/[0.06] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.09),0_4px_14px_-6px_rgb(0_0_0/0.9)] backdrop-blur-sm">
       {group.map(({ href, label, icon: Icon, exact, iconOnly }) => {
         const on = active(href, exact);
         return (

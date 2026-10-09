@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 <NavLinks />
                 <div className="ml-auto flex shrink-0 items-center gap-2 2xl:gap-3">
                   <GetAppLink />
-                  <div className="flex h-11 items-center rounded-full border border-white/[0.12] bg-[rgb(12_12_14/0.55)] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.08),0_4px_14px_-6px_rgb(0_0_0/0.8)] backdrop-blur-sm">
+                  <div className="flex h-11 items-center rounded-full border border-white/[0.12] bg-white/[0.06] p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.09),0_4px_14px_-6px_rgb(0_0_0/0.9)] backdrop-blur-sm">
                     <Tutorial seen={guideSeen} />
                     <span className="mx-0.5 h-5 w-px bg-white/10" />
                     <Link href="/settings" title="Your profile and settings"

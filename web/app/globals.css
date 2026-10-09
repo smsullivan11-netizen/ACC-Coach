@@ -209,17 +209,17 @@ body {
 .range-lg:focus-visible { outline: none; }
 .range-lg:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgb(255 210 0 / 0.5); }
 
-/* Header skin (user's request, 2026-10-09: "plain grey looks very 2012, texture it, add personality"):
-   graphite with a fine carbon-fibre weave, the team's yellow and red glowing faintly at either end and a
-   light diagonal sheen. The trays on top are dark glass, so the labels read as before. */
-.header-skin { position: relative; isolation: isolate; background: linear-gradient(180deg, #24242a, #17171b); }
+/* Header skin (user's requests, 2026-10-09: "plain grey looks very 2012, texture it, add personality", then
+   "darker as it was before but textured"): near-black with a fine carbon-fibre weave, the team's yellow and red glowing faintly at either end and a
+   light diagonal sheen. The trays on top are lighter frosted glass, so they and their labels stand out from the dark weave. */
+.header-skin { position: relative; isolation: isolate; background: linear-gradient(180deg, #121215, #09090b); }   /* near-black, as before (user: the grey was too light) */
 .header-skin::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0.55;
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0.9;
   background:
     radial-gradient(rgb(0 0 0 / 0.55) 15%, transparent 17%) 0 0,
     radial-gradient(rgb(0 0 0 / 0.55) 15%, transparent 17%) 3px 3px,
-    radial-gradient(rgb(255 255 255 / 0.07) 15%, transparent 22%) 0 1px,
-    radial-gradient(rgb(255 255 255 / 0.07) 15%, transparent 22%) 3px 4px;
+    radial-gradient(rgb(255 255 255 / 0.075) 15%, transparent 22%) 0 1px,
+    radial-gradient(rgb(255 255 255 / 0.075) 15%, transparent 22%) 3px 4px;
   background-size: 6px 6px;
 }
 .header-skin::after {
