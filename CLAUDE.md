@@ -995,18 +995,22 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   yellow / white / red, ceiling bar and light beam, polished floor with a perspective grid, turntable,
   glows, vignette), the name, class, year, setups link and overall on the wall; the car as a transparent
   cut-out with a contact shadow and its reflection in the floor ("Car picture to come" without one).
-  Under it the headline numbers (measured top speed, power, engine, weight, sheet pace with its rank in
-  the class, team laps; missing ones are left out), then "The car" (spec sheet) and "Racing record".
+  Two HUDs on the stage beside the car (user's request: "part of the stage, something our eyes can
+  touch", in Konexy): `.hud` glass totems with no solid background, turned towards the car
+  (rotateY ±20°), team-coloured top line, lit base edge, contact shadow, reflection in the floor
+  (-webkit-box-reflect); left "The car" (specs), right "On track" (measured top speed at min and max
+  wing, sheet pace with its rank in the class, team laps, distance). The car is smaller there (50 %)
+  and the inner LED panels hide. Below 1280 px the same HUDs sit flat under the stage. A headline-numbers
+  row and a "Racing record" (real-world wins) were shown first and dropped (user's choice).
   Cut-outs: `tools/car_images/cutout.py` (rembg's "birefnet-general"; isnet lost wings) → `public/media/
   cars/cutout/<car>.webp` (1600 px, alpha; `cutout` in car-images.json). The default livery's white "0"
   number plate is painted over (user's request): small plate (+ #FANATECGT strip) or big panel
   (template `plate_panel.png`), grown once into its light pixels (more leaked into windows), filled row
   by row from the body colour on both sides; the two 720S need a box by hand (EXTRA); the Lexus keeps
   its "23" livery. Checked on a montage of all 36.
-- Specs and racing record: `lib/car-specs.ts` (CAR_SPECS: engine, aspiration, displacement, power,
-  weight, gearbox, layout, debut, builder, wins, sources). Makers' figures with "≈" (the BoP changes
-  them in a race); only well-documented results (overall wins, class wins of the big races, titles),
-  each car with its source links. First 4 cars researched (Mustang, 992 GT3 R, M4, Huracán EVO2) for
+- Specs: `lib/car-specs.ts` (CAR_SPECS: engine, aspiration, displacement, power, weight, gearbox,
+  layout, debut, builder, sources; the sources are named in the HUD's "i"). Makers' figures with "≈"
+  (the BoP changes them in a race). First 4 cars researched (Mustang, 992 GT3 R, M4, Huracán EVO2) for
   the user to judge, the others to follow (GT3s first).
 - Top speeds (user's tests at Paul Ricard, 2026-10-09, min and max wing, all 36 cars): entered on Neon
   by the user with an upsert into car_rating; shown in grey under Top speed even for an unrated car.

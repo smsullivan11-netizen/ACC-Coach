@@ -1,7 +1,7 @@
-import { Flag, Settings2, Trophy, Wrench } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import Link from "next/link";
 import InfoTip from "@/components/InfoTip";
-import { Chip, delay, SectionTitle } from "@/components/ui";
+import { Chip } from "@/components/ui";
 import type { CarSpecs } from "@/lib/car-specs";
 import { OVERALL_INFO } from "@/lib/cars";
 import { scaleColor } from "@/lib/ranks";
@@ -14,46 +14,65 @@ type Props = {
   sheet: { gap: number; rank: number; of: number } | null;
   team: { drivers: number; laps: number; km: number };
 };
+type Row = { k: string; kSub?: string; v: string; unit?: string; sub?: string };
 
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
 
-// The car page's showroom (user's request, 2026-10-09): the car big on a stage drawn in CSS (globals.css,
-// .stage), its name and overall rating on the wall, then the headline numbers, the spec sheet and the
-// real car's racing record (lib/car-specs.ts).
+function Hud({ side, title, info, rows, big }: { side: "left" | "right"; title: string; info?: string; rows: Row[]; big?: boolean }) {
+  return (
+    <div className={`hud ${side} ${big ? "hud-big" : ""}`}>
+      <div className="hud-glass">
+        <div className="hud-title">{title} {info && <InfoTip text={info} side={side} />}</div>
+        {rows.map((r) => (
+          <div key={`${r.k}-${r.kSub}`} className="hud-row">
+            <span className="hud-k">{r.k}{r.kSub && <span className="hud-sub">{r.kSub}</span>}</span>
+            <span className="hud-v">{r.v}{r.unit && <small>{r.unit}</small>}{r.sub && <span className="hud-sub">{r.sub}</span>}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// The car page's showroom (user's request, 2026-10-09): the car on a stage drawn in CSS (globals.css,
+// .stage), its name and overall rating on the wall, and two glass HUDs standing on the stage on both
+// sides of it (.hud): the real car's specs (lib/car-specs.ts) and the team's numbers. Below 1280 px the
+// HUDs sit flat under the stage.
 export default function Showroom({ car, name, cls, year, cutout, overall, setups, specs, wings, sheet, team }: Props) {
   // The make on the wall in huge outlined letters, sized so a long one still fits
   const word = name.split(" ")[0].toUpperCase();
-  const headline = [
-    wings[0] != null && { label: "Top speed", value: `${wings[0]}`, unit: "km/h", sub: wings[1] != null ? `min wing · ${wings[1]} km/h max wing` : "min wing", info: "Measured by the team in game, same conditions for every car." },
-    specs?.power && { label: "Power", value: specs.power.replace(/ hp$/, ""), unit: "hp", sub: "maker's figure", info: "In a race the BoP changes it." },
-    specs && { label: "Engine", value: specs.engine.replace(/ \(.*\)$/, ""), sub: specs.aspiration },
-    specs?.weight && { label: "Weight", value: specs.weight.replace(/ kg$/, ""), unit: "kg", sub: "maker's figure", info: "In a race the BoP adds ballast." },
-    sheet && { label: "Sheet pace", value: sheet.gap < 0.005 ? "Fastest" : `+${sheet.gap.toFixed(2)}`, unit: sheet.gap < 0.005 ? undefined : "%", sub: `${ordinal(sheet.rank)} of ${sheet.of} ${cls}`, info: "Gap to the class's fastest car in OhneSpeed's sheet, default BoP, averaged over the tracks." },
-    { label: "Team laps", value: team.laps.toLocaleString("en-GB"), sub: `${team.drivers} ${team.drivers === 1 ? "driver" : "drivers"} · ${Math.round(team.km).toLocaleString("en-GB")} km` },
-  ].filter(Boolean) as { label: string; value: string; unit?: string; sub: string; info?: string }[];
-
-  const sheetRows = specs ? ([
-    ["Engine", specs.engine],
-    ["Aspiration", specs.aspiration],
-    ["Displacement", specs.displacement ? `${specs.displacement.toLocaleString("en-GB")} cc` : null],
-    ["Power", specs.power],
-    ["Weight", specs.weight],
-    ["Gearbox", specs.gearbox],
-    ["Layout", specs.layout],
-    ["ACC model", String(year)],
-    ["Race debut", specs.debut],
-    ["Built by", specs.builder],
-  ].filter(([, v]) => v) as [string, string][]) : [];
+  const specRows: Row[] = specs ? ([
+    { k: "Engine", v: specs.engine.replace(/ \(.*\)$/, ""), sub: specs.aspiration },
+    specs.displacement && { k: "Displacement", v: specs.displacement.toLocaleString("en-GB"), unit: "cc" },
+    specs.power && { k: "Power", v: specs.power.replace(/ hp$/, ""), unit: "hp" },
+    specs.weight && { k: "Weight", v: specs.weight.replace(/ kg$/, ""), unit: "kg" },
+    specs.gearbox && { k: "Gearbox", v: specs.gearbox },
+    { k: "Layout", v: specs.layout },
+    specs.debut && { k: "Race debut", v: specs.debut },
+  ].filter(Boolean) as Row[]) : [{ k: "Model", v: String(year), sub: "Specs to come" }];
+  const statRows = [
+    wings[0] != null && { k: "Top speed", kSub: "min wing", v: `${wings[0]}`, unit: "km/h" },
+    wings[1] != null && { k: "Top speed", kSub: "max wing", v: `${wings[1]}`, unit: "km/h" },
+    sheet && { k: "Sheet pace", v: sheet.gap < 0.005 ? "Fastest" : `+${sheet.gap.toFixed(2)}`, unit: sheet.gap < 0.005 ? undefined : "%", sub: `${ordinal(sheet.rank)} of ${sheet.of} ${cls}` },
+    { k: "Team laps", v: team.laps.toLocaleString("en-GB"), sub: `${team.drivers} ${team.drivers === 1 ? "driver" : "drivers"}` },
+    { k: "Distance", v: Math.round(team.km).toLocaleString("en-GB"), unit: "km" },
+  ].filter(Boolean) as Row[];
+  const specInfo = `The real car, from the maker and the teams${specs ? ` (${specs.sources.map((s) => s.label).join(", ")})` : ""}. Power and weight are the maker's figures: in a race the BoP sets them.`;
+  const statInfo = "Top speed: measured by the team in game, same conditions for every car. Sheet pace: gap to the class's fastest car in OhneSpeed's sheet, default BoP, averaged over the tracks.";
+  const huds = [
+    <Hud key="l" side="left" title="The car" info={specInfo} rows={specRows} />,
+    <Hud key="r" side="right" title="On track" info={statInfo} rows={statRows} big />,
+  ];
 
   return (
     <>
-      <section className="stage rise mb-4" aria-label={`${name} in the showroom`}>
+      <section className="stage rise mb-5" aria-label={`${name} in the showroom`}>
         <div className="stage-wall" />
         <div className="stage-word" style={{ fontSize: `clamp(3rem, ${Math.round(92 / Math.max(word.length, 4))}vw, 20rem)` }} aria-hidden>{word}</div>
-        <div className="stage-panel yellow" style={{ left: "6%" }} />
-        <div className="stage-panel" style={{ left: "13%", top: "33%", height: "24%" }} />
-        <div className="stage-panel" style={{ right: "13%", top: "33%", height: "24%" }} />
-        <div className="stage-panel red" style={{ right: "6%" }} />
+        <div className="stage-panel yellow stage-panel-out" style={{ left: "6%" }} />
+        <div className="stage-panel stage-panel-in" style={{ left: "13%", top: "33%", height: "24%" }} />
+        <div className="stage-panel stage-panel-in" style={{ right: "13%", top: "33%", height: "24%" }} />
+        <div className="stage-panel red stage-panel-out" style={{ right: "6%" }} />
         <div className="stage-ceiling" />
         <div className="stage-beam" />
         <div className="stage-floor" />
@@ -72,6 +91,7 @@ export default function Showroom({ car, name, cls, year, cutout, overall, setups
           </div>
         )}
         <div className="stage-vignette" />
+        {huds}
 
         {/* Name plate and overall rating on the wall */}
         <div className="pointer-events-auto! left-4 top-4 max-w-[60%] sm:left-7 sm:top-6">
@@ -90,56 +110,8 @@ export default function Showroom({ car, name, cls, year, cutout, overall, setups
         </div>
       </section>
 
-      {/* Headline numbers */}
-      <div className="rise mb-5 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]" style={delay(30)}>
-        {headline.map((h) => (
-          <div key={h.label} className="card px-4 py-3">
-            <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-              {h.label} {h.info && <InfoTip text={h.info} />}
-            </div>
-            <div className="mt-1">
-              <span className="tabular display text-xl text-white sm:text-2xl">{h.value}</span>
-              {h.unit && <span className="ml-1 text-sm text-zinc-400">{h.unit}</span>}
-            </div>
-            <div className="mt-0.5 truncate text-xs text-zinc-500">{h.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {specs && (
-        <div className="mb-5 grid gap-5 lg:grid-cols-2">
-          <section className="card rise p-5" style={delay(50)}>
-            <SectionTitle icon={Wrench} info="The real car's specs, from the maker and the teams. Power and weight are the maker's figures: in a race the BoP sets them.">The car</SectionTitle>
-            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-sm">
-              {sheetRows.map(([k, v]) => (
-                <div key={k} className="contents">
-                  <dt className="text-zinc-500">{k}</dt>
-                  <dd className="text-zinc-200">{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-          <section className="card card-red rise p-5" style={delay(70)}>
-            <SectionTitle icon={Trophy} info="Only well-documented results: overall wins, class wins in the big races, titles.">Racing record</SectionTitle>
-            {specs.wins.length === 0 ? <p className="text-sm text-zinc-500">No major win found yet.</p> : (
-              <ul className="space-y-2.5">
-                {specs.wins.map((w) => (
-                  <li key={`${w.year}-${w.event}-${w.detail}`} className="flex gap-3">
-                    <span className="tabular mt-0.5 h-fit rounded-md bg-accent/15 px-1.5 py-0.5 text-xs font-semibold text-accent">{w.year}</span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 text-sm font-medium text-white"><Flag size={13} className="shrink-0 text-race" /> {w.event}</div>
-                      {w.detail && <div className="text-xs text-zinc-400">{w.detail}</div>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="mt-4 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-500">
-              Sources: {specs.sources.map((s) => <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="hover:text-zinc-300 hover:underline">{s.label}</a>)}
-            </p>
-          </section>
-        </div>
-      )}
+      {/* Narrower screens: the same HUDs under the stage */}
+      <div className="rise mb-5 grid gap-4 sm:grid-cols-2 xl:hidden">{huds}</div>
     </>
   );
 }
