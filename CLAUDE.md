@@ -995,9 +995,12 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   glowing in the middle with the light beam it throws on the car, polished floor with a perspective
   grid, turntable, glows, vignette), the name, class, year, setups link and overall on the wall; the
   car as a transparent cut-out ("Car picture to come" without one), grounded (user: it looked
-  "photoshopped in") by a wide soft shadow, a tight dark one and its own silhouette flattened onto the
-  floor (`.contact`: brightness(0), scaleY(-0.09) from its bottom edge), with its reflection under
-  them; its description (admin's note or lib/car-notes.ts) under it on the stage (under the stage on
+  "photoshopped in", then "floating"): a wide soft shadow, a tight dark one, `.underbody` (the floor in
+  the car's shade under the sills, seen through the gap between the wheels: the bright floor there
+  made it float) and `.contact` (its silhouette squashed to a dark strip straddling the ground line; a
+  flipped silhouette was tried first: it put the dark band below a gap), its reflection fainter under
+  them. The floor grid is a flat SVG with the perspective drawn in: a 3D-tilted grid (perspective +
+  rotateX) was drawn over the car by the user's browser (lines across the car: "almost transparent"); its description (admin's note or lib/car-notes.ts) under it on the stage (under the stage on
   phones). Logos: `lib/brand-logos.ts`, monochrome paths: Simple Icons (CC0; AMG for the Mercedes) for
   most makes; Alpine's "A", Ginetta's wordmark, Jaguar's leaper (solid), the Lexus emblem and, for the
   Mustang only (CAR_LOGOS), its running pony: the makers' own logos (user's choice 2026-10-09:
@@ -1012,8 +1015,8 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   slow bob. The beam (`.stage-beam`, its ::before clipped, blurred outside for soft edges) starts at
   the logo: geometry in the stage's container units (`container-type: size`; --lt, --lh, --logo-k,
   --logo-r, --bw), summit 60 % of the logo's width at its middle, widening to the car; brightest just
-  under the logo (the lamp: a radial glow sized to the logo) and fading to about 18 % of that where it
-  meets the car. Tried and dropped: a halo behind the logo, a lamp blob under the logo's box, a beam
+  under the logo (the lamp: a radial glow as wide as the logo, over the cone's top half) and fading to
+  about 15 % of that where it meets the car. Tried and dropped: a halo behind the logo, a lamp blob under the logo's box, a beam
   cut flat at a fixed height.
   Two HUDs on the stage beside the car (user's request: "part of the stage, something our eyes can
   touch", in Konexy): `.hud` glass totems with no solid background, turned towards the car

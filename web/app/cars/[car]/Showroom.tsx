@@ -111,6 +111,7 @@ export default function Showroom({ car, name, cls, year, cutout, overall, setups
             <img className="reflection" src={cutout} alt="" width={1600} height={430} aria-hidden />
             <div className="ambient" />
             <div className="shadow" />
+            <div className="underbody" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="contact" src={cutout} alt="" width={1600} height={430} aria-hidden />
             {/* eslint-disable-next-line @next/next/no-img-element */}
