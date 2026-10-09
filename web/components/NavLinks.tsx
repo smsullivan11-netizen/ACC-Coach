@@ -29,9 +29,10 @@ function useActive() {
 export default function NavLinks() {
   const active = useActive();
   return (
-    <div className="order-last flex w-full min-w-0 items-center justify-between gap-2 overflow-x-auto [scrollbar-width:none] md:shrink-0 md:overflow-visible [&::-webkit-scrollbar]:hidden rounded-xl border border-white/[0.07] bg-black/40 p-1 shadow-[inset_0_1px_3px_rgb(0_0_0/0.6)] md:order-none md:w-auto md:justify-start xl:gap-3">
+    // Each group in its own recessed tray, the trays apart (user's request: the groups must read as groups)
+    <div className="order-last flex w-full min-w-0 items-center justify-between gap-1.5 overflow-x-auto [scrollbar-width:none] md:shrink-0 md:overflow-visible [&::-webkit-scrollbar]:hidden md:order-none md:w-auto md:justify-start md:gap-2.5 xl:gap-3.5">
       {GROUPS.map((group, g) => (
-        <div key={g} className="flex shrink-0 items-center gap-0.5">
+        <div key={g} className="flex shrink-0 items-center gap-0.5 rounded-xl border border-white/[0.07] bg-black/40 p-1 shadow-[inset_0_1px_3px_rgb(0_0_0/0.6)]">
       {group.map(({ href, label, icon: Icon, exact, iconOnly }) => {
         const on = active(href, exact);
         return (

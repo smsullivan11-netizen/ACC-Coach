@@ -1015,7 +1015,7 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   not post a setup"); it now says "Choose the track these setups are for". `/setups/[id]`: who shared
   it, type, notes, Download (tab-indented .json, counts downloads) and where to put the file; the
   uploader or an admin edits or deletes. Menu: "Cars & Setups" (header groups, 2026-10-09: home icon |
-  Telemetry, Cars & Setups | Sessions, Leaderboards, Drivers | YouTube, a small gap between groups); a Cars |
+  Telemetry, Cars & Setups | Sessions, Leaderboards, Drivers | YouTube, each group its own tray, the trays apart); a Cars |
   Setups switch on both pages, "Cars" stays highlighted, the car page links to its setups.
 - History (git c61b07c and before): a viewer with the game's six setup tabs and real units derived from
   three files + game screenshots (Ford, BMW M4, Porsche 992: pressure 20.3 psi + 0.1 per click, fuel =
