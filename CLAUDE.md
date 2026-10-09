@@ -1005,10 +1005,16 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   Commons, Wikipedia and worldvectorlogo.com, the wanted parts rendered big and traced into one even-odd
   path (OpenCV contours). A wide logo keeps its proportions (viewBox) and is made lower (--logo-k) so
   it is about as big as a round one. The make written huge in outline was tried first (user's choice
-  to replace it). The logo looks 3D and floating (user's request): a 5 px extruded edge (stacked 1 px
-  drop-shadows going darker), a slow bob, a soft glow (toned down at the user's request). Under it a lamp
-  glow (`.stage-logo::after`, screen blend) opening into the brighter top of the beam; a dark shadow
-  under it was tried and dropped (user: it suggested a floor beneath the logo).
+  to replace it). Every logo's viewBox is its real outline
+  (Simple Icons draw in a 24 × 24 square: measured with getBBox), so a wide one is sized right. The
+  logo (user's critiques): crisp, no bloom; white lit from below (gradient fill); its 3D edge and a
+  faint shadow on the wall above it (a dark edge or a shadow under it read as a floor beneath it); a
+  slow bob. The beam (`.stage-beam`, its ::before clipped, blurred outside for soft edges) starts at
+  the logo: geometry in the stage's container units (`container-type: size`; --lt, --lh, --logo-k,
+  --logo-r, --bw), summit 60 % of the logo's width at its middle, widening to the car; brightest just
+  under the logo (the lamp: a radial glow sized to the logo) and fading to about 18 % of that where it
+  meets the car. Tried and dropped: a halo behind the logo, a lamp blob under the logo's box, a beam
+  cut flat at a fixed height.
   Two HUDs on the stage beside the car (user's request: "part of the stage, something our eyes can
   touch", in Konexy): `.hud` glass totems with no solid background, turned towards the car
   (rotateY ±14°), team-coloured top line, sharp 1 px frame, lit base edge, contact shadow; they zoom

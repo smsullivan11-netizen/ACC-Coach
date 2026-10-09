@@ -236,8 +236,9 @@ body {
    cut-out) stands on it with contact shadows and its reflection in the floor; its description under it.
    From 1280 px two glass HUDs stand on the stage beside it (.hud). */
 .stage { position: relative; isolation: isolate; overflow: hidden; border-radius: 1.5rem; background: #050506; aspect-ratio: 1 / 1; border: 1px solid rgb(255 255 255 / 0.07); }
-@media (min-width: 640px) { .stage { aspect-ratio: 16 / 9; } }
-@media (min-width: 1280px) { .stage { aspect-ratio: 21 / 10.6; } }
+.stage { container-type: size; --lt: 37cqh; --lh: 11cqh; --bw: 47cqw; }
+@media (min-width: 640px) { .stage { aspect-ratio: 16 / 9; --lt: 7cqh; --lh: 17cqh; --bw: 38cqw; } }
+@media (min-width: 1280px) { .stage { aspect-ratio: 21 / 10.6; --bw: 26cqw; } }
 .stage > * { position: absolute; pointer-events: none; }
 .stage-wall {
   inset: 0 0 38% 0;
@@ -258,25 +259,31 @@ body {
 .stage-panel.yellow { background: linear-gradient(180deg, transparent, rgb(255 210 0 / 0.85) 25%, rgb(255 210 0 / 0.9) 50%, rgb(255 210 0 / 0.85) 75%, transparent); box-shadow: 0 0 18px 2px rgb(255 210 0 / 0.30), 0 0 70px 14px rgb(255 210 0 / 0.07); }
 .stage-panel.red { background: linear-gradient(180deg, transparent, rgb(225 6 0 / 0.9) 25%, rgb(255 40 30 / 0.95) 50%, rgb(225 6 0 / 0.9) 75%, transparent); box-shadow: 0 0 18px 2px rgb(225 6 0 / 0.38), 0 0 70px 14px rgb(225 6 0 / 0.09); }
 /* The make's logo, glowing, and the beam it throws on the car (no logo: the make written) */
-.stage-logo { left: 50%; top: 37%; height: calc(11% * var(--logo-k, 1)); aspect-ratio: 1; translate: -50% 0; display: grid; place-items: center; }
-@media (min-width: 640px) { .stage-logo { top: 7%; height: calc(17% * var(--logo-k, 1)); } }
-.stage-logo::before { content: ""; position: absolute; inset: -70%; border-radius: 50%; background: radial-gradient(closest-side, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.02) 45%, transparent); }
-/* 3D and floating (user's request): a 5 px extruded edge (stacked 1 px shadows going darker) and a soft
-   glow, the logo bobbing gently. No shadow under it (user: it suggested a floor beneath): it lights
-   the stage like a lamp instead, a bright glow under it opening into the beam on the car. */
-.stage-logo svg { position: relative; width: 100%; height: 100%; fill: rgb(255 255 255 / 0.92); filter: drop-shadow(0 0 3px rgb(255 255 255 / 0.22)) drop-shadow(0 1px 0 rgb(205 205 212)) drop-shadow(0 1px 0 rgb(165 165 172)) drop-shadow(0 1px 0 rgb(128 128 136)) drop-shadow(0 1px 0 rgb(96 96 104)) drop-shadow(0 1px 0 rgb(68 68 75)) drop-shadow(0 0 10px rgb(255 255 255 / 0.08)); animation: logo-float 6s ease-in-out infinite; }
-.stage-logo span { position: relative; font-family: var(--font-display); font-size: clamp(1.1rem, 2.6vw, 2.4rem); letter-spacing: 0.2em; color: rgb(255 255 255 / 0.92); white-space: nowrap; text-shadow: 0 1px 0 rgb(205 205 212), 0 2px 0 rgb(165 165 172), 0 3px 0 rgb(128 128 136), 0 4px 0 rgb(96 96 104), 0 5px 0 rgb(68 68 75), 0 0 6px rgb(255 255 255 / 0.25); animation: logo-float 6s ease-in-out infinite; }
-/* The lamp: light pouring out under the logo, brightest at the top, widening into the beam */
-.stage-logo::after { content: ""; position: absolute; left: 5%; right: 5%; top: 88%; height: 85%; mix-blend-mode: screen; background: radial-gradient(45% 100% at 50% 0%, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.18) 40%, rgb(255 255 255 / 0.05) 70%, transparent 90%); filter: blur(5px); animation: logo-lamp 6s ease-in-out infinite; }
-@keyframes logo-float { 50% { transform: translateY(-5%); opacity: 0.9; } }
-@keyframes logo-lamp { 50% { opacity: 0.8; } }
+/* The make's logo and the light it throws on the car (user's requests, 2026-10-09). Sized and placed
+   in the stage's container units: --lt the logo's top, --lh its height (× --logo-k, smaller for a wide
+   logo; --logo-r its width / height, both set on the stage), --bw the half width of the beam at the car.
+   The logo is crisp (no bloom: "not clean enough"), white lit from below, its 3D edge and a faint
+   shadow on the wall above it (a dark edge under it read as a floor beneath it), bobbing gently. */
+.stage-logo { left: 50%; top: var(--lt); height: calc(var(--lh) * var(--logo-k, 1)); aspect-ratio: 1; translate: -50% 0; display: grid; place-items: center; }
+.stage-logo svg { position: relative; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 -1px 0 rgb(150 150 158)) drop-shadow(0 -1px 0 rgb(92 92 100)) drop-shadow(0 0 1.5px rgb(255 255 255 / 0.3)) drop-shadow(0 -8px 10px rgb(0 0 0 / 0.75)); animation: logo-float 6s ease-in-out infinite; }
+.stage-logo span { position: relative; font-family: var(--font-display); font-size: clamp(1.1rem, 2.6vw, 2.4rem); letter-spacing: 0.2em; color: #fff; white-space: nowrap; text-shadow: 0 -1px 0 rgb(150 150 158), 0 -2px 0 rgb(92 92 100), 0 0 1.5px rgb(255 255 255 / 0.3), 0 -8px 10px rgb(0 0 0 / 0.75); animation: logo-float 6s ease-in-out infinite; }
+@keyframes logo-float { 50% { transform: translateY(-4%); } }
+/* The beam: its summit is the logo (it starts behind it, as wide as part of it) and it widens down to
+   the car, brightest just under the logo (the lamp, sized to the logo), fading to about 18 % of that
+   where it meets the car, then out towards the floor. Blurred on the outside (soft edges), clipped
+   inside. */
 .stage-beam {
-  top: 43%; bottom: 20%; left: 18%; right: 18%; mix-blend-mode: screen;
-  clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.19), rgb(255 255 255 / 0.06) 45%, transparent);
-  filter: blur(8px);
+  --lhk: calc(var(--lh) * var(--logo-k, 1));
+  --lw: calc(var(--lhk) * var(--logo-r, 1));
+  left: 0; right: 0; top: calc(var(--lt) + var(--lhk) * 0.5); bottom: 16%; mix-blend-mode: screen; filter: blur(5px);
 }
-@media (min-width: 640px) { .stage-beam { top: 16%; } }
+.stage-beam::before {
+  content: ""; position: absolute; inset: 0;
+  clip-path: polygon(calc(50% - var(--lw) * 0.3) 0, calc(50% + var(--lw) * 0.3) 0, calc(50% + var(--bw)) 100%, calc(50% - var(--bw)) 100%);
+  background:
+    radial-gradient(calc(var(--lw) * 0.6) calc(var(--lhk) * 0.9) at 50% calc(var(--lhk) * 0.5), rgb(255 255 255 / 0.24), rgb(255 255 255 / 0.08) 55%, transparent 80%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.24), rgb(255 255 255 / 0.15) 15%, rgb(255 255 255 / 0.045) 50%, rgb(255 255 255 / 0.03) 80%, transparent);
+}
 /* Floor: polished, with a perspective grid fading into the distance */
 .stage-floor {
   inset: 62% 0 0 0;
@@ -317,7 +324,7 @@ body {
 .stage-car .shadow { position: absolute; z-index: 1; left: 3%; right: 3%; bottom: -4%; height: 10%; border-radius: 50%; background: radial-gradient(closest-side, rgb(0 0 0 / 0.98), rgb(0 0 0 / 0.7) 55%, transparent); filter: blur(3px); }
 .stage-car .contact { position: absolute; z-index: 2; left: 0; top: 0; transform: scaleY(-0.09); transform-origin: bottom; filter: brightness(0) blur(2.5px); opacity: 0.95; }
 @keyframes stage-in { from { opacity: 0; translate: 6% 0; } }
-@media (prefers-reduced-motion: reduce) { .stage-car .car, .stage-car .reflection, .stage-logo svg, .stage-logo span, .stage-logo::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .stage-car .car, .stage-car .reflection, .stage-logo svg, .stage-logo span { animation: none; } }
 /* The car's description, under it on the stage (from 640 px; under the stage on phones) */
 .stage-note { left: 50%; bottom: 2.5%; width: min(64%, 56rem); translate: -50% 0; text-align: center; font-size: 0.8rem; line-height: 1.45; color: rgb(212 212 216); text-shadow: 0 1px 2px #000, 0 0 14px rgb(0 0 0 / 0.9); pointer-events: auto; }
 @media (min-width: 1280px) { .stage-note { font-size: 0.9rem; width: min(50%, 56rem); } }

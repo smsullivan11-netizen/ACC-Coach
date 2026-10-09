@@ -39,9 +39,10 @@ function Hud({ side, title, info, children }: { side: "left" | "right"; title: s
 export default function Showroom({ car, name, cls, year, cutout, overall, setups, parts, wings, rated, specs, note, noteInfo }: Props) {
   const logo = brandLogo(car);
   // A wide logo (the Mustang's pony, Jaguar's leaper, Ginetta's wordmark) keeps its proportions and is
-  // made lower, so it is about as big on the wall as a round one
+  // made lower, so it is about as big on the wall as a round one. On the stage: the beam starts at it
   const [, , vw, vh] = (logo?.viewBox ?? "0 0 24 24").split(" ").map(Number);
-  const logoBox = { aspectRatio: `${vw} / ${vh}`, "--logo-k": Math.min(1, 1.8 / (vw / vh)) } as CSSProperties;
+  const ratio = vw / vh;
+  const stageVars = { "--logo-k": Math.min(1, 1.8 / ratio), "--logo-r": ratio } as CSSProperties;
   const specRows: Row[] = specs ? ([
     { k: "Engine", v: specs.engine.replace(/ \(.*\)$/, ""), sub: specs.aspiration },
     specs.displacement && { k: "Displacement", v: specs.displacement.toLocaleString("en-GB"), unit: "cc" },
@@ -82,15 +83,21 @@ export default function Showroom({ car, name, cls, year, cutout, overall, setups
 
   return (
     <>
-      <section className="stage rise mb-5" aria-label={`${name} in the showroom`}>
+      <section className="stage rise mb-5" aria-label={`${name} in the showroom`} style={stageVars}>
         <div className="stage-wall" />
         <div className="stage-panel yellow stage-panel-out" style={{ left: "6%" }} />
         <div className="stage-panel stage-panel-in" style={{ left: "13%", top: "33%", height: "24%" }} />
         <div className="stage-panel stage-panel-in" style={{ right: "13%", top: "33%", height: "24%" }} />
         <div className="stage-panel red stage-panel-out" style={{ right: "6%" }} />
         <div className="stage-beam" />
-        <div className="stage-logo" aria-hidden style={logoBox}>
-          {logo ? <svg viewBox={logo.viewBox ?? "0 0 24 24"}><path d={logo.path} fillRule="evenodd" /></svg> : <span>{name.split(" ")[0].toUpperCase()}</span>}
+        <div className="stage-logo" aria-hidden style={{ aspectRatio: `${vw} / ${vh}` }}>
+          {logo ? (
+            <svg viewBox={logo.viewBox ?? "0 0 24 24"}>
+              {/* White, lit from below by its own lamp: a touch greyer at the top */}
+              <defs><linearGradient id="logo-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#c8c8d0" /><stop offset="0.6" stopColor="#f4f4f6" /><stop offset="1" stopColor="#fff" /></linearGradient></defs>
+              <path d={logo.path} fillRule="evenodd" fill="url(#logo-fill)" />
+            </svg>
+          ) : <span>{name.split(" ")[0].toUpperCase()}</span>}
         </div>
         <div className="stage-floor" />
         <div className="stage-horizon" />
