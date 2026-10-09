@@ -1022,8 +1022,10 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   its "23" livery. Checked on a montage of all 36.
 - Specs: `lib/car-specs.ts` (CAR_SPECS: engine, aspiration, displacement, power, weight, gearbox,
   layout, debut, builder, sources; the sources are named in the HUD's "i"). Makers' figures with "≈"
-  (the BoP changes them in a race). First 4 cars researched (Mustang, 992 GT3 R, M4, Huracán EVO2) for
-  the user to judge, the others to follow (GT3s first).
+  (the BoP changes them in a race). All 31 GT3s and the 6 Cup / Super Trofeo / Challenge cars done
+  (2026-10-09, Wikipedia, makers' and teams' pages, the motorsport press); a figure no source gave is
+  left out, not guessed (e.g. the 720S's power, the Jaguar's aspiration). GT4 and GT2 not done yet
+  (they show "Specs to come").
 - Top speeds (user's tests at Paul Ricard, 2026-10-09, min and max wing, all 36 cars): entered on Neon
   by the user with an upsert into car_rating; shown in grey under Top speed even for an unrated car.
 - Descriptions (user's request, 2026-10-08, after writing the Ford's own: "Absolute V8 freedom power
