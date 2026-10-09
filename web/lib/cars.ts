@@ -77,8 +77,8 @@ export function carName(key: string) {
 // The sub-ratings and their "i" texts (the user's list and wording, 2026-10-07)
 export const CAR_PARTS = [
   { key: "top_speed", label: "Top speed", info: "Top speed on the straights, from min wing to max wing. The two small grey numbers are the absolute top speed in km/h at min wing and at max wing." },
-  { key: "acceleration", label: "Acceleration", info: "Mid to high speed acceleration: pure power acceleration." },
-  { key: "traction", label: "Traction", info: "Low-end acceleration and initial punch on corner exit." },
+  { key: "acceleration", label: "Acceleration", info: "Not to confuse with \"Traction & Launch\". It's about mid to high speed acceleration: measures how fast a car can reach its top speed once it stretches its legs. Influenced by torque and overall power delivery. A car can pull away in long straights while having a lower top end speed: this rating explains why. Famous example: Aston Martin V8." },
+  { key: "traction", label: "Traction & Launch", info: "Quantifies low-end acceleration and initial punch on corner exit. Cars like Porsches, Nissans and Hondas excel at this, even if some of them suffer from a lack of power and a generally lower straight-line speed." },
   { key: "slow_corners", label: "Slow corners", info: "How fast and nimble the car is in low-speed corners." },
   { key: "fast_corners", label: "Fast corners", info: "How fast and planted the car is on high-speed portions." },
   { key: "braking", label: "Braking", info: "Brake performance and stopping power." },

@@ -960,7 +960,7 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - User's request: car ratings entered by hand (the team drives too few cars, mostly the Mustang and
   McLaren, to rate them from laps). Table `car_rating` (migration 0016): eight sub-ratings 0-100,
   null = not rated, with the user's names and "i" texts (`CAR_PARTS`: Top speed "min wing / max
-  wing", Acceleration, Traction, Slow corners, Fast corners, Braking, Tyre wear, Driveability), a note
+  wing", Acceleration, Traction & Launch (renamed 2026-10-09), Slow corners, Fast corners, Braking, Tyre wear, Driveability), a note
   and a source. Overall = average of those filled in, **driveability left out** (user, 2026-10-08:
   hard cars like the 992 or the EVO2 are among the fastest when driven well; it shows as stars). Admins edit them on the car's page (POST
   /api/cars/[car]/rating). `CARS` = every ACC car key with the game's name, year and class
