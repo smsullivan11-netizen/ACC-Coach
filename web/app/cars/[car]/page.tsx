@@ -14,7 +14,7 @@ import { dateTime, lapTime, prettyKey } from "@/lib/format";
 import { isEstimate, sourceLabel } from "@/lib/reference-adjust";
 import { REFERENCE_FACTOR } from "@/lib/references";
 import { trackInfo } from "@/lib/tracks";
-import { CAR_NOTES, CAR_NOTES_SOURCE } from "@/lib/car-notes";
+import { DRIVING_STYLE, DRIVING_STYLE_SOURCE } from "@/lib/car-driving";
 import RatingForm from "./RatingForm";
 import Showroom from "./Showroom";
 
@@ -75,8 +75,9 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
   const [{ setups }] = await sql<{ setups: number }[]>`select count(*)::int as setups from setup where car_key = ${car}`.catch(() => [{ setups: 0 }]);
   const mode = rankMode((await props.searchParams).mode);   // race or qualy / hotlap overall
   const total = overall(rating, mode);
-  // An admin's description, else the researched starting one (lib/car-notes.ts)
-  const note = rating?.note ?? CAR_NOTES[car] ?? null;
+  // How the car drives (lib/car-driving.ts), unless an admin wrote their own (2026-10-10: replaces the
+  // first short descriptions)
+  const note = rating?.note?.trim() || DRIVING_STYLE[car] || null;
   const sheetDate = refs.find((r) => r.sheet_date)?.sheet_date;
   const estimated = refs.some((r) => r.bop === "default" && isEstimate(r.source));
 
@@ -93,9 +94,9 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
           ? <>Rated by {rating.editor ?? "an admin"}, {dateTime(rating.updated_at)}{rating.source && <InfoTip text={`Source: ${rating.source}`} />}</>
           : <>Not rated yet <InfoTip text="The team's admins rate the cars from their knowledge of them." /></>}
         specs={carSpecs(car)} note={note}
-        noteInfo={!rating?.note && note ? `Description: ${CAR_NOTES_SOURCE}. An admin's own description replaces it.` : null}
+        noteInfo={!rating?.note?.trim() && note ? `Driving style: ${DRIVING_STYLE_SOURCE}. An admin's own text replaces it.` : null}
       />
-      {me.is_admin && <div className="-mt-2 mb-5"><RatingForm car={car} initial={{ ...rating, note }} /></div>}
+      {me.is_admin && <div className="-mt-2 mb-5"><RatingForm car={car} initial={rating ?? null} /></div>}
 
       <section className="card rise overflow-hidden" style={delay(40)}>
           <div className="p-5 pb-0">

@@ -8,20 +8,23 @@ import { Segmented } from "@/components/ui";
 import { CAR_PARTS, CLASSES, type CarClass } from "@/lib/cars";
 import {
   EXPERIENCES, MIN_COVERAGE, PACE_SHARE, presetWeights, score, SESSIONS, TRACK_TYPE, TRACK_TYPES,
-  type Experience, type FinderCar, type Session, type TrackType, type Weights,
+  type Experience, type FinderCar, type Session, type TrackTimes, type TrackType, type Weights,
 } from "@/lib/finder";
+import { lapTime } from "@/lib/format";
 import { scaleColor } from "@/lib/ranks";
 
 type Props = {
   cars: Record<string, FinderCar[]>;
   gaps: Record<string, Record<string, Record<string, number>>>;
+  times: TrackTimes;
   tracks: { key: string; name: string }[];
 };
 
 // The finder's choices and results (lib/finder.ts scores): class, session, track type or one track,
 // experience → an importance per sub-rating (fine-tunable with sliders) → the 5 best matches, with
-// their strongest points and links to the car and to a head to head against the first.
-export default function Finder({ cars, gaps, tracks }: Props) {
+// their strongest points and links to the car and to a head to head against the first. A click on a
+// result opens its details: lap times on the chosen track and how the car drives.
+export default function Finder({ cars, gaps, times, tracks }: Props) {
   const [cls, setCls] = useState<CarClass>("GT3");
   const [session, setSession] = useState<Session>("race");
   const [type, setType] = useState<TrackType>("mixed");
@@ -29,6 +32,7 @@ export default function Finder({ cars, gaps, tracks }: Props) {
   const [experience, setExperience] = useState<Experience>("intermediate");
   const [custom, setCustom] = useState<Weights | null>(null);   // hand-tuned importances
   const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState<string | null>(null);   // the result whose details are open
 
   const trackType = track ? TRACK_TYPE[track] ?? "mixed" : type;
   const preset = presetWeights(session, trackType, experience);
@@ -90,7 +94,11 @@ export default function Finder({ cars, gaps, tracks }: Props) {
       <section className="space-y-3">
         {results.length === 0 && <p className="card p-6 text-zinc-400">No rated {cls} car yet: the admins rate the cars on their pages.</p>}
         {results.map((m, i) => (
-          <div key={m.car.key} className="card rise flex flex-wrap items-center gap-4 p-4" style={{ "--d": `${i * 50}ms` } as React.CSSProperties}>
+          <div key={m.car.key} role="button" tabIndex={0} aria-expanded={shown === m.car.key}
+               onClick={(e) => { if (!(e.target as HTMLElement).closest("a")) setShown(shown === m.car.key ? null : m.car.key); }}
+               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShown(shown === m.car.key ? null : m.car.key); } }}
+               className={`card rise flex cursor-pointer flex-wrap items-center gap-4 p-4 transition hover:border-white/20 ${shown === m.car.key ? "border-accent/40" : ""}`}
+               style={{ "--d": `${i * 50}ms` } as React.CSSProperties}>
             <span className={`display grid h-9 w-9 shrink-0 place-items-center rounded-lg text-lg ${i === 0 ? "bg-accent text-ink" : "bg-white/5 text-zinc-300"}`}>{i + 1}</span>
             {m.car.side
               // eslint-disable-next-line @next/next/no-img-element
@@ -113,9 +121,37 @@ export default function Finder({ cars, gaps, tracks }: Props) {
                 <Swords size={13} /> vs #1
               </Link>
             )}
+            <ChevronDown size={16} className={`order-last shrink-0 text-zinc-500 transition sm:order-none ${shown === m.car.key ? "rotate-180 text-accent" : ""}`} />
+            {shown === m.car.key && <Details car={m.car} track={track} trackName={trackName} t={track ? times[track]?.[m.car.key] : undefined} gap={m.pace?.gap} />}
           </div>
         ))}
       </section>
+    </div>
+  );
+}
+
+/** A result's details (user's request): its lap times on the chosen track and how it drives. */
+function Details({ car, track, trackName, t, gap }: { car: FinderCar; track: string; trackName: string | null; t?: { ref?: number; team?: number; driver?: string }; gap?: number }) {
+  return (
+    <div className="order-last w-full border-t border-white/10 pt-3 text-sm" onClick={(e) => e.stopPropagation()}>
+      {track ? (
+        <div className="mb-3 flex flex-wrap gap-x-8 gap-y-2">
+          <div>
+            <div className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-zinc-500">Reference at {trackName} <InfoTip text="OhneSpeed's sheet, default BoP qualifying." /></div>
+            <div className="tabular display text-lg text-white">{t?.ref != null ? lapTime(t.ref) : "–"}
+              {gap != null && <span className="ml-2 font-sans text-xs text-zinc-400">{gap < 0.005 ? "fastest of its class" : `+${gap.toFixed(2)} % on the fastest`}</span>}
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-zinc-500">Team best in it</div>
+            <div className="tabular display text-lg text-white">{t?.team != null ? lapTime(t.team) : "–"}
+              {t?.driver && <span className="ml-2 font-sans text-xs text-zinc-400">{t.driver}</span>}
+            </div>
+          </div>
+        </div>
+      ) : <p className="mb-3 text-xs text-zinc-500">Pick a track above to see this car&apos;s lap times there.</p>}
+      <div className="text-[11px] uppercase tracking-wider text-zinc-500">How it drives</div>
+      <p className="mt-1 leading-relaxed text-zinc-300">{car.style ?? "No description yet."}</p>
     </div>
   );
 }

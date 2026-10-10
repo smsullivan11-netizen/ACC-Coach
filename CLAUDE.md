@@ -1058,7 +1058,9 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   car's ratings (blended with the pace); top 5 with the strongest points ("excellent slow corners",
   "easy to drive", the sheet gap on the track), links to the car and a head to head against #1. A car
   whose ratings cover under 60 % of the asked-for importance is "few ratings" and ranked after the
-  others (one high number would win otherwise). lib/finder.ts, app/cars/finder/.
+  others (one high number would win otherwise). A click on a result opens its details: the default-BoP
+  reference and the team's best lap (and who) on the chosen track, and its driving style.
+  lib/finder.ts, app/cars/finder/.
 - Driveability stars (Cars table) filled exactly, v / 20 (user: half-star steps too coarse), 15 px.
 - Table thumbnails (`side`) since 2026-10-10: the clean cut-outs at 600 px (plate painted over),
   written by cutout.py with the big ones; process.py's faded crops are the old way.
@@ -1070,14 +1072,14 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   (they show "Specs to come").
 - Top speeds (user's tests at Paul Ricard, 2026-10-09, min and max wing, all 36 cars): entered on Neon
   by the user with an upsert into car_rating; shown in grey under Top speed even for an unrated car.
-- Descriptions (user's request, 2026-10-08, after writing the Ford's own: "Absolute V8 freedom power
-  beast..."): `lib/car-notes.ts` holds researched starting texts for the 53 other cars in that short,
-  punchy style (Coach Dave Academy, GOSetups, Traxion, GTPlanet, Overtake; only claims about ACC's
-  car, thin for a few old models). Shown until an admin saves a note (car_rating.note wins) and
-  pre-filled in the edit form; the page credits the research when it shows one. Driveability stars
-  in the list carry a "Driveability" label above them; no bar under the overall score.
-
-## Setups library (web/app/setups, web/lib/setups.ts, 2026-10-08)
+- Driving style (user's request, 2026-10-10, replacing the first short descriptions of
+  2026-10-08, lib/car-notes.ts, deleted): `lib/car-driving.ts` DRIVING_STYLE, a detailed text per car
+  (54; about 450-550 characters for the GT3s, shorter for the others: less on record) on braking and
+  entry, mid-corner, exit, kerbs, high speed, tyres and how to drive it; the Ford's built on the
+  user's own words. Under the car on the stage from 1280 px (where it fits), under the stage below.
+  An admin's own text (car_rating.note, "Driving style" in the ratings form, no longer pre-filled:
+  pre-filling saved copies of the researched text) replaces it. The old copies in the database were
+  to be cleared by the user (update car_rating set note = null). Also in the finder's details.
 - User's request: everyone can upload (for now) ACC setup files; a plain **library**, no viewer (the
   user dropped the GOSetups-style visualizer: "too inconsistent" from car to car). Table `setup`
   (migration 0017): car_key, track_key (lowercase, chosen at upload), title, kind (qualifying / race /

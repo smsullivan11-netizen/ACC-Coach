@@ -46,7 +46,9 @@ export function presetWeights(session: Session, type: TrackType, experience: Exp
   } as Weights;
 }
 
-export type FinderCar = { key: string; name: string; year: number; side: string | null; ratings: Partial<Record<CarPart, number | null>> };
+export type FinderCar = { key: string; name: string; year: number; side: string | null; style: string | null; ratings: Partial<Record<CarPart, number | null>> };
+/** Lap times per track and car, for the finder's details: default-BoP reference, team's best. */
+export type TrackTimes = Record<string, Record<string, { ref?: number; team?: number; driver?: string }>>;
 export type Match = {
   car: FinderCar; score: number; ratingScore: number | null;
   coverage: number;   // share of the asked-for importance its filled-in ratings cover (0-1)

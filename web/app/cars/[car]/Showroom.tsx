@@ -125,7 +125,7 @@ export default function Showroom({ car, name, cls, year, cutout, overall, mode, 
         {/* Name plate and overall rating on the wall */}
         <div className="pointer-events-auto! left-4 top-4 max-w-[52%] sm:left-7 sm:top-6 sm:max-w-[38%]">
           <div className="flex items-center gap-2 text-xs text-zinc-300"><Chip tone="yellow">{cls}</Chip> {year}</div>
-          <h1 className={`display mt-1.5 text-xl leading-tight text-white drop-shadow-[0_2px_12px_rgb(0_0_0/0.8)] sm:text-3xl ${name.length > 22 ? "" : "xl:text-4xl"}`}>{name}</h1>
+          <h1 className={`display mt-1.5 text-xl leading-tight text-white drop-shadow-[0_2px_12px_rgb(0_0_0/0.8)] sm:text-2xl ${name.length > 22 ? "xl:text-3xl" : "xl:text-4xl"}`}>{name}</h1>
           <Link href={`/setups?car=${car}`} className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-accent hover:underline sm:text-sm">
             <Settings2 size={14} /> {setups ? `${setups} setup${setups === 1 ? "" : "s"}` : "Setups"}
           </Link>
@@ -152,7 +152,7 @@ export default function Showroom({ car, name, cls, year, cutout, overall, mode, 
       </section>
 
       {/* Narrower screens: the description (phones) and the same HUDs under the stage */}
-      {noteText && <p className="mb-5 text-sm text-zinc-300 sm:hidden">{noteText}</p>}
+      {noteText && <p className="mb-5 text-sm leading-relaxed text-zinc-300 xl:hidden">{noteText}</p>}
       <div className="rise mb-5 grid gap-4 sm:grid-cols-2 xl:hidden">{huds}</div>
     </>
   );

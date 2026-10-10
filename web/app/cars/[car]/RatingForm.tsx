@@ -72,8 +72,9 @@ export default function RatingForm({ car, initial }: { car: string; initial: Par
         </div>
       ))}
       <label className="block text-sm text-zinc-300">
-        Note <span className="text-xs text-zinc-500">(strengths, weaknesses, tips)</span>
-        <AutoTextarea value={v.note ?? ""} onChange={(e) => setV({ ...v, note: e.target.value })} rows={3} maxLength={1500} className="input mt-1 w-full" />
+        Driving style <span className="text-xs text-zinc-500">(your own text; leave empty to show the researched one)</span>
+        <AutoTextarea value={v.note ?? ""} onChange={(e) => setV({ ...v, note: e.target.value })} rows={3} maxLength={1500}
+                      placeholder="Empty: the researched driving style shows under the car" className="input mt-1 w-full" />
       </label>
       <label className="block text-sm text-zinc-300">
         Source <span className="text-xs text-zinc-500">(own knowledge, a sheet, a video link…)</span>
