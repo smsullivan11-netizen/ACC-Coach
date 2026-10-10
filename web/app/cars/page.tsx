@@ -6,6 +6,7 @@ import { PageTitle, Segmented } from "@/components/ui";
 import { REVIEW_DISCORD_ID, requireDriver } from "@/lib/auth";
 import { CAR_PARTS, CARS, CLASSES, overall, RANK_MODES, rankMode, type CarClass, type CarPart, type WingKey } from "@/lib/cars";
 import { sql } from "@/lib/db";
+import CarsTabs from "./CarsTabs";
 import CarsTable, { type CarRow } from "./CarsTable";
 
 export const metadata: Metadata = { title: "Cars" };
@@ -58,7 +59,7 @@ export default async function CarsPage(props: PageProps<"/cars">) {
         Cars
       </PageTitle>
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Segmented options={[{ value: "cars", label: "Cars" }, { value: "setups", label: "Setups" }]} value="cars" href={(v) => (v === "cars" ? "/cars" : "/setups")} />
+        <CarsTabs value="cars" />
         <Segmented options={CLASSES.map((c) => ({ value: c, label: c }))} value={current} href={(c) => url(c, mode)} />
         <Segmented options={RANK_MODES} value={mode} href={(md) => url(current, md)} />
         {/* The ranking is for the game's own BoP (user's request) */}

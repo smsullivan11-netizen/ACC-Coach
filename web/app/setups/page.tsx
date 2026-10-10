@@ -1,10 +1,11 @@
 import { Settings2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Avatar, Chip, PageTitle, Segmented } from "@/components/ui";
+import { Avatar, Chip, PageTitle } from "@/components/ui";
 import { requireDriver } from "@/lib/auth";
 import { carName } from "@/lib/cars";
 import { sql } from "@/lib/db";
+import CarsTabs from "../cars/CarsTabs";
 import { dateTime } from "@/lib/format";
 import { KINDS } from "@/lib/setups";
 import { TRACKS } from "@/lib/tracks";
@@ -43,7 +44,7 @@ export default async function SetupsPage(props: PageProps<"/setups">) {
         Setups
       </PageTitle>
       <div className="mb-5 flex flex-wrap items-start gap-x-4 gap-y-3">
-        <Segmented options={[{ value: "cars", label: "Cars" }, { value: "setups", label: "Setups" }]} value="setups" href={(v) => (v === "cars" ? "/cars" : "/setups")} />
+        <CarsTabs value="setups" />
         <Filters cars={cars} tracks={tracksWith} kinds={[...KINDS]} car={car} track={track} kind={kind} />
         <div className="ml-auto"><UploadForm tracks={allTracks} defaultTrack={track} /></div>
       </div>

@@ -1049,6 +1049,16 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   the sub-ratings as bars growing from the middle (top speed with the wing km/h; driveability and, in
   qualy, tyre wear dimmed: not counted); the specs side by side; track by track the default-BoP
   reference and the team's best lap in each car, with the gaps and the average sheet gap.
+- Car finder (user's request and choices, 2026-10-10): `/cars/finder`, a tab between Cars and Setups
+  (`app/cars/CarsTabs.tsx`, shared with /setups). Class, session (race / qualy: tyre wear ignored),
+  track type (fast & flowing / twisty / mixed) or a track (its type from TRACK_TYPE, the team's call,
+  and its default-BoP pace counts 40 %: gap to the class's fastest, 0 % → 100, 4 % → 0), experience
+  (beginner: driveability weighs 9, intermediate 4, alien 0) → an importance 0-10 per sub-rating,
+  fine-tunable with sliders (a preset change resets them). Match = importance-weighted average of the
+  car's ratings (blended with the pace); top 5 with the strongest points ("excellent slow corners",
+  "easy to drive", the sheet gap on the track), links to the car and a head to head against #1. A car
+  whose ratings cover under 60 % of the asked-for importance is "few ratings" and ranked after the
+  others (one high number would win otherwise). lib/finder.ts, app/cars/finder/.
 - Driveability stars (Cars table) filled exactly, v / 20 (user: half-star steps too coarse), 15 px.
 - Table thumbnails (`side`) since 2026-10-10: the clean cut-outs at 600 px (plate painted over),
   written by cutout.py with the big ones; process.py's faded crops are the old way.
