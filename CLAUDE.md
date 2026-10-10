@@ -1039,6 +1039,13 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   (template `plate_panel.png`), grown once into its light pixels (more leaked into windows), filled row
   by row from the body colour on both sides; the two 720S need a box by hand (EXTRA); the Lexus keeps
   its "23" livery. Checked on a montage of all 36.
+- Two car rankings (user's request, 2026-10-10): Race (the overall as before) and Qualy / hotlap, where
+  tyre wear is left out of the overall too (`overall(r, mode)`, RANK_MODES in lib/cars.ts). `?mode=qualy`
+  on /cars (switch next to the classes; the tyre wear column is dimmed) and on the car page (switch
+  under "Overall" on the stage); the table's links and the car page's back link keep it.
+- Driveability stars (Cars table) filled exactly, v / 20 (user: half-star steps too coarse), 15 px.
+- Table thumbnails (`side`) since 2026-10-10: the clean cut-outs at 600 px (plate painted over),
+  written by cutout.py with the big ones; process.py's faded crops are the old way.
 - Specs: `lib/car-specs.ts` (CAR_SPECS: engine, aspiration, displacement, power, weight, gearbox,
   layout, debut, builder, sources; the sources are named in the HUD's "i"). Makers' figures with "≈"
   (the BoP changes them in a race). All 31 GT3s and the 6 Cup / Super Trofeo / Challenge cars done

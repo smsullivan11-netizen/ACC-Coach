@@ -2,7 +2,7 @@ import { CarFront } from "lucide-react";
 import type { Metadata } from "next";
 import { PageTitle, Segmented } from "@/components/ui";
 import { REVIEW_DISCORD_ID, requireDriver } from "@/lib/auth";
-import { CAR_PARTS, CARS, CLASSES, overall, type CarClass, type CarPart, type WingKey } from "@/lib/cars";
+import { CAR_PARTS, CARS, CLASSES, overall, RANK_MODES, rankMode, type CarClass, type CarPart, type WingKey } from "@/lib/cars";
 import { sql } from "@/lib/db";
 import CarsTable, { type CarRow } from "./CarsTable";
 
@@ -13,8 +13,11 @@ export const metadata: Metadata = { title: "Cars" };
 // how much the team drives it. Each car opens its own page.
 export default async function CarsPage(props: PageProps<"/cars">) {
   await requireDriver();
-  const { class: cls } = await props.searchParams;
+  const { class: cls, mode: m } = await props.searchParams;
   const current: CarClass = CLASSES.find((c) => c === cls) ?? "GT3";
+  // Race or qualifying / hotlap ranking (lib/cars.ts: tyre wear counts only in races)
+  const mode = rankMode(m);
+  const url = (c: string, md: string) => `/cars?class=${c}${md === "qualy" ? "&mode=qualy" : ""}`;
 
   // Without migration 0016 the page still shows the cars, unrated
   const ratings = await sql<(Record<CarPart | WingKey, number | null> & { car_key: string })[]>`select * from car_rating`.catch(() => []);
@@ -35,7 +38,7 @@ export default async function CarsPage(props: PageProps<"/cars">) {
     const rating = r.get(c.key);
     return {
       key: c.key, name: c.name, year: c.year,
-      overall: overall(rating),
+      overall: overall(rating, mode),
       parts: Object.fromEntries(CAR_PARTS.map((p) => [p.key, rating?.[p.key] ?? null])) as Record<CarPart, number | null>,
       wings: [rating?.top_speed_min_wing ?? null, rating?.top_speed_max_wing ?? null],
       sheetGap: sh.get(c.key)?.gap_pct ?? null, sheetTracks: sh.get(c.key)?.tracks ?? 0,
@@ -54,10 +57,11 @@ export default async function CarsPage(props: PageProps<"/cars">) {
       </PageTitle>
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Segmented options={[{ value: "cars", label: "Cars" }, { value: "setups", label: "Setups" }]} value="cars" href={(v) => (v === "cars" ? "/cars" : "/setups")} />
-        <Segmented options={CLASSES.map((c) => ({ value: c, label: c }))} value={current} href={(c) => `/cars?class=${c}`} />
+        <Segmented options={CLASSES.map((c) => ({ value: c, label: c }))} value={current} href={(c) => url(c, mode)} />
+        <Segmented options={RANK_MODES} value={mode} href={(md) => url(current, md)} />
         <span className="text-xs text-zinc-500">{rated}/{rows.length} rated</span>
       </div>
-      <CarsTable key={current} rows={rows} />
+      <CarsTable key={`${current}-${mode}`} rows={rows} mode={mode} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import InfoTip from "@/components/InfoTip";
 import { PartBar, Position, ScaleNumber } from "@/components/ui";
 import { carSide } from "@/lib/car-images";
-import { CAR_PARTS, OVERALL_INFO, type CarPart } from "@/lib/cars";
+import { CAR_PARTS, OVERALL_INFO, type CarPart, type RankMode } from "@/lib/cars";
 import { scaleColor } from "@/lib/ranks";
 
 export type CarRow = {
@@ -40,17 +40,18 @@ function Part({ v, wings }: { v: number | null | undefined; wings?: (number | nu
 
 /** Driveability as 0-5 stars, by halves (100 = 5 stars). */
 function Stars({ v }: { v: number }) {
-  const stars = Math.round(v / 10) / 2;
+  // Filled exactly (user: half-star steps were too coarse): 83/100 → 4.15 stars, the 5th part-filled
+  const stars = v / 20;
   return (
-    <span className="inline-flex items-center gap-0.5" title={`${DRIVEABILITY.label}: ${stars} / 5 (${v}/100). ${DRIVEABILITY.info}`}>
+    <span className="inline-flex items-center gap-0.5" title={`${DRIVEABILITY.label}: ${stars.toFixed(1)} / 5 (${v}/100). ${DRIVEABILITY.info}`}>
       {[0, 1, 2, 3, 4].map((i) => {
         const fill = Math.max(0, Math.min(1, stars - i));
         return (
-          <span key={i} className="relative inline-block h-3 w-3">
-            <Star size={12} className="absolute inset-0 text-zinc-700" fill="currentColor" strokeWidth={0} />
+          <span key={i} className="relative inline-block h-[15px] w-[15px]">
+            <Star size={15} className="absolute inset-0 text-zinc-700" fill="currentColor" strokeWidth={0} />
             {fill > 0 && (
               <span className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
-                <Star size={12} className="text-accent" fill="currentColor" strokeWidth={0} />
+                <Star size={15} className="max-w-none text-accent" fill="currentColor" strokeWidth={0} />
               </span>
             )}
           </span>
@@ -63,7 +64,7 @@ function Stars({ v }: { v: number }) {
 // Cars of one class: overall rating, the sub-ratings and the sheet's pace gap; under each car's name
 // its driveability stars and the team's laps. Every column sorts (click again to reverse); cars
 // without a value stay at the bottom, in the sheet's order.
-export default function CarsTable({ rows }: { rows: CarRow[] }) {
+export default function CarsTable({ rows, mode }: { rows: CarRow[]; mode: RankMode }) {
   // By overall rating once a car of the class is rated, by the sheet before (user: nothing rated
   // left the list alphabetical and without positions)
   const [sort, setSort] = useState<{ key: Key; desc: boolean }>(() =>
@@ -121,11 +122,11 @@ export default function CarsTable({ rows }: { rows: CarRow[] }) {
                   {n != null ? <Position n={n} /> : null}
                   {carSide(r.key) && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={carSide(r.key)!} alt="" width={80} height={24} loading="lazy" className="mt-1.5 h-auto w-20 max-w-none brightness-[1.5] contrast-[1.1]" />
+                    <img src={carSide(r.key)!} alt="" width={80} height={24} loading="lazy" className="mt-1.5 h-auto w-20 max-w-none brightness-[1.25] contrast-[1.05]" />
                   )}
                 </td>
                 <td>
-                  <Link href={`/cars/${r.key}`} className="whitespace-nowrap text-white hover:underline">
+                  <Link href={`/cars/${r.key}${mode === "qualy" ? "?mode=qualy" : ""}`} className="whitespace-nowrap text-white hover:underline">
                     <span className="font-medium">{r.name}</span> <span className="text-xs text-zinc-500">{r.year}</span>
                   </Link>
                   <div className="mt-1.5 flex items-end gap-3 whitespace-nowrap text-xs text-zinc-500">
@@ -143,7 +144,7 @@ export default function CarsTable({ rows }: { rows: CarRow[] }) {
                     <span className="tabular text-lg font-bold" style={{ color: scaleColor(r.overall) }}>{r.overall.toFixed(1)}</span>
                   )}
                 </td>
-                {COLUMNS.map((p) => <td key={p.key} className="text-right"><Part v={r.parts[p.key]} wings={p.key === "top_speed" ? r.wings : undefined} /></td>)}
+                {COLUMNS.map((p) => <td key={p.key} className={`text-right ${mode === "qualy" && p.key === "tyre_wear" ? "opacity-30" : ""}`} title={mode === "qualy" && p.key === "tyre_wear" ? "Not counted in the qualy / hotlap overall" : undefined}><Part v={r.parts[p.key]} wings={p.key === "top_speed" ? r.wings : undefined} /></td>)}
                 <td className="tabular whitespace-nowrap text-right" title={r.sheetTracks ? `Averaged over ${r.sheetTracks} tracks` : undefined}>
                   {r.sheetGap == null ? <span className="text-zinc-600">–</span>
                     : r.sheetGap < 0.005 ? <span className="text-xs font-semibold uppercase tracking-wider text-accent">Fastest</span>

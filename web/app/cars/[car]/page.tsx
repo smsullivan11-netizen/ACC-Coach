@@ -8,7 +8,7 @@ import { delay, SectionTitle } from "@/components/ui";
 import { REVIEW_DISCORD_ID, requireDriver } from "@/lib/auth";
 import { carCutout } from "@/lib/car-images";
 import { carSpecs } from "@/lib/car-specs";
-import { CAR_PARTS, carInfo, carName, overall, type CarPart, type WingKey } from "@/lib/cars";
+import { CAR_PARTS, carInfo, carName, overall, rankMode, type CarPart, type WingKey } from "@/lib/cars";
 import { sql } from "@/lib/db";
 import { dateTime, lapTime, prettyKey } from "@/lib/format";
 import { isEstimate, sourceLabel } from "@/lib/reference-adjust";
@@ -73,7 +73,8 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
   for (const t of team) row(t.track_key).team = t;
   const list = [...tracks.entries()].sort((a, b) => (b[1].team?.laps ?? 0) - (a[1].team?.laps ?? 0) || a[1].name.localeCompare(b[1].name));
   const [{ setups }] = await sql<{ setups: number }[]>`select count(*)::int as setups from setup where car_key = ${car}`.catch(() => [{ setups: 0 }]);
-  const total = overall(rating);
+  const mode = rankMode((await props.searchParams).mode);   // race or qualy / hotlap overall
+  const total = overall(rating, mode);
   // An admin's description, else the researched starting one (lib/car-notes.ts)
   const note = rating?.note ?? CAR_NOTES[car] ?? null;
   const sheetDate = refs.find((r) => r.sheet_date)?.sheet_date;
@@ -81,11 +82,11 @@ export default async function CarPage(props: PageProps<"/cars/[car]">) {
 
   return (
     <div className="bleed bleed-lg">
-      <Link href={`/cars?class=${info.cls}`} className="relative z-10 mb-3 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white">
+      <Link href={`/cars?class=${info.cls}${mode === "qualy" ? "&mode=qualy" : ""}`} className="relative z-10 mb-3 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white">
         <ArrowLeft size={15} /> {info.cls} cars
       </Link>
       <Showroom
-        car={car} name={info.name} cls={info.cls} year={info.year} cutout={carCutout(car)} overall={total} setups={setups}
+        car={car} name={info.name} cls={info.cls} year={info.year} cutout={carCutout(car)} overall={total} mode={mode} setups={setups}
         parts={CAR_PARTS.map((p) => ({ key: p.key, label: p.label, info: p.info, v: rating?.[p.key] ?? null }))}
         wings={[rating?.top_speed_min_wing ?? null, rating?.top_speed_max_wing ?? null]}
         rated={rating?.updated_at

@@ -5,13 +5,13 @@ import InfoTip from "@/components/InfoTip";
 import { Chip, PartBar } from "@/components/ui";
 import { brandLogo } from "@/lib/brand-logos";
 import type { CarSpecs } from "@/lib/car-specs";
-import { OVERALL_INFO } from "@/lib/cars";
+import { OVERALL_INFO, RANK_MODES, type RankMode } from "@/lib/cars";
 import { scaleColor } from "@/lib/ranks";
 
 type Part = { key: string; label: string; info: string; v: number | null };
 type Props = {
   car: string; name: string; cls: string; year: number;
-  cutout: string | null; overall: number | null; setups: number;
+  cutout: string | null; overall: number | null; mode: RankMode; setups: number;
   parts: Part[];                                    // the admins' sub-ratings, in CAR_PARTS order
   wings: [number | null, number | null];            // measured top speed, min and max wing (km/h)
   rated: ReactNode;                                  // "Rated by …" line
@@ -36,7 +36,7 @@ function Hud({ side, title, info, children }: { side: "left" | "right"; title: s
 // its description under it, and two glass HUDs standing on the stage on both sides of it (.hud): the
 // admins' ratings with their coloured bars and the real car's specs (lib/car-specs.ts). Below 1280 px
 // the HUDs sit flat under the stage, and below 640 px the description too.
-export default function Showroom({ car, name, cls, year, cutout, overall, setups, parts, wings, rated, specs, note, noteInfo }: Props) {
+export default function Showroom({ car, name, cls, year, cutout, overall, mode, setups, parts, wings, rated, specs, note, noteInfo }: Props) {
   const logo = brandLogo(car);
   // A wide logo (the Mustang's pony, Jaguar's leaper, Ginetta's wordmark) keeps its proportions and is
   // made lower, so it is about as big on the wall as a round one. On the stage: the beam starts at it
@@ -133,6 +133,15 @@ export default function Showroom({ car, name, cls, year, cutout, overall, setups
         <div className="pointer-events-auto! right-4 top-4 text-right sm:right-7 sm:top-6">
           <div className="flex items-center justify-end gap-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-300">
             Overall <InfoTip text={OVERALL_INFO} side="right" />
+          </div>
+          {/* Race or qualifying / hotlap overall (tyre wear left out) */}
+          <div className="mt-1 flex justify-end gap-1 text-[10px] font-semibold uppercase tracking-wider">
+            {RANK_MODES.map((m) => (
+              <Link key={m.value} href={`/cars/${car}${m.value === "qualy" ? "?mode=qualy" : ""}`} title={m.title} scroll={false}
+                    className={`rounded px-1.5 py-0.5 ${m.value === mode ? "bg-white/15 text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
+                {m.label}
+              </Link>
+            ))}
           </div>
           {overall == null ? <div className="text-sm text-zinc-500">not rated yet</div>
             : <div className="tabular display mt-1 text-5xl leading-none drop-shadow-[0_4px_18px_rgb(0_0_0/0.85)] sm:text-7xl xl:text-[7.5rem]" style={{ color: scaleColor(overall), textShadow: `0 0 16px color-mix(in srgb, ${scaleColor(overall)} 45%, transparent), 0 0 44px color-mix(in srgb, ${scaleColor(overall)} 22%, transparent)` }}>{overall.toFixed(1)}</div>}

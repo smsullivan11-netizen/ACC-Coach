@@ -14,8 +14,9 @@ screenshots as process.py (car on the turntable, nose to the right).
    convex hull is filled row by row between the body colours on both sides (wide samples: a door seam
    in them is outvoted). EXTRA: pieces the detection misses, by hand. --keep-plate <keys>: cars whose
    number is a real livery (the Lexus's "23").
-3. Saved as web/public/media/cars/cutout/<car>.webp, 1600 px wide with transparency, and the version in
-   web/lib/car-images.json.
+3. Saved as web/public/media/cars/cutout/<car>.webp, 1600 px wide with transparency (the car page), and
+   web/public/media/cars/side/<car>.webp, 600 px (the Cars table's thumbnail; since 2026-10-10, the
+   plate gone there too: before, process.py's faded crops), with their versions in web/lib/car-images.json.
 Needs: pip install "rembg[cpu]" opencv-python-headless numpy (the model, about 1 GB, downloads on the
 first run; a car takes about a minute on a CPU).
 """
@@ -27,6 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 WEB = os.path.join(os.path.dirname(os.path.dirname(HERE)), "web")
 MANIFEST = os.path.join(WEB, "lib", "car-images.json")
 OUT = os.path.join(WEB, "public", "media", "cars", "cutout")
+SIDE = os.path.join(WEB, "public", "media", "cars", "side")
 EXTRA = {   # car key: [(x, y, w, h) as fractions of the cut-out]: the 720S panel's logo strip
     "mclaren_720s_gt3": [(0.552, 0.486, 0.093, 0.134)], "mclaren_720s_gt3_evo": [(0.552, 0.49, 0.093, 0.134)],
 }
@@ -190,16 +192,18 @@ def main():
     keep = set(a.keep_plate.split(","))
     manifest = json.load(open(MANIFEST, encoding="utf-8")) if os.path.exists(MANIFEST) else {}
     v = int(time.time())
-    os.makedirs(OUT, exist_ok=True)
+    os.makedirs(OUT, exist_ok=True); os.makedirs(SIDE, exist_ok=True)
     for car, shot in jobs:
         img = cv2.imread(shot)
         if img is None: raise SystemExit(f"cannot read {shot}")
         bgra = cut(img, session)
         bgra, how = (bgra, "plate kept") if car in keep else remove_plate(car, bgra, T)
-        bgra = cv2.resize(bgra, (1600, round(bgra.shape[0] * 1600 / bgra.shape[1])), interpolation=cv2.INTER_AREA)
-        cv2.imwrite(os.path.join(OUT, f"{car}.webp"), bgra, [cv2.IMWRITE_WEBP_QUALITY, 90])
-        manifest.setdefault(car, {})["cutout"] = v
-        print(f"{car}: 1600 x {bgra.shape[0]}, {how}", flush=True)
+        big = cv2.resize(bgra, (1600, round(bgra.shape[0] * 1600 / bgra.shape[1])), interpolation=cv2.INTER_AREA)
+        cv2.imwrite(os.path.join(OUT, f"{car}.webp"), big, [cv2.IMWRITE_WEBP_QUALITY, 90])
+        small = cv2.resize(bgra, (600, round(bgra.shape[0] * 600 / bgra.shape[1])), interpolation=cv2.INTER_AREA)
+        cv2.imwrite(os.path.join(SIDE, f"{car}.webp"), small, [cv2.IMWRITE_WEBP_QUALITY, 88])
+        manifest.setdefault(car, {}).update(cutout=v, side=v)
+        print(f"{car}: 1600 x {big.shape[0]}, {how}", flush=True)
         with open(MANIFEST, "w", encoding="utf-8") as f: json.dump(dict(sorted(manifest.items())), f, indent=1); f.write("\n")
 
 

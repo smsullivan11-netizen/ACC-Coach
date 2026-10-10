@@ -16,7 +16,8 @@ no commercial pictures).
 --batch/--order: every .png of the folder sorted by name, matched line by line with the car keys of
         the order file (one key per line), all as --side.
 Then web/lib/car-images.json says which pictures exist (with a version for the browser cache).
-The car page's big transparent cut-outs come from cutout.py (same screenshots).
+The car page's big transparent cut-outs come from cutout.py (same screenshots), which since 2026-10-10
+also writes the table's side views (number plate painted over): use it, this script is the old way.
 Needs opencv-python-headless and numpy (CV_PATH: a folder they are installed in, if not in the venv).
 """
 import argparse, json, os, sys, time
