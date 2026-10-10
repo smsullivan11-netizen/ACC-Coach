@@ -55,15 +55,14 @@ export default async function CarsPage(props: PageProps<"/cars">) {
 
   return (
     <div className="bleed bleed-lg">
-      <PageTitle icon={CarFront} sub="Ratings by the team's admins, out of 100. Click a car for its reference times and the team's laps in it.">
+      <PageTitle icon={CarFront} sub="Ratings by the team's admins, out of 100. Click a car for its reference times and the team's laps in it."
+                 note={<span className="ml-9 inline-block"><BopBadge info={{ bop: "default" }} short={false} large /></span>}>
         Cars
       </PageTitle>
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <CarsTabs value="cars" />
         <Segmented options={CLASSES.map((c) => ({ value: c, label: c }))} value={current} href={(c) => url(c, mode)} />
         <Segmented options={RANK_MODES} value={mode} href={(md) => url(current, md)} />
-        {/* The ranking is for the game's own BoP (user's request) */}
-        <BopBadge info={{ bop: "default" }} short={false} />
         <span className="text-xs text-zinc-500">{rated}/{rows.length} rated</span>
         <Link href={`/cars/compare${mode === "qualy" ? "?mode=qualy" : ""}`} className="btn btn-ghost ml-auto"><Swords size={15} /> Head to head</Link>
       </div>

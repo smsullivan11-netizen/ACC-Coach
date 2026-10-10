@@ -18,11 +18,11 @@ export function bopText({ bop, ballast_kg, restrictor_pct }: BopInfo, short = fa
   return parts.join(" · ");
 }
 
-export default function BopBadge({ info, short = true }: { info: BopInfo; short?: boolean }) {
+export default function BopBadge({ info, short = true, large = false }: { info: BopInfo; short?: boolean; large?: boolean }) {
   const lfm = info.bop === "lfm";
   return (
     <span title={lfm ? "LFM BoP: Low Fuel Motorsport's ballast and restrictor for this car and track" : "Default BoP: the game's own balance of performance"}
-          className={`inline-flex items-center whitespace-nowrap rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ${
+          className={`inline-flex items-center whitespace-nowrap rounded border font-semibold uppercase tracking-wide ${large ? "px-2 py-0.5 text-xs" : "px-1.5 py-px text-[10px]"} ${
             lfm ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 bg-white/[0.04] text-zinc-400"}`}>
       {bopText(info, short)}
     </span>
