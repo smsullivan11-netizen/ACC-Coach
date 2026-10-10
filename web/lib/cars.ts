@@ -93,7 +93,7 @@ export const TOP_SPEED_WINGS = [
   { key: "top_speed_max_wing", label: "Max wing", unit: "km/h" },
 ] as const;
 export type WingKey = (typeof TOP_SPEED_WINGS)[number]["key"];
-export const OVERALL_INFO = "Performance in the right hands: the average of the sub-ratings filled in, driveability left out (it shows as stars: a hard car to drive can still be one of the fastest). Race: every other sub-rating. Qualy / hotlap: tyre wear left out too (one or two laps, the tyres never wear). Entered by the team's admins from their knowledge of the cars, not computed from laps: the team drives too few cars for that.";
+export const OVERALL_INFO = "Default BoP (the game's own). Performance in the right hands: the average of the sub-ratings filled in, driveability left out (it shows as stars: a hard car to drive can still be one of the fastest). Race: every other sub-rating. Qualy / hotlap: tyre wear left out too (one or two laps, the tyres never wear). Entered by the team's admins from their knowledge of the cars, not computed from laps: the team drives too few cars for that.";
 
 /** Two rankings (user's request, 2026-10-10): race (the overall as it was) and qualifying / hotlap,
  *  where tyre wear does not count (one or two laps, the tyres never wear). */

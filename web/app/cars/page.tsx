@@ -1,6 +1,7 @@
 import { CarFront, Swords } from "lucide-react";
 import Link from "next/link";
 import type { Metadata } from "next";
+import BopBadge from "@/components/Bop";
 import { PageTitle, Segmented } from "@/components/ui";
 import { REVIEW_DISCORD_ID, requireDriver } from "@/lib/auth";
 import { CAR_PARTS, CARS, CLASSES, overall, RANK_MODES, rankMode, type CarClass, type CarPart, type WingKey } from "@/lib/cars";
@@ -60,6 +61,8 @@ export default async function CarsPage(props: PageProps<"/cars">) {
         <Segmented options={[{ value: "cars", label: "Cars" }, { value: "setups", label: "Setups" }]} value="cars" href={(v) => (v === "cars" ? "/cars" : "/setups")} />
         <Segmented options={CLASSES.map((c) => ({ value: c, label: c }))} value={current} href={(c) => url(c, mode)} />
         <Segmented options={RANK_MODES} value={mode} href={(md) => url(current, md)} />
+        {/* The ranking is for the game's own BoP (user's request) */}
+        <BopBadge info={{ bop: "default" }} short={false} />
         <span className="text-xs text-zinc-500">{rated}/{rows.length} rated</span>
         <Link href={`/cars/compare${mode === "qualy" ? "?mode=qualy" : ""}`} className="btn btn-ghost ml-auto"><Swords size={15} /> Head to head</Link>
       </div>
