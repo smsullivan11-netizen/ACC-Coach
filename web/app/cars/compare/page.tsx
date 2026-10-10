@@ -1,6 +1,7 @@
 import { GitCompareArrows, Swords, Timer, Wrench } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import BopBadge from "@/components/Bop";
 import InfoTip from "@/components/InfoTip";
 import { delay, PageTitle, SectionTitle, Segmented } from "@/components/ui";
 import { REVIEW_DISCORD_ID, requireDriver } from "@/lib/auth";
@@ -132,12 +133,12 @@ export default async function CarHeadToHead(props: PageProps<"/cars/compare">) {
           {/* Track by track */}
           <section className="card rise mt-5 overflow-hidden" style={delay(140)}>
             <div className="p-5 pb-0">
-              <SectionTitle icon={Timer} info="Reference: OhneSpeed's sheet, default BoP qualifying. Team: the team's best valid lap in each car (any BoP). Gap: the left car against the right one.">
+              <SectionTitle icon={Timer} action={<BopBadge info={{ bop: "default" }} short={false} />} info="Reference: OhneSpeed's sheet, default BoP qualifying. Team: the team's best valid lap in each car (any BoP). Gap: the left car against the right one.">
                 Track by track
               </SectionTitle>
               {refGap != null && (
                 <p className="-mt-1 mb-3 text-sm text-zinc-400">
-                  On the sheet, {A.name} is <span className={`font-semibold ${refGap <= 0 ? "text-emerald-400" : "text-red-400"}`}>{refGap > 0 ? "+" : ""}{refGap.toFixed(2)} %</span> against {B.name} on average ({refTracks.length} tracks).
+                  On the sheet (default BoP), {A.name} is <span className={`font-semibold ${refGap <= 0 ? "text-emerald-400" : "text-red-400"}`}>{refGap > 0 ? "+" : ""}{refGap.toFixed(2)} %</span> against {B.name} on average ({refTracks.length} tracks).
                 </p>
               )}
             </div>
@@ -147,7 +148,7 @@ export default async function CarHeadToHead(props: PageProps<"/cars/compare">) {
                   <thead>
                     <tr>
                       <th>Track</th>
-                      <th className="text-right">Reference<Sub>{A.name}</Sub></th><th className="text-center">Gap</th><th>Reference<Sub>{B.name}</Sub></th>
+                      <th className="text-right">Reference · default BoP<Sub>{A.name}</Sub></th><th className="text-center">Gap</th><th>Reference · default BoP<Sub>{B.name}</Sub></th>
                       <th className="text-right">Team best<Sub>{A.name}</Sub></th><th className="text-center">Gap</th><th>Team best<Sub>{B.name}</Sub></th>
                     </tr>
                   </thead>
