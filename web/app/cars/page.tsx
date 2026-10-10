@@ -1,4 +1,5 @@
-import { CarFront } from "lucide-react";
+import { CarFront, Swords } from "lucide-react";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { PageTitle, Segmented } from "@/components/ui";
 import { REVIEW_DISCORD_ID, requireDriver } from "@/lib/auth";
@@ -60,6 +61,7 @@ export default async function CarsPage(props: PageProps<"/cars">) {
         <Segmented options={CLASSES.map((c) => ({ value: c, label: c }))} value={current} href={(c) => url(c, mode)} />
         <Segmented options={RANK_MODES} value={mode} href={(md) => url(current, md)} />
         <span className="text-xs text-zinc-500">{rated}/{rows.length} rated</span>
+        <Link href={`/cars/compare${mode === "qualy" ? "?mode=qualy" : ""}`} className="btn btn-ghost ml-auto"><Swords size={15} /> Head to head</Link>
       </div>
       <CarsTable key={`${current}-${mode}`} rows={rows} mode={mode} />
     </div>

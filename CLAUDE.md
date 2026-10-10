@@ -1043,6 +1043,12 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   tyre wear is left out of the overall too (`overall(r, mode)`, RANK_MODES in lib/cars.ts). `?mode=qualy`
   on /cars (switch next to the classes; the tyre wear column is dimmed) and on the car page (switch
   under "Overall" on the stage); the table's links and the car page's back link keep it.
+- Car head to head (user's request, 2026-10-10, like the drivers'): `/cars/compare?a=&b=&mode=`
+  (button on /cars, link on each car page with that car as A). Face to face: the cut-outs facing each
+  other (B mirrored), overall (race or qualy), "ratings won" (counted sub-ratings both cars have);
+  the sub-ratings as bars growing from the middle (top speed with the wing km/h; driveability and, in
+  qualy, tyre wear dimmed: not counted); the specs side by side; track by track the default-BoP
+  reference and the team's best lap in each car, with the gaps and the average sheet gap.
 - Driveability stars (Cars table) filled exactly, v / 20 (user: half-star steps too coarse), 15 px.
 - Table thumbnails (`side`) since 2026-10-10: the clean cut-outs at 600 px (plate painted over),
   written by cutout.py with the big ones; process.py's faded crops are the old way.

@@ -1,4 +1,4 @@
-import { Settings2 } from "lucide-react";
+import { Settings2, Swords } from "lucide-react";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import InfoTip from "@/components/InfoTip";
@@ -128,6 +128,9 @@ export default function Showroom({ car, name, cls, year, cutout, overall, mode, 
           <h1 className={`display mt-1.5 text-xl leading-tight text-white drop-shadow-[0_2px_12px_rgb(0_0_0/0.8)] sm:text-3xl ${name.length > 22 ? "" : "xl:text-4xl"}`}>{name}</h1>
           <Link href={`/setups?car=${car}`} className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-accent hover:underline sm:text-sm">
             <Settings2 size={14} /> {setups ? `${setups} setup${setups === 1 ? "" : "s"}` : "Setups"}
+          </Link>
+          <Link href={`/cars/compare?a=${car}${mode === "qualy" ? "&mode=qualy" : ""}`} className="ml-4 mt-1.5 inline-flex items-center gap-1.5 text-xs text-accent hover:underline sm:text-sm">
+            <Swords size={14} /> Head to head
           </Link>
         </div>
         <div className="pointer-events-auto! right-4 top-4 text-right sm:right-7 sm:top-6">
