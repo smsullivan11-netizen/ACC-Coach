@@ -54,9 +54,10 @@ export type Match = {
   why: string[];
 };
 
-/** Pace on the sheet → 0-100, linear: the class's fastest 100, 1 % slower 50, 2 % or more 0 (user's
- *  scale, 2026-10-10: GT3 gaps are small, the first one barely separated the cars). */
-export const paceScore = (gapPct: number) => Math.max(0, Math.min(100, 100 - gapPct * 50));
+/** Pace on the sheet → 0-100, linear: the class's fastest 100, PACE_ZERO % slower or more 0 (user's
+ *  scale, 2026-10-10: GT3 gaps are small, wider scales barely separated the cars). */
+export const PACE_ZERO = 1.5;
+export const paceScore = (gapPct: number) => Math.max(0, Math.min(100, 100 * (1 - gapPct / PACE_ZERO)));
 /** Share of the match given by the track's pace when a track is picked (user's choice: half). */
 export const PACE_SHARE = 0.5;
 /** Below this share of the asked-for importance rated, a car is "few ratings" and ranked after the others. */

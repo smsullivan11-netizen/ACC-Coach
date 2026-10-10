@@ -1052,7 +1052,7 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
 - Car finder (user's request and choices, 2026-10-10): `/cars/finder`, a tab between Cars and Setups
   (`app/cars/CarsTabs.tsx`, shared with /setups). Class, session (race / qualy: tyre wear ignored),
   track type (fast & flowing / twisty / mixed) or a track (its type from TRACK_TYPE, the team's call,
-  and its default-BoP pace counts 50 %: gap to the class's fastest, linear, 0 % → 100, 1 % → 50, 2 % → 0), experience
+  and its default-BoP pace counts 50 %: gap to the class's fastest, linear, 0 % → 100, 1.5 % or more → 0: PACE_ZERO), experience
   (beginner: driveability weighs 9, intermediate 4, alien 0) → an importance 0-10 per sub-rating,
   fine-tunable with sliders (a preset change resets them). Match = importance-weighted average of the
   car's ratings (blended with the pace); top 5 with the strongest points ("excellent slow corners",
