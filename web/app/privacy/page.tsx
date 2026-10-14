@@ -4,12 +4,13 @@ import { PageTitle } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Privacy policy" };
 
-// Public (no sign-in): the Microsoft Store listing links here. Keep it in line with what the app and
-// the site actually do when either changes.
+// Public (no sign-in). Keep it in line with what the app and the site actually do when either changes.
+// The Microsoft Store listing links to a copy on GitHub Pages (store-pages/privacy/index.html, 2026-10-14:
+// the reviewer could not reach acc-coach.vercel.app): change both together.
 export default function PrivacyPage() {
   return (
     <div className="max-w-3xl">
-      <PageTitle icon={ShieldCheck} note="Last updated: October 5, 2026">Privacy policy</PageTitle>
+      <PageTitle icon={ShieldCheck} note="Last updated: October 14, 2026">Privacy policy</PageTitle>
       <div className="card p-6 text-zinc-300 [&_h2]:mt-8 [&_h2]:font-medium [&_h2]:text-white [&_li]:mt-1.5 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5">
       <p>
         ACC Coach (this site and the ACC Coach desktop app) is a private tool run by a sim-racing team for its own
@@ -54,7 +55,7 @@ export default function PrivacyPage() {
         profiles: that is the purpose of the tool.
       </p>
       <ul>
-        <li>Team news (new records, personal bests, achievements, rating changes) is posted in the team&apos;s Discord channel.</li>
+        <li>Team news (team records, personal bests, rank promotions, new app versions) is posted in the team&apos;s Discord channel.</li>
         <li>
           A lap card (an image with the track, the driver&apos;s name, the car and the lap time) can be opened by anyone who
           has its link, so it can be shown on Discord or shared. Members choose to share it; nothing else is public.

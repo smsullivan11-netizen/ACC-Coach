@@ -530,6 +530,16 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   every new submission needs a higher version).
   Partner Center texts (listing, age rating, certification notes): `agent\store\listing.md`;
   listing hidden (direct link only), free.
+- Store links on GitHub Pages (2026-10-14): the 0.2.0 review (2026-10-07) refused the Website and
+  Privacy policy links (10.1.2.7, 10.5.1: "did not resolve to a functional website") although
+  acc-coach.vercel.app answered 200 from everywhere we tried: `.vercel.app` is blocked or throttled
+  in some regions (Vercel's guide: mainland China). `store-pages/` (plain HTML/CSS, no outside
+  fonts or scripts: home page + `privacy/`, a copy of the site's /privacy, **change both
+  together**) goes to the public repository Xhanet/acc-coach-site (GitHub Pages, main branch, root):
+  `git subtree push --prefix=store-pages pages main`. Listing: https://xhanet.github.io/acc-coach-site/
+  and .../privacy/. The app and the certification notes still use acc-coach.vercel.app (the team
+  site itself): a reviewer whose network blocks vercel.app cannot link the app; a custom domain
+  would be the fix (not free).
 - Packaged mode (`PACKAGE` = package family name, via GetCurrentPackageFamilyName): files in the
   package's own folders by their real path (`Packages\<family>\LocalState` and `LocalCache`: Windows
   would redirect %APPDATA% writes there anyway, but Explorer only sees real paths); no Run key and

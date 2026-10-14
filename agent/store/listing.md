@@ -14,8 +14,13 @@ Screenshots: `agent\dist\store-screenshots\` (1920x1080, from the local test sit
 
 ## Properties
 - Category: Utilities & tools.
-- Privacy policy URL: https://acc-coach.vercel.app/privacy
-- Website: https://acc-coach.vercel.app
+- Privacy policy URL: https://xhanet.github.io/acc-coach-site/privacy/
+- Website: https://xhanet.github.io/acc-coach-site/
+  (GitHub Pages, from `store-pages/` pushed to the public repository Xhanet/acc-coach-site. The
+  0.2.0 review of 2026-10-07 refused both vercel.app links under 10.1.2.7 and 10.5.1, "did not
+  resolve to a functional website", while they answered 200 everywhere we checked: `.vercel.app`
+  addresses are blocked or throttled in some regions (mainland China, per Vercel's own guide) and
+  distrusted by some filters. Static pages on github.io have no server, database or cold start.)
 - Support contact info: an email address or URL of your choice (shown on the listing).
 - System requirements, notes: Assetto Corsa Competizione (Steam) and an account on the team site.
 
