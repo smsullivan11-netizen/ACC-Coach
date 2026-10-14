@@ -535,8 +535,10 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   acc-coach.vercel.app answered 200 from everywhere we tried: `.vercel.app` is blocked or throttled
   in some regions (Vercel's guide: mainland China). `store-pages/` (plain HTML/CSS, no outside
   fonts or scripts: home page + `privacy/`, a copy of the site's /privacy, **change both
-  together**) goes to the public repository Xhanet/acc-coach-site (GitHub Pages, main branch, root):
-  `git subtree push --prefix=store-pages pages main`. Listing: https://xhanet.github.io/acc-coach-site/
+  together**) goes to the public repository Xhanet/acc-coach-site (GitHub Pages, main branch, root)
+  with `agent\store\publish-pages.ps1`: one fresh commit under GitHub's noreply address, force-pushed
+  (the main repo's commits carry the user's school email, which a public repo would expose: never push
+  them there). Listing: https://xhanet.github.io/acc-coach-site/
   and .../privacy/. The app and the certification notes still use acc-coach.vercel.app (the team
   site itself): a reviewer whose network blocks vercel.app cannot link the app; a custom domain
   would be the fix (not free).
