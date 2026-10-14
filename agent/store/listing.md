@@ -89,21 +89,9 @@ Assetto Corsa Competizione publishes for telemetry apps.
 **Notes for certification** (Additional Testing Info page; the first version was refused under
 10.3.1 "App Is Testable - Test Account"). The test account goes in that page's **Credentials**
 table (name `store-reviewer`, value = the REVIEW_PASSWORD set in Vercel), never in the
-Description: Partner Center refuses to save a description containing credentials. Description:
+Description: Partner Center refuses to save a description containing credentials. Description (0.4, 2026-10-14; one paragraph per line, 1,688 characters):
 
-ACC Coach is a companion app for a private sim-racing team. It records while Assetto Corsa
-Competizione (Steam) is running and uploads the sessions to the team's site,
-https://acc-coach.vercel.app. Team members sign in with Discord; for testing, use the test account
-given in the credentials section of this page instead (no Discord needed).
-Steps: 1) Start ACC Coach: its icon appears next to the clock (status "Waiting for ACC") and the
-browser opens the "Link this PC" page. 2) Click "Use the test account" under the Discord button,
-sign in with the test account, then click "Link this PC as Store Reviewer": the app shows a
-notification "Linked to Store Reviewer" and its menu says so. 3) The site (team's laps, lap
-comparison, leaderboards, driver ratings) is now open to this account; the app's other functions
-are in the icon's right-click menu, among them "Race engineer (live)", a window that fills with
-live data only while ACC is running. "Share the engineer on my network" (off by default) makes
-that page reachable from other devices on the local network, so Windows may ask to allow it
-through the firewall. Recording itself needs the game: without ACC running the app stays in
-"Waiting for ACC", which is the expected state. It reads the game's documented shared
-memory (Local\acpmf_physics, graphics, static) and, for online sessions, the server's name from the
-game's own log file (%LOCALAPPDATA%\AC2\Saved\Logs, read only); it makes no other changes to the system.
+ACC Coach is a companion app for a private sim-racing team. It records while Assetto Corsa Competizione (Steam) is running and uploads the sessions to the team's site, https://acc-coach.vercel.app. Team members sign in with Discord; for testing, use the test account given in the credentials section of this page instead (no Discord needed).
+Steps: 1) Start ACC Coach: its icon appears next to the clock (status "Waiting for ACC") and the browser opens the "Link this PC" page. 2) Click "Use the test account" under the Discord button, sign in with the test account, then click "Link this PC as Store Reviewer": the app shows a notification "Linked to Store Reviewer" and its menu says so. 3) The site (team's laps, lap comparison, leaderboards, driver ratings, cars) is now open to this account; the app's other functions are in the icon's right-click menu, among them "Race engineer (live)", a window that fills with live data only while ACC is running. "Share the engineer on my network" (off by default) makes that page reachable from other devices on the local network, so Windows may ask to allow it through the firewall.
+Recording needs the game: without ACC running the app stays in "Waiting for ACC", which is the expected state. The app reads the game's documented shared memory (Local\acpmf_physics, graphics, static) and, for online sessions, the server's name from the game's own log file (%LOCALAPPDATA%\AC2\Saved\Logs, read only); it makes no other changes to the system.
+The team site is hosted on Vercel: some networks block *.vercel.app addresses, so if it does not load, please retry from another network. The app's Website and Privacy policy pages are on GitHub Pages.
