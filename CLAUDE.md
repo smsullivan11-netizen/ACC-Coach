@@ -542,6 +542,13 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   and .../privacy/. The app and the certification notes still use acc-coach.vercel.app (the team
   site itself): a reviewer whose network blocks vercel.app cannot link the app; a custom domain
   would be the fix (not free).
+- **Published on the Microsoft Store** (0.4 passed certification, live by 2026-10-16): product ID
+  9NXG975HDXPN, `STORE_URL` in web/lib/app-release.ts (https://apps.microsoft.com/detail/9NXG975HDXPN;
+  direct link only, not in the Store's search). The download page leads with "Get it from the
+  Microsoft Store" (installer as the alternative: Smart App Control can block it). Settings has an
+  admin button "Announce the Store release on Discord" (`announceStore` in lib/discord.ts, posted once:
+  site_state 'store_announced'; a refused post gives the claim back). Updates: Partner Center →
+  "Démarrer la mise à jour", a higher version each time.
 - Packaged mode (`PACKAGE` = package family name, via GetCurrentPackageFamilyName): files in the
   package's own folders by their real path (`Packages\<family>\LocalState` and `LocalCache`: Windows
   would redirect %APPDATA% writes there anyway, but Explorer only sees real paths); no Run key and

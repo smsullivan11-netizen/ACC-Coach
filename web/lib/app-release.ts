@@ -11,3 +11,8 @@ export const APP_RELEASE = {
     "Online sessions: the app reads the server's name and the BoP the server gave your car (kg, restrictor) from ACC's log. LFM sessions are detected automatically and rated against LFM's reference times.",
   ],
 };
+
+/** The app's Microsoft Store page (published 2026-10-16; listed as "direct link only": nobody finds it
+ *  by searching, members install it from this link). Signed by Microsoft, so no SmartScreen or Smart
+ *  App Control block, and it updates by itself. */
+export const STORE_URL = "https://apps.microsoft.com/detail/9NXG975HDXPN";

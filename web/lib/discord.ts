@@ -1,5 +1,5 @@
 import "server-only";
-import { APP_RELEASE } from "./app-release";
+import { APP_RELEASE, STORE_URL } from "./app-release";
 import { appUrl, env, REVIEW_DISCORD_ID } from "./auth";
 import { lapCardUrl, rankCardUrl } from "./cards";
 import { sql } from "./db";
@@ -108,6 +108,33 @@ export async function announcePromotions(before: Map<string, number>) {
     select id, display_name from driver where id in ${sql(up.map(([id]) => id))}`).map((d) => [d.id, d.display_name]));
   const embeds = up.map(([id, r]) => promotion(names.get(id) ?? "A driver", id, r, before.get(id)!));
   for (let i = 0; i < embeds.length; i += 10) await post({ embeds: embeds.slice(i, i + 10) });   // Discord: 10 per message
+}
+
+/** "ACC Coach is on the Microsoft Store" (user's request, 2026-10-16), posted once from Settings by an
+ *  admin (site_state 'store_announced'; a post Discord refuses gives the claim back, so it can be retried). */
+export async function announceStore(): Promise<"posted" | "already" | "failed"> {
+  const claim = await sql`
+    insert into site_state (key, value) values ('store_announced', ${STORE_URL})
+    on conflict (key) do nothing returning key`;
+  if (!claim.length) return "already";
+  const ok = await post({ embeds: [{
+    color: YELLOW,
+    title: "🎉 ACC Coach is on the Microsoft Store",
+    url: STORE_URL,
+    description: [
+      "The desktop app has passed Microsoft's certification: install it from the Store.",
+      "",
+      "• **Signed by Microsoft**: no more \"Windows protected your PC\" or Smart App Control blocking the installer.",
+      "• **Updates by itself**: new versions arrive through the Store.",
+      "",
+      `**Install**: open the [Store page](${STORE_URL}) and click **Get**. Start ACC Coach from the Start menu: it opens the team site, click **Link this PC**.`,
+      "**Already using the installer version?** Uninstall it first (Settings > Apps > ACC Coach), then install from the Store and link the PC once more.",
+      "",
+      "The listing is private: it only opens from this link, so don't look for it in the Store's search.",
+    ].join("\n"),
+  }] });
+  if (!ok) await sql`delete from site_state where key = 'store_announced'`;
+  return ok ? "posted" : "failed";
 }
 
 /** A new desktop app version (lib/app-release.ts, user's request 2026-10-07), posted once: the first

@@ -52,6 +52,13 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
     setMessage(res.ok ? "Test message sent: check the Discord channel." : (await res.json()).error);
   }
 
+  // The Microsoft Store release announcement (2026-10-16): posted once, after a confirmation
+  async function announceStore() {
+    if (!confirm("Post \"ACC Coach is on the Microsoft Store\" with the install link in the team's Discord channel?")) return;
+    const res = await fetch("/api/discord/store", { method: "POST" });
+    setMessage(res.ok ? "Store announcement posted: check the Discord channel." : (await res.json()).error);
+  }
+
   async function rebuild() {
     setBusy(true);
     const res = await fetch("/api/ratings/rebuild", { method: "POST" });
@@ -92,6 +99,7 @@ export default function AdminPanel({ members, me }: { members: Member[]; me: str
       <button onClick={repairTraces} disabled={busy} className="btn btn-ghost ml-2 mt-4">Repair lap traces</button>
       <button onClick={importReferences} disabled={busy} className="btn btn-ghost ml-2 mt-4">Update reference times</button>
       <button onClick={testDiscord} disabled={busy} className="btn btn-ghost ml-2 mt-4">Test the Discord channel</button>
+      <button onClick={announceStore} disabled={busy} className="btn btn-ghost ml-2 mt-4">Announce the Store release on Discord</button>
       <p className="mt-1 text-xs text-zinc-500">
         Recompute: replays every session in upload order with today&apos;s targets: ratings, then achievements (nothing is posted to Discord).
         Repair: fixes the traces of laps recorded by apps before 0.3 whose clock counted a game pause or ran off (replay, charts, coach); lap times do not change.
