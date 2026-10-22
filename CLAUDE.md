@@ -1120,6 +1120,26 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   three files + game screenshots (Ford, BMW M4, Porsche 992: pressure 20.3 psi + 0.1 per click, fuel =
   click + 2 L, tyre set / pads / ECU map / pit stops 1-based, brake power 80 % + click, preload 20 Nm +
   10 per click, GT3 camber -4.0 / -3.5° + 0.1 per click, per-car toe, ride height, springs...). Dropped.
+- Setup diagnostic (user's request, 2026-10-22; `lib/setup-doctor.ts`, `app/setups/diagnostic/`, a 4th tab
+  "Diagnostic" after Setups): the driver marks understeer / oversteer (slight, clear, strong) on a 3 × 3 grid,
+  corner speed (slow < 100 km/h, medium, fast > 170) × phase (entry = braking and turn-in, mid-corner,
+  exit), and ticks other problems (front lock-ups, rear unstable under braking, wheelspin, kerbs,
+  bottoming, lazy turn-in, nervous at speed, top speed, front / rear tyres overheating). Rule-based, no AI,
+  nothing stored: the report lives in the address (`?car=&b=<9 digits, value + 3>&i=<issues>`, "Copy link"
+  to share it). Model: each balance setting's rotation effect per situation = phase weights × speed
+  weights (mechanical tools fade at speed, aero ones only count from medium speed, bump stops in fast
+  corners, brake bias entry only, TC exit only, dampers by the phase they move in: entry front bump /
+  rear rebound, exit front rebound / rear bump, "the stiffer end in a transient loses grip"); score =
+  help on the reported cells (hurting another reported one counts against) − 0.12 × effect where the
+  car is fine, × priority (main tools 1, fine tuning 0.5-0.8); other problems vote for their usual fixes.
+  Top 6 (one direction per setting), then the best answer for any reported problem none of them helps
+  (slow understeer + fast oversteer: the aero fixes rank first, the front bar comes with a "worsens"
+  tag); step sizes by severity in the game's units. Each change shows what it fixes (green), what it
+  worsens (red), "From the cockpit" for bias / TC / ABS; why and side effects behind its "i". Also a
+  "check hot pressures first" line and driving tips per reported phase. A car choice shows how it drives
+  and drops TC / ABS for the Porsche Cup cars (`NO_AIDS`). Setup pages link to it with their car. The
+  handbook the user meant to share (a quiz page from another chat) came through empty: check the rules
+  against it when they resend it.
 
 ## YouTube (web/lib/youtube.ts, /youtube, 2026-10-06)
 - The team's channel @PCGroupRacing (id UCGSgxcvFG5fMuAOMoJAQBZA, title "PCGR"), YouTube Data API v3

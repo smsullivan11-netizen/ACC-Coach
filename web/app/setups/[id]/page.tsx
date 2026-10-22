@@ -1,4 +1,4 @@
-import { ArrowLeft, FolderOpen, Settings2 } from "lucide-react";
+import { ArrowLeft, FolderOpen, Settings2, Stethoscope } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -60,6 +60,9 @@ export default async function SetupPage(props: PageProps<"/setups/[id]">) {
           <FolderOpen size={14} className="mt-0.5 shrink-0" />
           <span>Put the file in <code className="rounded bg-white/10 px-1 py-0.5">Documents\Assetto Corsa Competizione\Setups\{s.car_key}\{s.track_folder ?? s.track_key}\</code> (create the folders if needed), then pick it in the game&apos;s setup screen.</span>
         </p>
+        <Link href={`/setups/diagnostic?car=${s.car_key}`} className="mt-2 inline-flex items-center gap-2 text-xs text-zinc-400 hover:text-white hover:underline">
+          <Stethoscope size={14} /> The car doesn&apos;t feel right with it? Setup diagnostic
+        </Link>
       </div>
 
     </div>
