@@ -43,6 +43,7 @@ APP = "ACC Coach"
 DEFAULT_SITE = "https://acc-coach.vercel.app"
 KEEP_DAYS = 30
 RETRY_S = 600                       # pending uploads (offline, not linked) are retried every 10 min
+RACE_HQ_S = 15                     # live race clock heartbeat; the site displays its age
 FINAL = {"uploaded", "no_laps", "duplicate", "refused", "error"}   # not retried (errors are bugs to fix)
 log = logging.getLogger("acc-coach")
 
@@ -194,7 +195,7 @@ class Agent:
 
     # Threads
     def start(self):
-        for target in (self._record, self._worker, self._housekeeping, self._engineer):
+        for target in (self._record, self._worker, self._housekeeping, self._engineer, self._race_hq):
             threading.Thread(target=target, daemon=True).start()
         self.engineer.serve(shared=bool(self.config.get("engineer_shared")))
 
@@ -205,6 +206,34 @@ class Agent:
             except Exception:
                 log.exception("race engineer crashed, restarting")
                 self.stop.wait(5)
+
+    def _race_hq(self):
+        """Send ACC's race timer to the signed-in team's active Race Day HQ.
+
+        The API matches by driver and track, so running practice or joining another server cannot
+        move a team's official clock. Network failures are deliberately quiet: session recording
+        and uploading remain the desktop app's primary jobs.
+        """
+        while not self.stop.is_set():
+            if self.linked():
+                try:
+                    state = self.engineer.state()
+                    fuel = state.get("fuel") or {}
+                    remaining = fuel.get("time_left")
+                    if (state.get("active") and state.get("session") == "race" and state.get("timed")
+                            and isinstance(remaining, (int, float)) and 0 <= remaining <= 24 * 3600):
+                        status, response = upload.post_json(
+                            f"{self.site}/api/race-hq/live",
+                            self.config.get("token"),
+                            {"track": state.get("track"), "remaining_s": round(remaining), "session": "race"},
+                        )
+                        if status in (401, 403):
+                            log.warning("Race Day HQ clock rejected: %s", response.get("error", status))
+                        elif status not in (0, 200):
+                            log.warning("Race Day HQ clock returned %s: %s", status, response.get("error", ""))
+                except Exception:
+                    log.exception("Race Day HQ clock update failed")
+            self.stop.wait(RACE_HQ_S)
 
     def share_engineer(self, on: bool):
         self.config.set("engineer_shared", on)

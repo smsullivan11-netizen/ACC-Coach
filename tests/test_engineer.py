@@ -29,7 +29,7 @@ engineer_server.PORTS = (18790, 18791)   # never the installed app's page (8780)
 PF = ["fuel", "speedKmh", "wheelPressure", "tyreCoreTemp", "padLife", "discLife", "carDamage", "suspensionDamage",
       "brakeTemp", "frontBrakeCompound", "rearBrakeCompound"]
 GF = ["isInPitLane", "completedLaps", "iLastTime", "isValidLap", "sessionTimeLeft", "fuelXLap", "iCurrentTime",
-      "mfdTyrePressureLF", "mfdTyrePressureRF", "mfdTyrePressureLR", "mfdTyrePressureRR", "status"]
+      "mfdTyrePressureLF", "mfdTyrePressureRF", "mfdTyrePressureLR", "mfdTyrePressureRR", "status", "session"]
 
 
 def replay(path: Path, track: str, car: str) -> Engineer:

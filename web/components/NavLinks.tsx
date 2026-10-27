@@ -1,16 +1,16 @@
 "use client";
 
-import { CarFront, Clapperboard, Download, Flag, House, MonitorPlay, Trophy, Users, type LucideIcon } from "lucide-react";
+import { CarFront, Clapperboard, Download, Flag, House, MonitorPlay, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 type NavLink = { href: string; label: string; icon: LucideIcon; exact?: boolean; iconOnly?: boolean };
 // Sections that go together, the groups slightly apart (user's request, 2026-10-09): the Dashboard alone as
-// a home button, then analysis (Telemetry, Cars & Setups), the team (Sessions, Leaderboards, Drivers), YouTube
+// a home button, then analysis, the team, the live race room, and YouTube.
 const GROUPS: NavLink[][] = [
   [{ href: "/", label: "Dashboard", icon: House, exact: true, iconOnly: true }],
   [{ href: "/telemetry", label: "Telemetry", icon: MonitorPlay }, { href: "/cars", label: "Cars & Setups", icon: CarFront }],
-  [{ href: "/sessions", label: "Sessions", icon: Flag }, { href: "/tracks", label: "Leaderboards", icon: Trophy }, { href: "/drivers", label: "Drivers", icon: Users }],
+  [{ href: "/sessions", label: "Sessions", icon: Flag }, { href: "/tracks", label: "Leaderboards", icon: Trophy }, { href: "/drivers", label: "Drivers", icon: Users }, { href: "/race-hq", label: "Race HQ", icon: Timer, iconOnly: true }],
   [{ href: "/youtube", label: "YouTube", icon: Clapperboard }],
 ];
 

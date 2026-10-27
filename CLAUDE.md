@@ -729,7 +729,30 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
   page, the lap cards and the sessions list (`components/Conditions.tsx`). Older sessions: none.
 - Brands Hatch recording: air 16 °C, track 22 °C, optimum grip, dry, 12:00, wind 0.
 
-## Events and race results (REMOVED 2026-10-05, to re-implement later)
+## Race Day HQ (migration 0020, `/race-hq`, 2026-10-26)
+- Phone-first private team room for one active race: scheduled countdown / live remaining time,
+  one to four team cars, current and next driver, editable absolute-time stint plans, readiness,
+  shared comments, official updates, race/pit notes and a read-only archive. The create form starts
+  with the team's Nürburgring 24h example: cars 330/331, 24 hours, 65-minute stints and the first
+  four team drivers on each car; an admin can remove/add cars and change the assignments.
+- Permissions: every signed-in team member can read and comment; assigned drivers can confirm their
+  own readiness; admins create races and appoint/remove event leads; admins and event leads edit
+  the clock, plan, notes and official updates. Every mutation rechecks the event and finished races
+  are read-only. React escapes update text; bodies and notes are length-limited in the API.
+- Data: the old `event` table is extended with status and clock fields. New `event_car`,
+  `event_car_stint`, `event_role`, `event_update` and `event_readiness` tables support multiple cars.
+  Migration 0020 archives rows from the removed event planner before adding the one-active-event
+  index; migrations run once and this file must not be edited after it is applied to a shared DB.
+- Clock: schedule until a lead starts/corrects it manually. A linked Windows app posts ACC's timed
+  race `sessionTimeLeft` every 15 s to `POST /api/race-hq/live` with its existing hashed upload-token
+  credential. The API accepts it only for an assigned driver, a matching lowercase track key, a race
+  session and the event's start/end window, then marks the source `acc`. It sends no extra telemetry.
+  This needs a new desktop release (bump `version.py`, build on Windows); manual timing works before it.
+- Navigation: clock icon in the team tray (`NavLinks`; icon-only at wide sizes too, to preserve the
+  header's tested width—its `title` is "Race HQ"). Privacy is documented on both `/privacy` and the
+  GitHub Pages copy in `store-pages/privacy/`.
+
+## Events and race results (REMOVED 2026-10-05; history retained)
 The user found the section too vague and had it removed from the site. The tables of migration
 0007 stay in the database (no data dropped), and the app still sends `driver_name`. The last code is
 in commit a0a6fe2: `git show a0a6fe2:web/lib/events.ts` (also web/lib/results.ts, web/app/events/,
@@ -971,7 +994,7 @@ web/app/api/events/, web/app/api/results/, web/components/LocalTime.tsx, and the
   Smart App Control. Name reserved; first submission (0.1.0) to upload by the user, then the
   Store link goes on the site's download page.
 - Production: migration 0003 applied on Neon (2026-10-04); "Recompute all ratings" to click once.
-- Ideas not requested yet: coaching summary per session, stint view, server results import.
+- Ideas not requested yet: coaching summary per session, server results import.
 - Name the corners of the team's tracks; weighted composite ranking to define with the team.
 - Safer .json matching when `head.driver` is empty: carModel ↔ car-from-file-name table.
 

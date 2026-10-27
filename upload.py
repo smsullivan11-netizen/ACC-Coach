@@ -41,6 +41,26 @@ def request(url: str, token: str, data: bytes | None = None) -> tuple[int, dict]
         return 0, {"error": f"site unreachable ({e})"}
 
 
+def post_json(url: str, token: str, payload: dict, timeout: float = 15) -> tuple[int, dict]:
+    """Post a small authenticated JSON message without changing the session upload protocol."""
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload, separators=(",", ":")).encode("utf-8"),
+        method="POST",
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as res:
+            return res.status, json.loads(res.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        try:
+            return e.code, json.loads(e.read() or b"{}")
+        except ValueError:
+            return e.code, {"error": e.reason}
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        return 0, {"error": f"site unreachable ({e})"}
+
+
 def upload_file(path: Path, url: str, token: str) -> dict:
     """Processes a session and uploads it. Returns {status, message, laps?, session_url?, rating?…} with
     status: uploaded, no_laps, duplicate, unauthorized, offline (retry later) or refused."""

@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Privacy policy" };
 export default function PrivacyPage() {
   return (
     <div className="max-w-3xl">
-      <PageTitle icon={ShieldCheck} note="Last updated: October 14, 2026">Privacy policy</PageTitle>
+      <PageTitle icon={ShieldCheck} note="Last updated: October 26, 2026">Privacy policy</PageTitle>
       <div className="card p-6 text-zinc-300 [&_h2]:mt-8 [&_h2]:font-medium [&_h2]:text-white [&_li]:mt-1.5 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5">
       <p>
         ACC Coach (this site and the ACC Coach desktop app) is a private tool run by a sim-racing team for its own
@@ -45,6 +45,7 @@ export default function PrivacyPage() {
           read only to check that you are a member of the team&apos;s server; it is not stored.
         </li>
         <li>Setup files you choose to upload to the setups library are stored with your name and visible to every member.</li>
+        <li>Race Day HQ stores race plans, readiness confirmations, team comments and official race updates. During a timed race, the linked desktop app may send the track name and ACC&apos;s remaining-session clock every 15 seconds so the team&apos;s race clock stays current.</li>
         <li>Small preferences are kept with your account: which welcome quotes you have already seen and whether you have closed the guide.</li>
         <li>A sign-in cookie keeps you signed in. No other cookies are used by the site (your browser only remembers whether you prefer corners or sections on lap pages); on the YouTube page, video thumbnails are loaded from YouTube and videos play through YouTube&apos;s privacy-enhanced player (no YouTube cookies before you start a video).</li>
       </ul>
@@ -52,7 +53,7 @@ export default function PrivacyPage() {
       <h2>Who can see it</h2>
       <p className="mt-2">
         Only signed-in team members. Every member can see everyone&apos;s laps, comparisons, ratings and driver
-        profiles: that is the purpose of the tool.
+        profiles, race plans and race updates: that is the purpose of the tool.
       </p>
       <ul>
         <li>Team news (team records, personal bests, rank promotions, new app versions) is posted in the team&apos;s Discord channel.</li>

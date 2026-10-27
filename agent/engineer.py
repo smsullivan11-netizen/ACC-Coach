@@ -48,6 +48,7 @@ TYRE_CORE_C = (70, 75, 90, 100)          # cold < 70 ≤ warming < 75 ≤ optima
 BRAKE_PEAK_C = {"front": (450, 700), "rear": (300, 500)}   # lap peak: below = too cold, above = overheating
 WHEELS = ("FL", "FR", "RL", "RR")
 DAMAGE_ZONES = ("front", "rear", "left", "right", "centre")
+SESSION_TYPES = {-1: "unknown", 0: "practice", 1: "qualify", 2: "race", 3: "hotlap", 4: "time_attack"}
 MIN_FLYING = 4                  # laps in a stint before a tyre wear trend
 ATM_PSI, KELVIN = 14.7, 273.15
 
@@ -187,6 +188,7 @@ class Engineer:
             "damage": [float(x) for x in p["carDamage"]], "suspension": [float(x) for x in p["suspensionDamage"]],
             "mfd_pressures": [float(g[f"mfdTyrePressure{w}"]) for w in ("LF", "RF", "LR", "RR")],
             "time_left": float(g["sessionTimeLeft"]) / 1000, "timed": bool(st["isTimedRace"]),
+            "session": SESSION_TYPES.get(int(g["session"]), "unknown"),
             "game_fuel_per_lap": float(g["fuelXLap"]), "current_lap_s": int(g["iCurrentTime"]) / 1000,
         }
 
@@ -276,7 +278,8 @@ class Engineer:
         temps = self._temperatures(s, live)
 
         return {
-            "active": True, "track": self.track, "temps": temps, "car": self.car, "settings": s,
+            "active": True, "track": self.track, "session": live["session"], "timed": live["timed"],
+            "temps": temps, "car": self.car, "settings": s,
             "stint": {"number": self.stints + 1, "laps": len(self.stint.laps), "km": self.stint.km, "in_pit": live["in_pit"]},
             "fuel": fuel, "tyres": tyres, "pressure_ready": ready, "wear": wear, "brakes": pads,
             "damage": {"zones": dict(zip(DAMAGE_ZONES, live["damage"])), "suspension": dict(zip(WHEELS, live["suspension"])),
