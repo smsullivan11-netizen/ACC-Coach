@@ -35,6 +35,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "planned stint length must be between 10 and 240 minutes" }, { status: 400 });
   if (!cars.length || cars.some((c) => !/^\d{1,5}$/.test(clean(c.number, 5)) || !clean(c.name, 100)))
     return Response.json({ error: "add at least one car with a number and name" }, { status: 400 });
+  if (cars.some((c) => !Array.isArray(c.driver_ids) || c.driver_ids.length < 1 || c.driver_ids.length > 6))
+    return Response.json({ error: "choose between one and six drivers for every car" }, { status: 400 });
   const requestedDrivers = [...new Set(cars.flatMap((c) => c.driver_ids ?? []).filter((id) => /^\d+$/.test(id)))];
   const realDrivers = requestedDrivers.length
     ? await sql<{ id: string }[]>`select id from driver where id in ${sql(requestedDrivers)}` : [];

@@ -76,6 +76,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
     if (ordered.some((s, i) => i > 0 && s.start.getTime() !== ordered[i - 1].end.getTime()))
       return Response.json({ error: "stints must form a continuous plan" }, { status: 400 });
     const drivers = [...new Set(parsed.map((s) => s.driver))];
+    if (drivers.length > 6) return Response.json({ error: "a car can have at most six drivers" }, { status: 400 });
     const validDrivers = await sql<{ id: string }[]>`select id from driver where id in ${sql(drivers)}`;
     if (validDrivers.length !== drivers.length) return Response.json({ error: "driver not found" }, { status: 400 });
     await sql.begin(async (tx) => {

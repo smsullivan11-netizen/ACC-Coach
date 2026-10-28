@@ -19,10 +19,15 @@ export type RaceUpdate = {
   author: string | null; avatar_url: string | null; kind: "comment" | "official" | "system";
   body: string; created_at: string;
 };
+export type RaceSignup = {
+  driver_id: string; display_name: string; avatar_url: string | null;
+  status: "in" | "maybe" | "out"; timing_preference: string | null; updated_at: string;
+};
 export type RaceHQData = {
   event: RaceEvent; cars: RaceCar[]; stints: RaceStint[]; updates: RaceUpdate[];
   leads: { id: string; display_name: string }[];
   readiness: { driver_id: string; ready: boolean; updated_at: string }[];
+  signups: RaceSignup[];
   can_lead: boolean; me: Driver;
 };
 
@@ -51,7 +56,7 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
         where status in ('upcoming', 'live') and archived_at is null order by starts_at limit 1`;
   const event = rows[0];
   if (!event) return null;
-  const [cars, stints, updates, leads, readiness, lead] = await Promise.all([
+  const [cars, stints, updates, leads, readiness, signups, lead] = await Promise.all([
     sql<RaceCar[]>`select id, number, name, car_key, sort_order from event_car where event_id = ${event.id} order by sort_order, id`,
     sql<RaceStint[]>`select s.id, s.event_car_id, s.n, s.driver_id, d.display_name as driver, d.avatar_url,
         to_char(s.starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as starts_at,
@@ -71,9 +76,15 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
     sql<{ driver_id: string; ready: boolean; updated_at: string }[]>`select driver_id, ready,
         to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as updated_at
         from event_readiness where event_id = ${event.id}`,
+    sql<RaceSignup[]>`select s.driver_id, d.display_name, d.avatar_url, s.status, s.timing_preference,
+        to_char(s.updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as updated_at
+        from event_signup s join driver d on d.id = s.driver_id
+        where s.event_id = ${event.id}
+        order by case s.status when 'in' then 1 when 'maybe' then 2 else 3 end,
+                 s.updated_at, d.display_name`,
     canLead(event.id, me),
   ]);
-  return { event, cars, stints, updates, leads, readiness, can_lead: lead, me };
+  return { event, cars, stints, updates, leads, readiness, signups, can_lead: lead, me };
 }
 
 export async function raceArchive() {
