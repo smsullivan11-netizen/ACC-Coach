@@ -731,10 +731,16 @@ Current sim: Assetto Corsa Competizione (other sims later → generic data model
 
 ## Race Day HQ (migration 0020, `/race-hq`, 2026-10-26)
 - Phone-first private team room for one active race: scheduled countdown / live remaining time,
-  one to four team cars, current and next driver, editable absolute-time stint plans, readiness,
-  shared comments, official updates, race/pit notes and a read-only archive. The create form starts
-  with the team's Nürburgring 24h example: cars 330/331, 24 hours, 65-minute stints and the first
-  four team drivers on each car; an admin can remove/add cars and change the assignments.
+  one to four team cars, race sign-ups, current and next driver, editable absolute-time stint plans,
+  readiness, shared comments, official updates, race/pit notes and a read-only archive. The create
+  form starts with the team's Nürburgring 24h example: cars 330/331, 24 hours, 65-minute stints and
+  the first four team drivers on each car; an admin can remove/add cars and choose one to six drivers
+  per car when a race permits a larger lineup.
+- Sign-ups (migration 0021): every team member can answer in / maybe / unavailable before the race
+  starts and add an optional 500-character timing preference (for example, avoid 02:00-06:00 or
+  prefer the finish). One response per driver is upserted in `event_signup`; the whole team can see
+  confirmed, maybe, unavailable and unanswered rosters. Responses lock when the race goes live and
+  remain visible in the archive. Sign-ups are event-wide; race leads decide car assignments later.
 - Permissions: every signed-in team member can read and comment; assigned drivers can confirm their
   own readiness; admins create races and appoint/remove event leads; admins and event leads edit
   the clock, plan, notes and official updates. Every mutation rechecks the event and finished races
