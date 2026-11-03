@@ -1,3 +1,4 @@
+import RaceSignupBanner from "@/components/RaceSignupBanner";
 import { Activity, Crown, Gauge, Medal, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Link from "next/link";
 import BackgroundVideo from "@/components/BackgroundVideo";
@@ -44,6 +45,8 @@ export default async function Dashboard({ me }: { me: Driver }) {
     <div className="glass">
       <BackgroundVideo src="/media/dashboard-bg.mp4" poster="/media/dashboard-bg.jpg" />
       <WelcomeHero day={dayLabel(new Date())} name={first} quote={quote.quote} />
+
+      <RaceSignupBanner signedIn />
 
       <div className="grid gap-5 lg:grid-cols-2">
         {/* 1. Rating */}

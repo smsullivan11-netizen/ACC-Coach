@@ -9,7 +9,7 @@ export type RaceEvent = {
   clock_remaining_s: number | null; clock_updated_at: string | null;
   clock_source: "schedule" | "manual" | "acc" | null; archived_at: string | null; server_now: string;
 };
-export type RaceCar = { id: string; number: string; name: string; car_key: string | null; sort_order: number };
+export type RaceCar = { id: string; number: string; name: string; car_key: string | null; sort_order: number; roster_confirmed: boolean };
 export type RaceStint = {
   id: string; event_car_id: string; n: number; driver_id: string | null; driver: string | null;
   avatar_url: string | null; starts_at: string; ends_at: string; note: string | null;
@@ -19,7 +19,18 @@ export type RaceUpdate = {
   author: string | null; avatar_url: string | null; kind: "comment" | "official" | "system";
   body: string; created_at: string;
 };
+export type RaceSignup = { driver_id: string; display_name: string };
+
+export type CarRosterDriver = { event_car_id: string; driver_id: string; display_name: string; sort_order: number };
+export type CarStrategy = {
+  event_car_id: string; stint_min: number; starting_fuel_l: string | null; refuel_l: string | null;
+  reserve_l: string | null; tyre_plan: "every_stop" | "as_needed" | "no_change" | null;
+  min_pit_stops: number | null; pit_window: string | null; notes: string | null;
+};
+
 export type RaceHQData = {
+  rosters: CarRosterDriver[]; strategies: CarStrategy[];
+  signups: RaceSignup[];
   event: RaceEvent; cars: RaceCar[]; stints: RaceStint[]; updates: RaceUpdate[];
   leads: { id: string; display_name: string }[];
   readiness: { driver_id: string; ready: boolean; updated_at: string }[];
@@ -51,8 +62,8 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
         where status in ('upcoming', 'live') and archived_at is null order by starts_at limit 1`;
   const event = rows[0];
   if (!event) return null;
-  const [cars, stints, updates, leads, readiness, lead] = await Promise.all([
-    sql<RaceCar[]>`select id, number, name, car_key, sort_order from event_car where event_id = ${event.id} order by sort_order, id`,
+  const [cars, stints, updates, leads, readiness, lead, signups, rosters, strategies] = await Promise.all([
+    sql<RaceCar[]>`select id, number, name, car_key, sort_order, roster_confirmed from event_car where event_id = ${event.id} order by sort_order, id`,
     sql<RaceStint[]>`select s.id, s.event_car_id, s.n, s.driver_id, d.display_name as driver, d.avatar_url,
         to_char(s.starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as starts_at,
         to_char(s.ends_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as ends_at, s.note
@@ -72,8 +83,15 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
         to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as updated_at
         from event_readiness where event_id = ${event.id}`,
     canLead(event.id, me),
+    sql<RaceSignup[]>`select s.driver_id, d.display_name from event_signup s
+      join driver d on d.id = s.driver_id where s.event_id = ${event.id}
+      order by s.created_at, s.driver_id`,
+    sql<CarRosterDriver[]>`select r.event_car_id, r.driver_id, d.display_name, r.sort_order from event_car_driver r
+      join driver d on d.id = r.driver_id where r.event_id = ${event.id} order by r.event_car_id, r.sort_order, r.driver_id`,
+    sql<CarStrategy[]>`select s.* from event_car_strategy s join event_car c on c.id = s.event_car_id where c.event_id = ${event.id}`,
+
   ]);
-  return { event, cars, stints, updates, leads, readiness, can_lead: lead, me };
+  return { event, cars, stints, updates, leads, readiness, signups, rosters, strategies, can_lead: lead, me };
 }
 
 export async function raceArchive() {

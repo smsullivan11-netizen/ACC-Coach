@@ -2,7 +2,7 @@
 
 import {
   AlarmClock, Archive, ArrowLeft, ArrowRight, CalendarClock, Check, ChevronRight,
-  CircleAlert, Clock3, Edit3, Flag, Fuel, History, Megaphone,
+  Clock3, Edit3, Flag, Fuel, History, Megaphone,
   Plus, Radio, Save, Send, Settings2, ShieldCheck, Timer, Trash2, UserRound, Users, X,
 } from "lucide-react";
 import Link from "next/link";
@@ -11,10 +11,12 @@ import type { ReactNode } from "react";
 import type { Driver } from "@/lib/auth";
 import type { RaceHQData, RaceStint, RaceUpdate } from "@/lib/race-hq";
 import styles from "./RaceHQ.module.css";
+import CarTeams from "./CarTeams";
+import CarStrategy from "./CarStrategy";
 
 type Member = { id: string; display_name: string; avatar_url: string | null };
 type ArchiveRow = { id: string; title: string; track_key: string; starts_at: string; duration_min: number; cars: number };
-type Tab = "overview" | "stints" | "updates" | "pit" | "archive";
+type Tab = "overview" | "teams" | "stints" | "updates" | "pit" | "archive";
 
 const pad = (n: number) => String(Math.max(0, Math.floor(n))).padStart(2, "0");
 const duration = (seconds: number) => `${pad(seconds / 3600)}:${pad((seconds % 3600) / 60)}:${pad(seconds % 60)}`;
@@ -82,10 +84,11 @@ export default function RaceHQ({ initial, archive, members, me }: {
   async function act(path: string, body: unknown, success?: string) {
     setBusy(true); setMessage(null);
     try {
-      await jsonRequest(path, { method: path.endsWith(event.id) ? "PATCH" : "POST", body: JSON.stringify(body) });
+      await jsonRequest(path, { method: path.endsWith(event.id) || path.includes("/cars/") ? "PATCH" : "POST", body: JSON.stringify(body) });
       if (success) setMessage(success);
       await refresh();
-    } catch (e) { setMessage((e as Error).message); }
+      return true;
+    } catch (e) { setMessage((e as Error).message); return false; }
     finally { setBusy(false); }
   }
 
@@ -96,6 +99,23 @@ export default function RaceHQ({ initial, archive, members, me }: {
         <div><p>PCGR · ENDURANCE</p><h2>{event.title}</h2><span>{event.track_key.replaceAll("_", " ")} · {data.cars.length} car{data.cars.length === 1 ? "" : "s"}</span></div>
         <div className={event.status === "live" ? styles.live : styles.status}>{event.status}</div>
       </div>
+
+      {message && <p className={styles.message} role="status">{message}</p>}
+
+      <section id="signup" className="card my-5 scroll-mt-6 p-5" aria-labelledby="race-signup-title">
+        <h3 id="race-signup-title" className="text-xl font-semibold text-white">Race signup</h3>
+        <p className="mt-2 text-sm text-zinc-300">Sign up as {me.display_name}. Race leads will confirm car and stint assignments separately.</p>
+        <p className="mt-3 text-sm text-accent">{data.rosters.some((r) => r.driver_id === me.id) ? `Your car: #${data.cars.find((c) => c.id === data.rosters.find((r) => r.driver_id === me.id)?.event_car_id)?.number}` : "Car assignment pending."}</p>
+        <p className="mt-3 text-sm text-accent">{data.signups.some((s) => s.driver_id === me.id) ? "You’re signed up for this race." : "You haven’t signed up for this race yet."}</p>
+        {event.status === "upcoming" && !event.archived_at && new Date(event.starts_at).getTime() > now ? (
+          <button className={`${styles.primary} mt-3`} disabled={busy}
+            onClick={() => { const registered = !data.signups.some((s) => s.driver_id === me.id); void act(`/api/race-hq/${event.id}/signup`, { registered }, registered ? "You’re signed up!" : "Your signup was withdrawn."); }}>
+            {busy ? "Saving…" : data.signups.some((s) => s.driver_id === me.id) ? "Withdraw signup" : "Sign up for this race"}
+          </button>
+        ) : <p className="mt-3 text-sm text-zinc-400">Signups are closed for this race.</p>}
+        <h4 className="mt-5 font-semibold text-white">Registered drivers ({data.signups.length})</h4>
+        {data.signups.length ? <ul className="mt-2 flex flex-wrap gap-2">{data.signups.map((s) => <li key={s.driver_id} className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-200">{s.display_name}{s.driver_id === me.id ? " · you" : ""}</li>)}</ul> : <p className="mt-2 text-sm text-zinc-400">Be the first to sign up.</p>}
+      </section>
 
       <section className={styles.clock}>
         <div className={styles.clockTop}>
@@ -111,25 +131,27 @@ export default function RaceHQ({ initial, archive, members, me }: {
         <div className={styles.clockFoot}><span>{duration(elapsed)} elapsed</span><span>Scheduled {event.duration_min / 60}h</span></div>
       </section>
 
-      <nav className={styles.tabs} aria-label="Race Day HQ sections" style={{ gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}>
-        {(["overview", "stints", "updates", "pit", "archive"] as Tab[]).map((x) => (
+      <nav className={styles.tabs} aria-label="Race Day HQ sections" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>
+        {(["overview", "teams", "stints", "updates", "pit", "archive"] as Tab[]).map((x) => (
           <button key={x} onClick={() => setTab(x)} aria-current={tab === x ? "page" : undefined}>
-            {x === "pit" ? "Pit kit" : x[0].toUpperCase() + x.slice(1)}
+            {x === "pit" ? "Strategy" : x[0].toUpperCase() + x.slice(1)}
             {x === "updates" && data.updates.filter((u) => u.kind === "official").length > 0 && <i>{data.updates.filter((u) => u.kind === "official").length}</i>}
           </button>
         ))}
       </nav>
 
-      {message && <p className={styles.message}>{message}</p>}
       {tab === "overview" && <Overview data={data} now={now} myNext={myNext} ready={ready} busy={busy}
         onReady={() => act(`/api/race-hq/${event.id}/readiness`, { ready: !ready }, ready ? "Readiness removed." : "The team can see you’re ready.")}
         onPlan={(id) => { setSelectedCar(id); setTab("stints"); }} onUpdates={() => setTab("updates")} />}
-      {tab === "stints" && <StintPlan data={data} car={car} selected={selectedCar} setSelected={setSelectedCar}
+      {tab === "teams" && <CarTeams data={data} busy={busy} onSave={(carId, body, success) => act(`/api/race-hq/${event.id}/cars/${carId}`, body, success)} />}
+      {tab === "stints" && <StintPlan key={car.id} data={data} car={car} selected={selectedCar} setSelected={setSelectedCar}
         members={members} now={now} busy={busy} onSave={(stints) => act(`/api/race-hq/${event.id}`, { action: "plan", car_id: car.id, stints }, "Stint plan updated and posted to the race feed.")} />}
       {tab === "updates" && <Updates data={data} busy={busy} onPost={(body, kind, carId) =>
         act(`/api/race-hq/${event.id}/updates`, { body, kind, car_id: carId }, kind === "official" ? "Official update posted." : "Comment posted.")} />}
-      {tab === "pit" && <PitKit data={data} selected={selectedCar} setSelected={setSelectedCar} busy={busy}
-        onSave={(notes) => act(`/api/race-hq/${event.id}`, { action: "details", notes }, "Race and pit notes updated.")} />}
+      {tab === "pit" && <>
+        <div className={styles.carSwitch}>{data.cars.map((c) => <button key={c.id} onClick={() => setSelectedCar(c.id)} aria-pressed={car.id === c.id}><b>#{c.number}</b><span>{c.name}</span></button>)}</div>
+        <CarStrategy key={car.id} data={data} carId={car.id} busy={busy} onSave={(body, success) => act(`/api/race-hq/${event.id}/cars/${car.id}`, body, success)} />
+      </>}
       {tab === "archive" && <ArchiveList events={archive} currentId={event.id} />}
 
       <footer className={styles.footer}>
@@ -200,26 +222,29 @@ function UpdateCard({ update }: { update: RaceUpdate }) {
 
 function StintPlan({ data, car, selected, setSelected, members, now, busy, onSave }: {
   data: RaceHQData; car: RaceHQData["cars"][number]; selected: string; setSelected: (id: string) => void;
-  members: Member[]; now: number; busy: boolean; onSave: (stints: unknown[]) => void;
+  members: Member[]; now: number; busy: boolean; onSave: (stints: unknown[]) => Promise<boolean>;
 }) {
   const source = useMemo(() => data.stints.filter((s) => s.event_car_id === car.id).sort((a, b) => a.n - b.n), [data.stints, car.id]);
   const [full, setFull] = useState(false), [editing, setEditing] = useState(false), [draft, setDraft] = useState(source);
   const current = source.find((s) => +new Date(s.starts_at) <= now && +new Date(s.ends_at) > now);
+  const roster = data.rosters.filter((r) => r.event_car_id === car.id);
   const plan = editing ? draft : source;
   const shown = full ? plan : plan.filter((s) => !current || (s.n >= current.n - 1 && s.n <= current.n + 5));
   function patch(id: string, values: Partial<RaceStint>) { setDraft((all) => all.map((s) => s.id === id ? { ...s, ...values } : s)); }
   return <>
-    <div className={styles.panelTitle}><div><h3>Stint plan</h3><p>Plan A · changes are posted to the race feed</p></div>{data.can_lead && data.event.status !== "finished" && <button onClick={() => { if (!editing) setDraft(source); setEditing(!editing); }}><Edit3 size={14} /> {editing ? "Cancel" : "Edit"}</button>}</div>
+    <div className={styles.panelTitle}><div><h3>Stint plan</h3><p>Plan A · changes are posted to the race feed</p></div>{data.can_lead && car.roster_confirmed && source.length > 0 && data.event.status !== "finished" && <button onClick={() => { if (!editing) setDraft(source); setEditing(!editing); }}><Edit3 size={14} /> {editing ? "Cancel" : "Edit"}</button>}</div>
     <div className={styles.carSwitch}>{data.cars.map((c) => <button key={c.id} onClick={() => { setEditing(false); setSelected(c.id); }} aria-pressed={selected === c.id}><b>#{c.number}</b><span>{c.name}</span></button>)}</div>
+    {!car.roster_confirmed && <p className="my-4 text-sm text-amber-300">Confirm this car’s roster in Teams before editing its plan.</p>}
+    {!source.length && <p className="my-4 text-sm text-zinc-400">Build this car’s stint plan from its Strategy tab after confirming the roster.</p>}
     <div className={styles.planTools}><div><button onClick={() => setFull(false)} aria-pressed={!full}>Now & next</button><button onClick={() => setFull(true)} aria-pressed={full}>Full race</button></div><span>{day(data.event.starts_at)} · local time</span></div>
     <div className={styles.schedule}>{shown.map((stint) => {
       const active = stint.id === current?.id;
       return <div className={`${styles.stint} ${active ? styles.activeStint : ""}`} key={stint.id}>
-        <b>{stint.n}</b><div>{editing ? <select value={stint.driver_id ?? ""} onChange={(e) => patch(stint.id, { driver_id: e.target.value, driver: members.find((m) => m.id === e.target.value)?.display_name ?? null })}>{members.map((m) => <option value={m.id} key={m.id}>{m.display_name}</option>)}</select> : <strong>{stint.driver ?? "TBC"}{stint.driver_id === data.me.id ? " · you" : ""}</strong>}<small>{active ? "On track" : stint.note || "Planned stint"}</small></div>
-        <span>{editing ? <><input type="datetime-local" value={inputDate(stint.starts_at)} onChange={(e) => patch(stint.id, { starts_at: new Date(e.target.value).toISOString() })} /><input type="datetime-local" value={inputDate(stint.ends_at)} onChange={(e) => patch(stint.id, { ends_at: new Date(e.target.value).toISOString() })} /></> : <>{hm(stint.starts_at)}–{hm(stint.ends_at)}<small>{Math.round((+new Date(stint.ends_at) - +new Date(stint.starts_at)) / 60_000)} min</small></>}</span>
+        <b>{stint.n}</b><div>{editing ? <select aria-label={`Driver for stint ${stint.n}`} disabled={new Date(stint.ends_at).getTime() <= now} value={stint.driver_id ?? ""} onChange={(e) => patch(stint.id, { driver_id: e.target.value, driver: members.find((m) => m.id === e.target.value)?.display_name ?? null })}><option value="" disabled>Choose roster driver…</option>{stint.driver_id && !roster.some((r) => r.driver_id === stint.driver_id) && <option value={stint.driver_id} disabled>{stint.driver ?? "Former roster driver"}</option>}{roster.map((m) => <option value={m.driver_id} key={m.driver_id}>{m.display_name}</option>)}</select> : <strong>{stint.driver ?? "TBC"}{stint.driver_id === data.me.id ? " · you" : ""}</strong>}<small>{active ? "On track" : stint.note || "Planned stint"}</small></div>
+        <span>{editing ? <><input aria-label={`Start of stint ${stint.n}`} disabled={new Date(stint.ends_at).getTime() <= now} type="datetime-local" value={inputDate(stint.starts_at)} onChange={(e) => { if (e.target.value) patch(stint.id, { starts_at: new Date(e.target.value).toISOString() }); }} /><input aria-label={`End of stint ${stint.n}`} disabled={new Date(stint.ends_at).getTime() <= now} type="datetime-local" value={inputDate(stint.ends_at)} onChange={(e) => { if (e.target.value) patch(stint.id, { ends_at: new Date(e.target.value).toISOString() }); }} /></> : <>{hm(stint.starts_at)}–{hm(stint.ends_at)}<small>{Math.round((+new Date(stint.ends_at) - +new Date(stint.starts_at)) / 60_000)} min</small></>}</span>
       </div>;
     })}</div>
-    {editing && <button className={styles.primary} disabled={busy} onClick={() => { onSave(draft.map((s) => ({ id: s.id, driver_id: s.driver_id, starts_at: s.starts_at, ends_at: s.ends_at, note: s.note }))); setEditing(false); }}><Save size={15} /> Save plan & post update</button>}
+    {editing && <button className={styles.primary} disabled={busy} onClick={async () => { const saved = await onSave(draft.map((s) => ({ id: s.id, driver_id: s.driver_id, starts_at: s.starts_at, ends_at: s.ends_at, note: s.note }))); if (saved) setEditing(false); }}><Save size={15} /> Save plan & post update</button>}
   </>;
 }
 
@@ -238,18 +263,6 @@ function Updates({ data, busy, onPost }: { data: RaceHQData; busy: boolean; onPo
   </>;
 }
 
-function PitKit({ data, selected, setSelected, busy, onSave }: { data: RaceHQData; selected: string; setSelected: (id: string) => void; busy: boolean; onSave: (notes: string) => void }) {
-  const car = data.cars.find((c) => c.id === selected) ?? data.cars[0];
-  const [editing, setEditing] = useState(false), [notes, setNotes] = useState(data.event.notes ?? "");
-  return <>
-    <div className={styles.panelTitle}><div><h3>Pit kit</h3><p>The essentials, ready when you need them.</p></div>{data.can_lead && data.event.status !== "finished" && <button onClick={() => setEditing(!editing)}><Edit3 size={14} /> {editing ? "Cancel" : "Edit notes"}</button>}</div>
-    <div className={styles.carSwitch}>{data.cars.map((c) => <button key={c.id} onClick={() => setSelected(c.id)} aria-pressed={selected === c.id}><b>#{c.number}</b><span>{c.name}</span></button>)}</div>
-    <div className={styles.callout}><CircleAlert size={17} /><div><strong>Confirm these values in practice</strong><p>Race leads can keep the final pit menu and setup notes in the event notes.</p></div></div>
-    <section className={styles.kit}><h4><Fuel size={15} /> Standard stop · #{car.number}</h4><dl><div><dt>Planned stint</dt><dd>{Math.round(data.event.duration_min / Math.max(1, data.stints.filter((s) => s.event_car_id === car.id).length))} min average</dd></div><div><dt>Safe fuel</dt><dd>TBC</dd></div><div><dt>Tyre change</dt><dd>TBC</dd></div></dl></section>
-    <section className={styles.kit}><h4><Settings2 size={15} /> Race notes</h4>{editing ? <><textarea className="mt-3 w-full rounded-lg border border-white/10 bg-white/[0.05] p-3 text-sm text-zinc-100" rows={6} maxLength={4000} value={notes} onChange={(e) => setNotes(e.target.value)} /><button className={styles.primary} disabled={busy} onClick={() => { onSave(notes); setEditing(false); }}><Save size={14} /> Save race notes</button></> : <p>{data.event.notes || "No confirmed pit or setup notes yet."}</p>}</section>
-  </>;
-}
-
 function RaceControls({ data, members, busy, close, onAction }: { data: RaceHQData; members: Member[]; busy: boolean; close: () => void; onAction: (body: unknown, success: string) => void }) {
   const [clock, setClock] = useState(duration(data.event.clock_remaining_s ?? data.event.duration_min * 60));
   const [lead, setLead] = useState("");
@@ -261,11 +274,11 @@ function RaceControls({ data, members, busy, close, onAction }: { data: RaceHQDa
   </section></div>;
 }
 
-function EmptyHQ({ archive, members, me, open, setOpen, onCreated }: { archive: ArchiveRow[]; members: Member[]; me: Driver; open: boolean; setOpen: (x: boolean) => void; onCreated: () => void }) {
+function EmptyHQ({ archive, me, open, setOpen, onCreated }: { archive: ArchiveRow[]; members: Member[]; me: Driver; open: boolean; setOpen: (x: boolean) => void; onCreated: () => void }) {
   return <div className={styles.shell}>
-    <div className={styles.empty}><Flag size={30} /><h2>No active race</h2><p>The next race will appear here with its clock, cars, stint plan and team updates.</p>{me.is_admin && <button className={styles.primary} onClick={() => setOpen(true)}><CalendarClock size={15} /> Create the next race</button>}</div>
+    <div className={styles.empty}><Flag size={30} /><h2>No active race</h2><p>Signups open here once the next race is scheduled. The race clock, cars, stint plan and team updates will appear here too.</p>{me.is_admin && <button className={styles.primary} onClick={() => setOpen(true)}><CalendarClock size={15} /> Create the next race</button>}</div>
     {archive.length > 0 && <><Heading title="Race archive" note={`${archive.length} saved`} /><div className={styles.archive}>{archive.map((e) => <Link href={`/race-hq?event=${e.id}`} key={e.id}><span><strong>{e.title}</strong><small>{day(e.starts_at)} · {e.cars} car{e.cars === 1 ? "" : "s"}</small></span><ChevronRight size={17} /></Link>)}</div></>}
-    {open && <CreateRace members={members} close={() => setOpen(false)} created={onCreated} />}
+    {open && <CreateRace close={() => setOpen(false)} created={onCreated} />}
   </div>;
 }
 
@@ -276,20 +289,19 @@ function ArchiveList({ events, currentId }: { events: ArchiveRow[]; currentId?: 
   </>;
 }
 
-function CreateRace({ members, close, created }: { members: Member[]; close: () => void; created: () => void }) {
+function CreateRace({ close, created }: { close: () => void; created: () => void }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
-  const four = members.slice(0, Math.min(4, members.length)).map((m) => m.id);
-  const [cars, setCars] = useState([{ number: "330", name: "Ford Mustang GT3", car_key: "ford_mustang_gt3", driver_ids: four }, { number: "331", name: "Team car 2", car_key: "", driver_ids: four }]);
-  const [title, setTitle] = useState("24 Hours of the Nürburgring"), [track, setTrack] = useState("nurburgring_24h"), [start, setStart] = useState(""), [stint, setStint] = useState(65), [notes, setNotes] = useState("");
+  const [cars, setCars] = useState([{ number: "330", name: "Ford Mustang GT3", car_key: "ford_mustang_gt3", stint_min: 65 }, { number: "331", name: "Team car 2", car_key: "", stint_min: 65 }]);
+  const [title, setTitle] = useState("24 Hours of the Nürburgring"), [track, setTrack] = useState("nurburgring_24h"), [start, setStart] = useState(""), [notes, setNotes] = useState("");
   function carPatch(i: number, patch: Partial<(typeof cars)[number]>) { setCars((all) => all.map((c, k) => k === i ? { ...c, ...patch } : c)); }
-  return <div className={styles.overlay}><form className={`${styles.modal} ${styles.create}`} onSubmit={async (e) => { e.preventDefault(); setBusy(true); setError(null); try { await jsonRequest("/api/race-hq", { method: "POST", body: JSON.stringify({ title, track_key: track, starts_at: new Date(start).toISOString(), duration_min: 1440, stint_min: stint, notes, cars }) }); created(); } catch (x) { setError((x as Error).message); setBusy(false); } }}>
+  return <div className={styles.overlay}><form className={`${styles.modal} ${styles.create}`} onSubmit={async (e) => { e.preventDefault(); setBusy(true); setError(null); try { await jsonRequest("/api/race-hq", { method: "POST", body: JSON.stringify({ title, track_key: track, starts_at: new Date(start).toISOString(), duration_min: 1440, notes, cars }) }); created(); } catch (x) { setError((x as Error).message); setBusy(false); } }}>
     <header><h3>Create the next race</h3><button type="button" onClick={close} aria-label="Close"><X size={17} /></button></header>
     <label>Race title<input value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
     <div className={styles.formGrid}><label>Track key<input value={track} onChange={(e) => setTrack(e.target.value)} required /></label><label>Green flag<input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} required /></label></div>
-    <label>Planned stint length, minutes<input type="number" min={10} max={240} value={stint} onChange={(e) => setStint(+e.target.value)} /></label>
-    {cars.map((car, i) => <fieldset key={i}><legend>Team car {i + 1}</legend><div className={styles.formGrid}><label>Number<input value={car.number} onChange={(e) => carPatch(i, { number: e.target.value })} required /></label><label>Car name<input value={car.name} onChange={(e) => carPatch(i, { name: e.target.value })} required /></label></div><label>Four drivers<select multiple size={Math.min(6, members.length)} value={car.driver_ids} onChange={(e) => carPatch(i, { driver_ids: [...e.target.selectedOptions].map((o) => o.value) })}>{members.map((m) => <option value={m.id} key={m.id}>{m.display_name}</option>)}</select><small>Hold Ctrl or Command to choose four.</small></label>{cars.length > 1 && <button type="button" className="mt-3 inline-flex items-center gap-1.5 text-xs text-red-300" onClick={() => setCars((all) => all.filter((_, k) => k !== i))}><Trash2 size={13} /> Remove this car</button>}</fieldset>)}
-    {cars.length < 4 && <button type="button" className={styles.primary} onClick={() => setCars((all) => [...all, { number: "", name: "", car_key: "", driver_ids: four }])}><Plus size={14} /> Add another team car</button>}
-    <label>Race and pit notes<textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
-    {error && <p className={styles.error}>{error}</p>}<button className={styles.primary} disabled={busy || members.length < 1}><Flag size={15} /> {busy ? "Creating…" : "Create Race Day HQ"}</button>
+    <p className="text-sm text-zinc-400">Create the race to open signups. Assign 4–6 registered drivers per car in Teams, then build each car’s plan in Strategy.</p>
+    {cars.map((car, i) => <fieldset key={i}><legend>Team car {i + 1}</legend><div className={styles.formGrid}><label>Number<input value={car.number} onChange={(e) => carPatch(i, { number: e.target.value })} required /></label><label>Car name<input value={car.name} onChange={(e) => carPatch(i, { name: e.target.value })} required /></label></div><label>Planned stint length (minutes)<input type="number" min={10} max={240} value={car.stint_min} onChange={(e) => carPatch(i, { stint_min: +e.target.value })} required /></label>{cars.length > 1 && <button type="button" className="mt-3 inline-flex items-center gap-1.5 text-xs text-red-300" onClick={() => setCars((all) => all.filter((_, k) => k !== i))}><Trash2 size={13} /> Remove this car</button>}</fieldset>)}
+    {cars.length < 4 && <button type="button" className={styles.primary} onClick={() => setCars((all) => [...all, { number: "", name: "", car_key: "", stint_min: 65 }])}><Plus size={14} /> Add another team car</button>}
+    <label>Shared race notes<textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+    {error && <p className={styles.error}>{error}</p>}<button className={styles.primary} disabled={busy}><Flag size={15} /> {busy ? "Creating…" : "Create Race Day HQ"}</button>
   </form></div>;
 }

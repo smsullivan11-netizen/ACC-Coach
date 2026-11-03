@@ -60,36 +60,49 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
   }
   if (body.action === "plan") {
     const stints = body.stints;
-    if (!body.car_id || !/^\d+$/.test(body.car_id) || !Array.isArray(stints) || !stints.length || stints.length > 100)
+    if (!body.car_id || !/^\d+$/.test(body.car_id) || !Array.isArray(stints) || !stints.length || stints.length > 200 || stints.some((s) => !s || typeof s !== "object"))
       return Response.json({ error: "invalid stint plan" }, { status: 400 });
     const carId = body.car_id;
-    const [car] = await sql`select 1 from event_car where id = ${carId} and event_id = ${id}`;
-    if (!car) return Response.json({ error: "car not found" }, { status: 404 });
     const parsed = stints.map((s) => ({
       id: String(s.id ?? ""), driver: String(s.driver_id ?? ""), start: new Date(s.starts_at ?? ""),
-      end: new Date(s.ends_at ?? ""), note: s.note?.trim().slice(0, 300) || null,
+      end: new Date(s.ends_at ?? ""), note: typeof s.note === "string" ? s.note.trim().slice(0, 300) || null : null,
     }));
-    if (parsed.some((s) => !/^\d+$/.test(s.id) || !/^\d+$/.test(s.driver) ||
+    if (new Set(parsed.map((s) => s.id)).size !== parsed.length || parsed.some((s) => !/^\d+$/.test(s.id) || (s.driver !== "" && !/^\d+$/.test(s.driver)) ||
         Number.isNaN(s.start.getTime()) || Number.isNaN(s.end.getTime()) || s.end <= s.start))
-      return Response.json({ error: "every stint needs a driver and valid start/end" }, { status: 400 });
-    const ordered = [...parsed].sort((a, b) => a.start.getTime() - b.start.getTime());
-    if (ordered.some((s, i) => i > 0 && s.start.getTime() !== ordered[i - 1].end.getTime()))
-      return Response.json({ error: "stints must form a continuous plan" }, { status: 400 });
-    const drivers = [...new Set(parsed.map((s) => s.driver))];
-    const validDrivers = await sql<{ id: string }[]>`select id from driver where id in ${sql(drivers)}`;
-    if (validDrivers.length !== drivers.length) return Response.json({ error: "driver not found" }, { status: 400 });
-    await sql.begin(async (tx) => {
+      return Response.json({ error: "every stint needs a roster driver and valid start/end" }, { status: 400 });
+    const result = await sql.begin(async (tx) => {
+      const [event] = await tx`select * from event where id = ${id} for update`;
+      if (!event || event.status === "finished" || event.archived_at)
+        return Response.json({ error: "archived races are read-only" }, { status: 409 });
+      const [car] = await tx`select roster_confirmed from event_car where id = ${carId} and event_id = ${id}`;
+      if (!car) return Response.json({ error: "car not found" }, { status: 404 });
+      const roster = await tx`select driver_id from event_car_driver where event_car_id = ${carId}`;
+      if (!car.roster_confirmed || roster.length < 4 || roster.length > 6)
+        return Response.json({ error: "confirm this car’s 4–6 driver roster first" }, { status: 409 });
+      const drivers = new Set(roster.map((d) => String(d.driver_id)));
+      // Historical assignments may belong to a previous roster. Unfinished ones must use this car’s current team.
+      if (parsed.some((s) => s.end.getTime() > Date.now() && !drivers.has(s.driver)))
+        return Response.json({ error: "choose drivers from this car’s roster" }, { status: 400 });
+      const saved = await tx`select id, n, driver_id, starts_at, ends_at from event_car_stint where event_car_id = ${carId} order by n`;
+      if (saved.length !== parsed.length || saved.some((r) => !parsed.some((s) => s.id === String(r.id))))
+        return Response.json({ error: "save the complete plan for this car; refresh first" }, { status: 409 });
+      const ordered = saved.map((r) => parsed.find((s) => s.id === String(r.id))!);
+      if (ordered.some((s, i) => i > 0 && s.start.getTime() !== ordered[i - 1].end.getTime()))
+        return Response.json({ error: "stints must form a continuous plan in stint order" }, { status: 400 });
+      // A completed stint is race history and must survive roster changes.
+      if (saved.some((r, i) => new Date(r.ends_at).getTime() <= Date.now() &&
+        (String(r.driver_id ?? "") !== ordered[i].driver || new Date(r.starts_at).getTime() !== ordered[i].start.getTime() || new Date(r.ends_at).getTime() !== ordered[i].end.getTime())))
+        return Response.json({ error: "completed stints cannot be reassigned or retimed" }, { status: 409 });
       for (const s of parsed) {
-        const rows = await tx`update event_car_stint set driver_id = ${s.driver}, starts_at = ${s.start.toISOString()},
-                              ends_at = ${s.end.toISOString()}, note = ${s.note}
-                              where id = ${s.id} and event_car_id = ${carId} returning id`;
-        if (!rows.length) throw new Error("stint not found");
+        await tx`update event_car_stint set driver_id = ${s.driver || null}, starts_at = ${s.start.toISOString()},
+          ends_at = ${s.end.toISOString()}, note = ${s.note} where id = ${s.id} and event_car_id = ${carId}`;
       }
       await tx`update event set updated_at = now() where id = ${id}`;
       await tx`insert into event_update (event_id, event_car_id, author_id, kind, body)
-               values (${id}, ${carId}, ${me.id}, 'official', 'The stint plan was updated.')`;
+        values (${id}, ${carId}, ${me.id}, 'official', 'The car’s stint plan was updated.')`;
+      return null;
     });
-    return Response.json({ ok: true });
+    return result ?? Response.json({ ok: true });
   }
   return Response.json({ error: "unknown action" }, { status: 400 });
 }

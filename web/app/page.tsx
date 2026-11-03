@@ -1,3 +1,4 @@
+import RaceSignupBanner from "@/components/RaceSignupBanner";
 import { BarChart3, Gauge, Route } from "lucide-react";
 import { after } from "next/server";
 import { delay, Pcgr } from "@/components/ui";
@@ -35,6 +36,7 @@ export default async function Home(props: PageProps<"/">) {
           <li className="flex items-center gap-2.5"><Gauge size={16} className="text-accent" /> Coaching after every session: where the time goes and what to change</li>
           <li className="flex items-center gap-2.5"><BarChart3 size={16} className="text-accent" /> Leaderboards, targets and the Overall Driver Rating</li>
         </ul>
+        {discordConfigured() && <RaceSignupBanner />}
         {message && <p className="mt-6 rounded-md border border-race/40 bg-race/10 px-3 py-2 text-sm text-red-300">{message}</p>}
         {discordConfigured() && (
           <a href="/auth/login"
