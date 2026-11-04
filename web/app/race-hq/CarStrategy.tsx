@@ -2,6 +2,7 @@
 import { useState } from "react";
 import type { CarStrategy as Strategy, RaceHQData } from "@/lib/race-hq";
 import styles from "./RaceHQ.module.css";
+import RaceEngineer from "./RaceEngineer";
 const tyres = { every_stop: "Change at every stop", as_needed: "Change as needed", no_change: "No planned tyre change" };
 const inputClass = "mt-1 w-full rounded-lg border border-white/20 bg-zinc-900 p-2 text-sm text-white";
 const fields = [["stint_min", "Planned stint (minutes)", 10, 240, 1], ["starting_fuel_l", "Starting fuel (L)", 0, 200, 0.1], ["refuel_l", "Fuel to add per stop (L)", 0, 200, 0.1], ["reserve_l", "Fuel reserve target (L)", 0, 50, 0.1], ["min_pit_stops", "Minimum pit stops", 0, 100, 1]] as const;
@@ -24,6 +25,7 @@ export default function CarStrategy({ data, carId, busy, onSave }: Props) {
         <label className="mt-4 block text-sm text-zinc-300">Pit window / stop timing<input className={inputClass} maxLength={300} value={draft.pit_window ?? ""} placeholder="e.g. stop between laps 28–30" onChange={(e) => setDraft((d) => ({ ...d, pit_window: e.target.value }))} /></label><label className="mt-4 block text-sm text-zinc-300">Car strategy and setup notes<textarea className={inputClass} rows={5} maxLength={4000} value={draft.notes ?? ""} onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))} /></label>{error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}<div className="mt-4 flex gap-3"><button className={styles.primary} disabled={busy}>Save car strategy</button><button type="button" disabled={busy} className="px-3 py-2 text-sm text-zinc-300" onClick={() => setEditing(false)}>Cancel</button></div>
       </form>}
     {editable && !editing && data.event.status === "upcoming" && new Date(data.event.starts_at) > new Date(data.event.server_now) && <div className="mt-6 border-t border-white/10 pt-4"><p className="mb-3 text-sm text-zinc-400">Build this car’s schedule using its confirmed roster and {source.stint_min}-minute stints. Strategy edits keep the existing schedule until you rebuild.</p><button className={styles.primary} disabled={busy || !car.roster_confirmed} onClick={() => { if (!hasPlan || window.confirm(`Replace the entire stint schedule for car #${car.number}?`)) void onSave({ action: "generate" }, `Car #${car.number} stint plan built.`); }}>{hasPlan ? "Rebuild this car’s stint plan" : "Build this car’s stint plan"}</button>{!car.roster_confirmed && <p className="mt-2 text-sm text-amber-300">Confirm 4–6 drivers in Teams first.</p>}</div>}
+    <RaceEngineer data={data} carId={carId} source={source} canDraft={Boolean(editable && !editing)} onDraft={(patch) => { setDraft({ ...source, ...patch }); setError(null); setEditing(true); }} />
     {data.event.notes && <aside className="mt-6 border-t border-white/10 pt-4"><h4 className="font-semibold text-white">Shared race notes</h4><p className="mt-2 whitespace-pre-wrap text-sm text-zinc-400">{data.event.notes}</p></aside>}
   </section>;
 }
