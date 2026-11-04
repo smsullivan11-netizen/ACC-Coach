@@ -194,11 +194,15 @@ def load_recording(path: str, track_length: float | None = None, tol: float = 0.
     p, g = rec.physics, rec.graphics
     st = rec.static_text
     track, car = st("track"), st("carModel")
+    from acc_identity import validate_source
+    validate_source(track, car, rec.header.get("simulator"), rec.header.get("simulator_identity"))
     head = SimpleNamespace(
         venue=track, vehicleid=car, source_kind="shared_memory",
         driver=" ".join(x for x in (st("playerName"), st("playerSurname")) if x),
         datetime=datetime.fromisoformat(rec.header["local_time"]) if "local_time" in rec.header else datetime.now(),
         session_type=rec.header.get("session", {}).get("type"))
+    head.simulator_identity = rec.header.get("simulator_identity")
+    head.simulator = rec.header.get("simulator", "acc")
     # Server and balance of performance from ACC's log (app 0.4): offline sessions have neither
     head.online = rec.header.get("session", {}).get("online")
     head.server = None

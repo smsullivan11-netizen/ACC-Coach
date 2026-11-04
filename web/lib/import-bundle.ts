@@ -1,5 +1,6 @@
 import "server-only";
 import { sql } from "./db";
+import { accIdentityError } from "./acc-identity";
 import type { EncodedChannel } from "./trace";
 import { detectBop, snapshotBop } from "./references";
 import { repairBundleLap } from "./trace-repair";
@@ -36,7 +37,7 @@ export type Bundle = {
   version: number;
   simulator: string;
   agent: { name: string; version: string };
-  source: { kind: string; file: string; sha256: string };
+  source: { kind: string; file: string; sha256: string; simulator_identity?: unknown };
   session: {
     track: string;
     track_length_m: number;
@@ -71,8 +72,14 @@ const CORNER_COLUMNS = [
   "min_speed_kmh", "apex_m", "throttle_pickup_m", "full_throttle_m", "coasting_s", "exit_speed_kmh",
 ] as const;
 
-export async function importBundle(b: Bundle, driverId: string): Promise<{ sessionId: string; laps: number }> {
+export function validateBundle(b: Bundle) {
   if (b?.format !== "acc-coach/session" || b.version !== 1) throw new Rejected("unsupported bundle format", 422);
+  const reason = accIdentityError(b);
+  if (reason) throw new Rejected(reason, 422);
+}
+
+export async function importBundle(b: Bundle, driverId: string): Promise<{ sessionId: string; laps: number }> {
+  validateBundle(b);
   const s = b.session;
   const cm = b.corner_map;
 

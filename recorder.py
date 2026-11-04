@@ -55,6 +55,8 @@ class Recorder:
         info = {
             "created_at": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
             "local_time": started.isoformat(timespec="milliseconds"),
+            "simulator": "acc",
+            "simulator_identity": mem.identity,
             "recorder": {"poll_s": self.poll_s, "shm_prefix": self.prefix},
             "session": {"track": track, "car": car, "type": session, "index": key[3],
                         "player": " ".join(x for x in (shm.text(st["playerName"]),
@@ -106,6 +108,9 @@ class Recorder:
         try:
             while not stop.is_set():
                 if not mem.open():
+                    self._finish()
+                    last_graphics = last_change = None
+                    status = shm.STATUS_OFF
                     self.state = "waiting"
                     if not waiting_logged:
                         self.log("Waiting for ACC...")

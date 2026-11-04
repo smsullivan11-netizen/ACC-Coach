@@ -11,7 +11,8 @@
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
     "prebuild": "node scripts/prepare-race-signups.mjs",
     "test:race-teams": "node test/race-teams.test.mjs",
-    "test:race-engineer": "node test/race-engineer.test.mjs"
+    "test:race-engineer": "node test/race-engineer.test.mjs",
+    "test:acc-identity": "node test/acc-identity.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.52.0",
