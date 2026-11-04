@@ -1,3 +1,4 @@
+import { accIdentityError } from "@/lib/acc-identity";
 import { ArrowLeft, CalendarDays, Car, CircleCheck, Crown, GitCompareArrows, LineChart, Timer } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -26,6 +27,8 @@ type Session = {
   avatar_url: string | null;
   conditions: SessionConditions;
   track: string;
+  simulator: string;
+  car_simulator: string | null;
   car: string | null;
   car_class: string | null;
   session_type: string | null;
@@ -65,7 +68,7 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
     : [];
   const [session] = await sql<Session[]>`
     select s.id, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YYYY, HH24:MI') as recorded,
-           d.display_name as driver, d.id as driver_id, d.avatar_url, s.conditions, t.key as track, c.key as car, c.class as car_class,
+           d.display_name as driver, d.id as driver_id, d.avatar_url, s.conditions, t.key as track, t.simulator, c.simulator as car_simulator, c.key as car, c.class as car_class,
            s.session_type, to_jsonb(s) ->> 'rating_type' as rating_type, s.source_kind, s.source_file,
            s.bop, s.bop_chosen, s.server_name, s.bop_ballast_kg, s.bop_restrictor_pct
     from session s join driver d on d.id = s.driver_id join track t on t.id = s.track_id
@@ -144,6 +147,8 @@ export default async function SessionPage(props: PageProps<"/sessions/[id]">) {
         </div>
       </div>
 
+      {(accIdentityError({ simulator: session.simulator, session: { track: session.track, car: session.car } }) || (session.car !== null && session.car_simulator !== "acc")) &&
+        <p className="mb-4 rounded-lg border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-200">Excluded from the ACC driver score. This session is outside the supported ACC simulator, track or car catalogue; its lap records remain available.</p>}
       <RatingType sessionId={id} chosen={session.rating_type === "mixed" ? "practice" : session.rating_type} options={typeOptions}
                   accLabel={`${session.session_type ?? "unknown"} → ${RATING_TYPE_LABELS[autoType]}`} />
       <SessionBop sessionId={id} chosen={session.bop_chosen} detected={session.bop ?? "default"} server={session.server_name}

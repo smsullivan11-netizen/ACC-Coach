@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   await flagTooFast(sql, { sessionId: result.sessionId });
   // The rating before this session, for the change in the app's notification (app 0.4+)
   const [before] = await sql<{ rating: number }[]>`
-    select rating from driver_rating where driver_id = ${driver.id} order by id desc limit 1`;
+    select rating from acc_driver_rating where driver_id = ${driver.id} order by id desc limit 1`;
   const rating = await rateSession(sql, result.sessionId);
   await afterUpload(result.sessionId);
   // Achievements and the Discord post must never fail an upload

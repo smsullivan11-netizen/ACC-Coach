@@ -5,6 +5,7 @@ import { fuelSeconds } from "./fuel";
 import { ratingReference } from "./targets";
 import { ensureReferences } from "./references";
 import { flagTooFast } from "./too-fast";
+import { accIdentityError } from "./acc-identity";
 
 // Overall Driver Rating (0-100), updated after each uploaded session.
 //
@@ -124,11 +125,11 @@ export function lapGaps(laps: { number: number; t: number; valid: boolean; inval
 }
 
 export async function rateSession(tx: Sql, sessionId: string) {
-  const [s] = await tx<{ driver_id: string; track_id: string; track: string; car_class: string | null; session_type: string | null; rating_type: string | null }[]>`
-    select s.driver_id, s.track_id, t.key as track, c.class as car_class, s.session_type,
+  const [s] = await tx<{ driver_id: string; track_id: string; track: string; simulator: string; car: string | null; car_simulator: string | null; car_class: string | null; session_type: string | null; rating_type: string | null }[]>`
+    select s.driver_id, s.track_id, t.key as track, t.simulator, c.key as car, c.simulator as car_simulator, c.class as car_class, s.session_type,
            to_jsonb(s) ->> 'rating_type' as rating_type   -- null before migration 0010
     from session s join track t on t.id = s.track_id left join car c on c.id = s.car_id where s.id = ${sessionId}`;
-  if (!s) return null;
+  if (!s || accIdentityError({ simulator: s.simulator, session: { track: s.track, car: s.car } }) || (s.car !== null && s.car_simulator !== "acc")) return null;
   const laps = await tx<LapRow[]>`
     select number, coalesce(official_lap_time_ms, game_lap_time_ms, lap_time_ms) as t, comparable, excluded_reasons, metrics
     from lap where session_id = ${sessionId}`;
@@ -203,7 +204,7 @@ export async function formSessions(tx: Sql, driverId: string, upToId: string | n
     with mine as (
       select r.id, r.session_score, r.pace, r.consistency, r.clean, r.smoothness, r.laps, s.track_id,
              coalesce(s.recorded_at, s.uploaded_at) as at
-      from driver_rating r join session s on s.id = r.session_id
+      from acc_rating_evidence r join session s on s.id = r.session_id
       where r.driver_id = ${driverId} and ${upToId ? tx`r.id <= ${upToId}` : tx`true`}),
     win as (select * from mine where at > (select max(at) from mine) - make_interval(days => ${FORM_DAYS})),
     pool as (select * from win where laps >= ${FORM_MIN_LAPS} or not exists (select 1 from win where laps >= ${FORM_MIN_LAPS}))
@@ -234,7 +235,7 @@ export async function ratingHistory(tx: Sql, driverId: string): Promise<HistoryP
   const rows = await tx<(Omit<FormSession, "id"> & { id: string; session_id: string; rating: number; at: Date; track: string })[]>`
     select r.id, r.session_id, r.rating, r.session_score, r.pace, r.consistency, r.clean, r.smoothness, r.laps, s.track_id, t.key as track,
            coalesce(s.recorded_at, s.uploaded_at) as at
-    from driver_rating r join session s on s.id = r.session_id join track t on t.id = s.track_id
+    from acc_driver_rating r join session s on s.id = r.session_id join track t on t.id = s.track_id
     where r.driver_id = ${driverId} order by r.id`;
   return rows.map((row, k) => {
     const mine = rows.slice(0, k + 1);
@@ -261,7 +262,7 @@ export async function ratingHistory(tx: Sql, driverId: string): Promise<HistoryP
 export async function allTimeBest(tx: Sql) {
   const rows = await tx<{ driver_id: string; best: number }[]>`
     select driver_id, max(rating) as best
-    from (select driver_id, rating, row_number() over (partition by driver_id order by id) as n from driver_rating) x
+    from (select driver_id, rating, row_number() over (partition by driver_id order by id) as n from acc_driver_rating) x
     where n >= ${PROVISIONAL_SESSIONS} group by driver_id`;
   return new Map(rows.map((r) => [r.driver_id, r.best]));
 }

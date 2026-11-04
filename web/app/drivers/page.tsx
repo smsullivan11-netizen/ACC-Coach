@@ -16,7 +16,7 @@ export default async function DriversPage() {
   const rows = await sql<Row[]>`
     with r as (select driver_id, rating, row_number() over (partition by driver_id order by id desc) as n,
                       count(*) over (partition by driver_id) as sessions
-               from driver_rating)
+               from acc_driver_rating)
     select d.id, d.display_name, d.avatar_url, cur.rating, cur.rating - prev.rating as change,
            coalesce(cur.sessions, 0)::int as sessions,
            coalesce((select sum(l.distance_m) from lap l join session s on s.id = l.session_id where s.driver_id = d.id), 0)::float8 / 1000 as km

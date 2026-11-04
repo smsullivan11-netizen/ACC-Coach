@@ -20,12 +20,12 @@ export default async function Dashboard({ me }: { me: Driver }) {
   const [history, [parts], ranking, mine, team] = await Promise.all([
     sql<{ rating: number; date: string; track: string }[]>`
       select r.rating, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon') as date, t.key as track
-      from driver_rating r join session s on s.id = r.session_id join track t on t.id = s.track_id
+      from acc_driver_rating r join session s on s.id = r.session_id join track t on t.id = s.track_id
       where r.driver_id = ${me.id} order by r.id`,
     formParts(sql, me.id).then((p) => [p]),
     sql<{ id: string; display_name: string; avatar_url: string | null; rating: number; sessions: number }[]>`
-      select d.id, d.display_name, d.avatar_url, r.rating, (select count(*) from driver_rating where driver_id = d.id)::int as sessions
-      from driver d join lateral (select rating from driver_rating where driver_id = d.id order by id desc limit 1) r on true
+      select d.id, d.display_name, d.avatar_url, r.rating, (select count(*) from acc_driver_rating where driver_id = d.id)::int as sessions
+      from driver d join lateral (select rating from acc_driver_rating where driver_id = d.id order by id desc limit 1) r on true
       order by r.rating desc limit 8`,
     recentSessions({ driverId: me.id, limit: 60 }),
     recentSessions({ limit: 7 }),

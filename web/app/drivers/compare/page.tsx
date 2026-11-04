@@ -52,7 +52,7 @@ export default async function HeadToHead(props: PageProps<"/drivers/compare">) {
   const by: ZoneMode = zoneMode(q.by) ?? "corners";
   const drivers = await sql<D[]>`
     select d.id, d.display_name, d.avatar_url,
-           (select rating from driver_rating where driver_id = d.id order by id desc limit 1) as rating
+           (select rating from acc_driver_rating where driver_id = d.id order by id desc limit 1) as rating
     from driver d where exists (select 1 from session s where s.driver_id = d.id) order by d.display_name`;
   const pick = (v: unknown, fallback?: string) => (typeof v === "string" && drivers.some((d) => d.id === v) ? v : fallback);
   const aId = pick(q.a, drivers.some((d) => d.id === me.id) ? me.id : drivers[0]?.id);

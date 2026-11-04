@@ -62,7 +62,7 @@ export default async function TrackPage(props: PageProps<"/tracks/[track]">) {
     select r.position::int, r.gap_ms, r.lap_time_ms, r.lap_id, r.car_class, r.driver_id, d.display_name as driver, d.avatar_url,
            r.car, r.session_id, to_char(r.recorded_at, 'DD Mon YYYY') as date, r.bop, r.ballast_kg, r.restrictor_pct,
            round(tb.theoretical_s * 1000)::int as theoretical_ms,
-           (select dr.rating from driver_rating dr where dr.driver_id = r.driver_id order by dr.id desc limit 1) as rating
+           (select dr.rating from acc_driver_rating dr where dr.driver_id = r.driver_id order by dr.id desc limit 1) as rating
     from ranked r
     join driver d on d.id = r.driver_id
     left join theoretical_best tb on tb.driver_id = r.driver_id and tb.car_class is not distinct from r.car_class

@@ -28,7 +28,7 @@ export default async function ProgressPage() {
   ]);
   const dates = await sql<{ id: string; date: string }[]>`
     select r.id, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon YY') as date
-    from driver_rating r join session s on s.id = r.session_id where r.driver_id = ${me.id}`;
+    from acc_driver_rating r join session s on s.id = r.session_id where r.driver_id = ${me.id}`;
   const dateOf = new Map(dates.map((d) => [String(d.id), d.date]));
 
   return (
