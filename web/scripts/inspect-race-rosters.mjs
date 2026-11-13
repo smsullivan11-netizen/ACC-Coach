@@ -7,7 +7,10 @@ try {
     const [event]=await tx`select id,status from event where archived_at is null and status in ('upcoming','live') order by starts_at limit 1`;
     if(!event)return {event:null,cars:[]};
     const cars=await tx`select c.id,c.number,c.roster_confirmed,count(r.driver_id)::int as saved_drivers,
-      count(r.driver_id) filter(where r.driver_id is not null and d.discord_id is distinct from 'review-store')::int as real_drivers
+      count(r.driver_id) filter(where r.driver_id is not null and d.discord_id is distinct from 'review-store')::int as real_drivers,
+      (select count(*)::int from event_signup s join driver sd on sd.id=s.driver_id
+        where s.event_id=c.event_id and sd.discord_id is distinct from 'review-store'
+          and not exists(select 1 from event_car_driver assigned where assigned.event_id=c.event_id and assigned.driver_id=s.driver_id)) as unassigned_registered_drivers
       from event_car c left join event_car_driver r on r.event_car_id=c.id left join driver d on d.id=r.driver_id
       where c.event_id=${event.id} group by c.id order by c.sort_order,c.id`;
     const [signups]=await tx`select count(*)::int as registered_real_drivers from event_signup s join driver d on d.id=s.driver_id

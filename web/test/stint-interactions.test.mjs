@@ -112,3 +112,74 @@ await test("only incoming offers present accept and decline; outgoing offers can
   f.data.me={id:"1",display_name:"Alice"};root.render();assert(!button(root,"Accept swap"));assert(button(root,"Cancel offer"));
 });
 
+
+function teamFixture() {
+  const f=fixture();f.data.can_lead=true;
+  f.data.cars.push({...f.car,id:"2",number:"331",name:"Car B",roster_confirmed:false});
+  f.data.signups=Array.from({length:9},(_,i)=>({driver_id:String(i+1),display_name:"Driver "+(i+1)}));
+  f.data.rosters.push(...[5,6,7].map(n=>({event_car_id:"2",driver_id:String(n),display_name:"Driver "+n})));
+  return f;
+}
+function secondRoster(h,f,onSave) {
+  const teams=h.mount(h.load("app/race-hq/CarTeams.tsx").default,{data:f.data,busy:false,onSave});
+  const node=nodes(teams.tree).find(n=>typeof n.type==="function"&&n.type.name==="Roster"&&n.props.car.id==="2");
+  assert(node,"Second car should have its own roster component");
+  return h.mount(node.type,node.props);
+}
+function checkbox(root,name) {
+  const row=nodes(root.render()).find(n=>n.type==="label"&&label(n).includes(name));
+  assert(row,"Missing driver choice "+name);
+  return nodes(row).find(n=>n.type==="input"&&n.props.type==="checkbox");
+}
+function choose(root,name,checked) {
+  const input=checkbox(root,name);assert(!input.props.disabled,"Driver choice must be editable");
+  input.props.onChange({target:{checked}});root.render();
+}
+await test("car two explains its missing fourth driver and confirms the selected roster independently",async()=>{
+  const h=host(),f=teamFixture(),calls=[];
+  const root=secondRoster(h,f,async(carId,body)=>{
+    calls.push([carId,plain(body)]);
+    f.data.cars[1].roster_confirmed=body.confirmed;
+    f.data.rosters=f.data.rosters.filter(r=>r.event_car_id!==carId).concat(body.driver_ids.map(id=>({event_car_id:carId,driver_id:id,display_name:"Driver "+id})));
+    return true;
+  });
+  await click(root,"Assign registered drivers");
+  assert.equal(button(root,"Confirm roster").props.disabled,true);
+  assert(nodes(root.tree).some(n=>n.props?.role==="status"&&label(n).includes("Select 1 more driver")));
+  choose(root,"Driver 8",true);
+  assert.equal(button(root,"Confirm roster").props.disabled,false);
+  await click(root,"Confirm roster");
+  assert.deepEqual(calls,[["2",{action:"roster",driver_ids:["5","6","7","8"],confirmed:true}]]);
+  assert(nodes(root.tree).some(n=>n.props?.role==="status"&&label(n).includes("Car #331 roster confirmed")));
+  assert(!button(root,"Confirm roster"),"Successful save should close the editor");
+  assert.equal(f.data.rosters.filter(r=>r.event_car_id==="1").length,4);
+});
+await test("a rejected second-car save shows the exact server reason beside the button",async()=>{
+  const h=host(),f=teamFixture();
+  const root=secondRoster(h,f,async(_id,_body,_message,onError)=>{onError("A driver can belong to only one car in this race.");return false;});
+  await click(root,"Assign registered drivers");choose(root,"Driver 8",true);await click(root,"Confirm roster");
+  assert(nodes(root.tree).some(n=>n.props?.role==="alert"&&label(n)==="A driver can belong to only one car in this race."));
+  assert(button(root,"Confirm roster"),"A rejected save should keep the editor open");
+  assert.equal(checkbox(root,"Driver 8").props.checked,true);
+});
+await test("a driver assigned to the other car during editing remains removable",async()=>{
+  const h=host(),f=teamFixture(),calls=[];
+  const root=secondRoster(h,f,async(id,body)=>{calls.push([id,plain(body)]);return true;});
+  await click(root,"Assign registered drivers");choose(root,"Driver 8",true);
+  f.data.rosters.push({event_car_id:"1",driver_id:"8",display_name:"Driver 8"});root.render();
+  assert.equal(checkbox(root,"Driver 8").props.checked,true);
+  assert.equal(checkbox(root,"Driver 8").props.disabled,false);
+  assert.equal(button(root,"Confirm roster").props.disabled,true);
+  choose(root,"Driver 8",false);choose(root,"Driver 9",true);await click(root,"Confirm roster");
+  assert.deepEqual(calls,[["2",{action:"roster",driver_ids:["5","6","7","9"],confirmed:true}]]);
+});
+await test("a withdrawn selected signup stays visible so the lead can remove it",async()=>{
+  const h=host(),f=teamFixture();
+  const root=secondRoster(h,f,async()=>true);
+  await click(root,"Assign registered drivers");choose(root,"Driver 8",true);
+  f.data.signups=f.data.signups.filter(s=>s.driver_id!=="8");root.render();
+  assert.equal(checkbox(root,"Driver 8").props.checked,true);
+  assert.equal(button(root,"Confirm roster").props.disabled,true);
+  assert(label(root.tree).includes("no longer registered"));
+  choose(root,"Driver 8",false);assert.equal(checkbox(root,"Driver 9").props.disabled,false);
+});

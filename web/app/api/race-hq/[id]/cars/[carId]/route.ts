@@ -83,8 +83,12 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
     });
     return Response.json({ ok: true });
   } catch (error) {
-    if (error instanceof EditError) return Response.json({ error: error.message }, { status: error.status });
+    if (error instanceof EditError) {
+      console.warn("Race car change rejected", { event_id:id,car_id:carId,action:body.action,status:error.status,message:error.message });
+      return Response.json({ error: error.message }, { status: error.status });
+    }
     if ((error as { code?: string }).code === "23505") return Response.json({ error: "A driver is already assigned to another car. Refresh and try again." }, { status: 409 });
-    throw error;
+    console.error("Race car change failed", { event_id:id,car_id:carId,action:body.action,code:(error as {code?:string}).code ?? "unknown" });
+    return Response.json({ error:"Could not save this car. Please try again." },{status:500});
   }
 }
