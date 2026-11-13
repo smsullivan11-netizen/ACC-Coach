@@ -29,7 +29,15 @@ export type CarStrategy = {
   min_pit_stops: number | null; pit_window: string | null; notes: string | null;
 };
 
+export type StintTrade = {
+  id: string; event_car_id: string; from_driver_id: string; to_driver_id: string; from_driver: string; to_driver: string;
+  give_stint_id: string | null; take_stint_id: string | null; give_n: number | null; take_n: number | null;
+  give_starts_at: string | null; give_ends_at: string | null; take_starts_at: string | null; take_ends_at: string | null;
+};
+
 export type RaceHQData = {
+  trades: StintTrade[];
+  preferences: { stint_id: string; driver_id: string; display_name: string }[];
   rosters: CarRosterDriver[]; strategies: CarStrategy[];
   signups: RaceSignup[];
   event: RaceEvent; cars: RaceCar[]; stints: RaceStint[]; updates: RaceUpdate[];
@@ -71,7 +79,7 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
         where status in ('upcoming', 'live') and archived_at is null order by starts_at limit 1`;
   const event = rows[0];
   if (!event) return null;
-  const [cars, stints, updates, leads, readiness, lead, signups, rosters, strategies] = await Promise.all([
+  const [cars, stints, updates, leads, readiness, lead, signups, rosters, strategies, trades, preferences] = await Promise.all([
     tx<RaceCar[]>`select c.id, c.number, c.name, c.car_key, c.sort_order, c.roster_confirmed, c.schedule_status, c.schedule_revision, c.qualifying_driver_id, d.display_name as qualifying_driver from event_car c left join driver d on d.id=c.qualifying_driver_id where c.event_id = ${event.id} order by c.sort_order, c.id`,
     tx<RaceStint[]>`select s.id, s.event_car_id, s.n, s.driver_id, d.display_name as driver, d.avatar_url,
         to_char(s.starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as starts_at,
@@ -98,9 +106,23 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
     tx<CarRosterDriver[]>`select r.event_car_id, r.driver_id, d.display_name, r.sort_order from event_car_driver r
       join driver d on d.id = r.driver_id where r.event_id = ${event.id} and d.discord_id is distinct from 'review-store' order by r.event_car_id, r.sort_order, r.driver_id`,
     tx<CarStrategy[]>`select s.* from event_car_strategy s join event_car c on c.id = s.event_car_id where c.event_id = ${event.id}`,
+    tx<StintTrade[]>`select t.id,t.event_car_id,t.from_driver_id,t.to_driver_id,f.display_name as from_driver,d.display_name as to_driver,
+      t.give_stint_id,t.take_stint_id,g.n as give_n,k.n as take_n,
+      to_char(t.give_starts_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as give_starts_at,
+      to_char(t.give_ends_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as give_ends_at,
+      to_char(t.take_starts_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as take_starts_at,
+      to_char(t.take_ends_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as take_ends_at
+      from event_stint_trade t join driver f on f.id=t.from_driver_id join driver d on d.id=t.to_driver_id
+      left join event_car_stint g on g.id=t.give_stint_id left join event_car_stint k on k.id=t.take_stint_id
+      where t.event_id=${event.id} and t.status='pending' and (t.from_driver_id=${me.id} or t.to_driver_id=${me.id})
+      order by t.created_at desc limit 100`,
+    tx<{ stint_id:string;driver_id:string;display_name:string }[]>`select p.stint_id,p.driver_id,d.display_name
+      from event_stint_preference p join event_car_stint s on s.id=p.stint_id join event_car c on c.id=s.event_car_id
+      join driver d on d.id=p.driver_id where c.event_id=${event.id} and d.discord_id is distinct from 'review-store'
+      order by p.created_at,p.driver_id`,
 
   ]);
-  return { event, cars, stints, updates, leads, readiness, signups, rosters, strategies, can_lead: lead, me };
+  return { event, cars, stints, updates, leads, readiness, signups, rosters, strategies, trades, preferences, can_lead: lead, me };
   });
 }
 

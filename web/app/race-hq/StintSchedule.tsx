@@ -3,14 +3,19 @@
 import { useState } from "react";
 import type { RaceHQData } from "@/lib/race-hq";
 import styles from "./StintSchedule.module.css";
+import StintActions from "./StintActions";
+import StintOffers from "./StintOffers";
 
 type DraftSlot = { key: string; id: string | null; driver_id: string | null; minutes: number; note: string };
 type Props = {
   data: RaceHQData; car: RaceHQData["cars"][number]; now: number; busy: boolean;
   setSelected: (id: string) => void;
   onAction: (body: unknown, message: string) => Promise<boolean>;
+  onTrade: (body: unknown, message: string) => Promise<boolean>;
+  onPreference: (body: unknown, message: string) => Promise<boolean>;
+  feedback?: string | null;
 };
-export default function StintSchedule({ data, car, now, busy, setSelected, onAction }: Props) {
+export default function StintSchedule({ data, car, now, busy, setSelected, onAction, onTrade, onPreference, feedback }: Props) {
   const source = data.stints.filter((s) => s.event_car_id === car.id).sort((a, b) => a.n - b.n);
   const roster = data.rosters.filter((r) => r.event_car_id === car.id);
   const mine = roster.some((r) => r.driver_id === data.me.id);
@@ -20,6 +25,7 @@ export default function StintSchedule({ data, car, now, busy, setSelected, onAct
   const [editor, setEditor] = useState<{ revision: number; slots: DraftSlot[] } | null>(null);
   const [interval, setInterval] = useState(data.strategies.find((s) => s.event_car_id === car.id)?.stint_min ?? 65);
   const [local, setLocal] = useState(false), [onlyMine, setOnlyMine] = useState(false);
+  const [selectedStint,setSelectedStint]=useState<string|null>(null),[onlyPreferred,setOnlyPreferred]=useState(false);
   const [error, setError] = useState<string | null>(null);
   const stale = editor !== null && editor.revision !== car.schedule_revision;
   const formatter = new Intl.DateTimeFormat("en-GB", {
@@ -70,37 +76,39 @@ export default function StintSchedule({ data, car, now, busy, setSelected, onAct
     });
   }
   return <section className={styles.panel} aria-labelledby="stint-schedule-title">
-    <header className={styles.header}><div><h3 id="stint-schedule-title">Stint schedule</h3><p>Choose your drives, then let the race lead confirm the plan.</p></div>
+    <header className={styles.header}><div><h3 id="stint-schedule-title">Stint schedule</h3><p>Click a stint to drive it, mark a preference, or arrange a swap.</p></div>
       <span className={styles.badge}>{car.schedule_status === "open" ? "Open for booking" : car.schedule_status === "confirmed" ? "Confirmed" : "Draft"}</span></header>
     <div className={styles.cars}>{data.cars.map((c) => <button type="button" key={c.id} aria-pressed={c.id === car.id} disabled={Boolean(editor) || busy} onClick={() => setSelected(c.id)}>#{c.number} · {c.name}</button>)}</div>
     <p className={styles.hint}>{time(start)} → {time(end)} · {data.event.duration_min / 60}h · {zone}</p>
     <div className={styles.tools}>
       <button type="button" onClick={() => setLocal(!local)}>{local ? "Show UTC" : "Show my time"}</button>
-      {!editor && <button type="button" aria-pressed={onlyMine} onClick={() => setOnlyMine(!onlyMine)}>{onlyMine ? "Show all stints" : "My stints"}</button>}
-      {lead && !editor && <button type="button" disabled={busy} onClick={openEditor}>{source.length ? "Customize schedule" : "Create stint slots"}</button>}
+      {!editor && <button type="button" aria-pressed={onlyMine} onClick={() => {setOnlyMine(!onlyMine);setOnlyPreferred(false);}}>{onlyMine ? "Show all stints" : "My stints"}</button>}
+      {!editor && <button type="button" aria-pressed={onlyPreferred} onClick={()=>{setOnlyPreferred(!onlyPreferred);setOnlyMine(false);}}>{onlyPreferred?"Show all preferences":"My preferences"}</button>}
     </div>
     {!editor && <div className={styles.notice}>
-      {car.schedule_status === "draft" ? "Draft plan. Booking is closed until a race lead opens it." :
+      {car.schedule_status === "draft" ? "Choose your stints directly below. The race lead can confirm the plan once everyone is assigned." :
         car.schedule_status === "open" ? `${vacancies} open slot${vacancies === 1 ? "" : "s"}. Drivers can book or release future stints for their own car.` :
-          "Confirmed race plan. Ask a race lead to reopen booking if you need a change."}
+          "Confirmed race plan. You can still mark preferences or arrange a trade with a teammate."}
       {!mine && writable && <p>Sign up for the race and ask a lead to add you to this car’s roster before booking.</p>}
       {!car.roster_confirmed && <p>Confirm 4–6 drivers in Teams before opening booking.</p>}
     </div>}
-    {lead && !editor && <div className={styles.tools}>
-      {car.schedule_status !== "open" && <button type="button" disabled={busy || !source.length || !car.roster_confirmed} onClick={() => void changeStatus("open")}>Open booking</button>}
-      {car.schedule_status !== "confirmed" && <button type="button" disabled={busy || !source.length || vacancies > 0 || needsQualifier || !car.roster_confirmed} onClick={() => void changeStatus("confirmed")}>Confirm schedule</button>}
-      {car.schedule_status !== "draft" && <button type="button" disabled={busy} onClick={() => void changeStatus("draft")}>Return to draft</button>}
-      {vacancies > 0 && <span>{vacancies} slot{vacancies === 1 ? "" : "s"} still need a driver before confirmation.</span>}
-    </div>}
-    {!editor && <article className={styles.row} aria-label={`Qualifying slot for car ${car.number}`}>
-      <div className={styles.rowHead}><strong>Qualifying · #{car.number}</strong><span>{car.qualifying_driver ?? "Open slot"}{car.qualifying_driver_id===data.me.id ? " · you" : ""}</span></div>
-      <p className={styles.hint}>{data.event.qualifying_starts_at ? `${time(+new Date(data.event.qualifying_starts_at))} → ${time(+new Date(data.event.qualifying_starts_at)+data.event.qualifying_min*60000)} · ${zone} · ${data.event.qualifying_min} min` : "Set the qualifying session in the event timetable."}</p>
-      {lead && qualifyingFuture ? <label>Assign qualifying driver<select disabled={busy} value={car.qualifying_driver_id??""} onChange={(e)=>void qualifyingAction(e.target.value||null)}>
-        <option value="">Open slot</option>{roster.map((r)=><option key={r.driver_id} value={r.driver_id}>{r.display_name}</option>)}</select></label> :
-        writable && qualifyingFuture && mine && car.roster_confirmed && car.schedule_status==="open" && (!car.qualifying_driver_id || car.qualifying_driver_id===data.me.id) ?
-          <button type="button" disabled={busy} onClick={()=>void qualifyingAction(car.qualifying_driver_id ? null : data.me.id)}>{car.qualifying_driver_id ? "Release my qualifying slot" : "Book qualifying"}</button> : null}
-      {needsQualifier && <p className={styles.hint}>Choose a qualifying driver before confirming this car’s schedule.</p>}
-    </article>}
+    {lead && !editor && <details className={styles.leadControls}><summary>Race lead controls</summary>
+      <div className={styles.tools}>
+        <button type="button" disabled={busy} onClick={openEditor}>{source.length?"Edit times and assignments":"Create stint slots"}</button>
+        {car.schedule_status!=="open"&&<button type="button" disabled={busy||!source.length||!car.roster_confirmed} onClick={()=>void changeStatus("open")}>Open booking</button>}
+        {car.schedule_status!=="confirmed"&&<button type="button" disabled={busy||!source.length||vacancies>0||needsQualifier||!car.roster_confirmed} onClick={()=>void changeStatus("confirmed")}>Confirm schedule</button>}
+        {car.schedule_status!=="draft"&&<button type="button" disabled={busy} onClick={()=>void changeStatus("draft")}>Return to draft</button>}
+      </div>
+      {vacancies>0&&<p className={styles.hint}>{vacancies} race slots still need a driver before confirmation.</p>}
+      {qualifyingFuture&&<label>Qualifying driver<select disabled={busy} value={car.qualifying_driver_id??""} onChange={(e)=>void qualifyingAction(e.target.value||null)}>
+        <option value="">Open slot</option>{roster.map((r)=><option key={r.driver_id} value={r.driver_id}>{r.display_name}</option>)}</select></label>}
+    </details>}
+    {!editor && <button type="button" className={`${styles.row} ${styles.slot}`} disabled={busy} onClick={()=>setSelectedStint("qualifying")} aria-label={`Qualifying slot for car ${car.number}, ${car.qualifying_driver??"open slot"}`}>
+      <span className={styles.rowHead}><strong>Qualifying · #{car.number}</strong><span>{car.qualifying_driver??"Open slot"}{car.qualifying_driver_id===data.me.id?" · you":""}</span></span>
+      <span className={styles.slotTime}>{data.event.qualifying_starts_at?`${time(+new Date(data.event.qualifying_starts_at))} → ${time(+new Date(data.event.qualifying_starts_at)+data.event.qualifying_min*60000)} · ${zone} · ${data.event.qualifying_min} min`:"Qualifying time not scheduled."}</span>
+      <span className={styles.slotAction}>View qualifying slot →</span>
+    </button>}
+    {!editor && <StintOffers data={data} carId={car.id} now={now} busy={busy} time={time} zone={zone} onTrade={onTrade} />}
     {editor ? <>
       <div className={styles.notice}>Change durations to move the following handovers together. Saving returns the plan to draft. Save or cancel before switching cars.</div>
       {stale && <div className={styles.warning} role="alert">Someone changed the schedule while you were editing. Your draft is preserved, but you must reload the latest plan before saving. <button type="button" onClick={openEditor}>Reload latest plan</button></div>}
@@ -148,23 +156,28 @@ export default function StintSchedule({ data, car, now, busy, setSelected, onAct
       </div>
     </> : <>
       {!source.length && <p className={styles.notice}>No stint slots yet. A race lead can create an empty schedule here, or build an assigned rotation in Strategy.</p>}
-      <div className={styles.rows}>{source.filter((s) => !onlyMine || s.driver_id === data.me.id).map((s) => {
-        const future = +new Date(s.starts_at) > now, active = !future && +new Date(s.ends_at) > now;
-        const canBook = writable && future && mine && car.roster_confirmed && car.schedule_status === "open";
-        return <article className={styles.row} key={s.id} data-active={active || undefined}>
-          <div className={styles.rowHead}><strong>Stint {s.n} · {s.driver ?? "Open slot"}{s.driver_id === data.me.id ? " · you" : ""}</strong><span>{Math.round((+new Date(s.ends_at) - +new Date(s.starts_at)) / 60000)} min{active ? " · on track" : !future ? " · completed" : ""}</span></div>
-          <p className={styles.hint}>{time(+new Date(s.starts_at))} → {time(+new Date(s.ends_at))} · {zone}</p>
-          {s.note && <p className={styles.note}>{s.note}</p>}
-          {canBook && (!s.driver_id || s.driver_id === data.me.id) && <button type="button" disabled={busy} onClick={() => void onAction({
-            action: s.driver_id ? "release" : "claim", stint_id: s.id, revision: car.schedule_revision,
-          }, s.driver_id ? "Your stint was released." : "Stint booked. The team can see your choice.")}>{s.driver_id ? "Release my stint" : "Book this stint"}</button>}
-        </article>;
+      <div className={styles.rows}>{source.filter((s)=>(!onlyMine||s.driver_id===data.me.id)&&(!onlyPreferred||data.preferences.some((p)=>p.stint_id===s.id&&p.driver_id===data.me.id))).map((s)=>{
+        const future=+new Date(s.starts_at)>now,active=!future&&+new Date(s.ends_at)>now;
+        const preferences=data.preferences.filter((p)=>p.stint_id===s.id);
+        const preferred=preferences.some((p)=>p.driver_id===data.me.id);
+        return <button type="button" className={`${styles.row} ${styles.slot}`} key={s.id} disabled={busy}
+          data-active={active||undefined} data-preferred={preferred||undefined} data-mine={s.driver_id===data.me.id||undefined}
+          onClick={()=>setSelectedStint(s.id)} aria-label={`Stint ${s.n}, ${s.driver??"open slot"}, ${time(+new Date(s.starts_at))} ${zone}`}>
+          <span className={styles.rowHead}><strong>Stint {s.n} · {s.driver??"Open slot"}{s.driver_id===data.me.id?" · you":""}</strong><span>{Math.round((+new Date(s.ends_at)-+new Date(s.starts_at))/60000)} min{active?" · on track":!future?" · completed":""}</span></span>
+          <span className={styles.slotTime}>{time(+new Date(s.starts_at))} → {time(+new Date(s.ends_at))} · {zone}</span>
+          {s.note&&<span className={styles.note}>{s.note}</span>}
+          {preferences.length>0&&<span className={styles.preferenceNames}>★ Preferred by: {preferences.map((p)=>p.driver_id===data.me.id?"you":p.display_name).join(", ")}</span>}
+          <span className={styles.slotAction}>{writable&&future?s.driver_id===data.me.id?"Your stint · offer or swap →":s.driver_id?"Prefer, cover or swap →":"I want this stint →":"View stint →"}</span>
+        </button>;
       })}</div>
-      {onlyMine && !source.some((s) => s.driver_id === data.me.id) && <p className={styles.notice}>You haven’t booked any stints for this car.</p>}
+      {onlyMine&&!source.some((s)=>s.driver_id===data.me.id)&&<p className={styles.notice}>You haven’t booked any stints for this car.</p>}
+      {onlyPreferred&&!source.some((s)=>data.preferences.some((p)=>p.stint_id===s.id&&p.driver_id===data.me.id))&&<p className={styles.notice}>Click a stint and choose “Prefer this stint” to add it here.</p>}
       {roster.length > 0 && <div className={styles.totals}><h4>Planned time per driver</h4>{roster.map((r) => {
         const slots = source.filter((s) => s.driver_id === r.driver_id), minutes = Math.round(slots.reduce((sum, s) => sum + (+new Date(s.ends_at) - +new Date(s.starts_at)) / 60000, 0));
         return <p key={r.driver_id}><span>{r.display_name}</span><strong>{Math.floor(minutes / 60)}h {minutes % 60}m · {slots.length} stint{slots.length === 1 ? "" : "s"}{car.qualifying_driver_id===r.driver_id ? " + qualifying" : ""}</strong></p>;
       })}</div>}
     </>}
+    {selectedStint&&<StintActions key={selectedStint} data={data} car={car} stintId={selectedStint} now={now} busy={busy}
+      time={time} zone={zone} onAction={onAction} onTrade={onTrade} onPreference={onPreference} feedback={feedback} close={()=>setSelectedStint(null)} />}
   </section>;
 }

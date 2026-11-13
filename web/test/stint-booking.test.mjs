@@ -32,7 +32,7 @@ await test("custom schedules and driver booking use the real handlers", async (t
       insert into driver (id,display_name,avatar_url,is_admin) select n, 'Driver '||n, null, n=1 from generate_series(1,10) n;
       create table event (id bigint generated always as identity primary key, title text, track_key text, starts_at timestamptz,
         duration_min int, kind text, league text, server text, notes text, min_pit_stops int, created_by bigint references driver);`);
-    for (const file of ["../../db/migrations/0020_race_hq.sql", "../scripts/migrations/0021_race_signups.sql", "../scripts/migrations/0022_car_teams.sql", "../scripts/migrations/0024_stint_booking.sql", "../scripts/migrations/0025_race_agenda_and_qualifying.sql"])
+    for (const file of ["../../db/migrations/0020_race_hq.sql", "../scripts/migrations/0021_race_signups.sql", "../scripts/migrations/0022_car_teams.sql", "../scripts/migrations/0024_stint_booking.sql", "../scripts/migrations/0025_race_agenda_and_qualifying.sql","../scripts/migrations/0026_stint_trades.sql"])
       await db.exec(readFileSync(new URL(file, import.meta.url), "utf8"));
     let me = null;
     const sql = adapter(db), cache = new Map();
@@ -134,7 +134,8 @@ await test("custom schedules and driver booking use the real handlers", async (t
       const plan=(await editable()).map((s,i)=>({...s,driver_id:String(i+2)}));
       assert.equal((await change("save",{stints:plan})).status,200);
       assert.equal((await db.query("select schedule_status from event_car where id=1")).rows[0].schedule_status,"draft");
-      as(2); assert.equal((await change("release",{stint_id:plan[0].id})).status,409);
+      as(2); assert.equal((await change("release",{stint_id:plan[0].id})).status,200);
+      assert.equal((await change("claim",{stint_id:plan[0].id})).status,200);
       as(1,true); assert.equal((await change("status",{status:"confirmed"})).status,200);
       as(2); assert.equal((await change("release",{stint_id:plan[0].id})).status,409);
       as(1,true); assert.equal((await change("status",{status:"open"})).status,200);
@@ -197,7 +198,8 @@ await test("custom schedules and driver booking use the real handlers", async (t
       assert.equal((await db.query("select schedule_status from event_car where id=1")).rows[0].schedule_status,"draft");
     });
     await t.test("each car has one bookable qualifying slot, restricted to its roster and booking state",async()=>{
-      as(2);assert.equal((await change("qualifier",{driver_id:"2"})).status,409);
+      as(2);assert.equal((await change("qualifier",{driver_id:"2"})).status,200);
+      assert.equal((await change("qualifier",{driver_id:null})).status,200);
       as(1,true);assert.equal((await change("qualifier",{driver_id:"6"})).status,400);
       assert.equal((await change("status",{status:"confirmed"})).status,409);
       assert.equal((await change("status",{status:"open"})).status,200);

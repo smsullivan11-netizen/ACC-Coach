@@ -81,7 +81,7 @@ export default function RaceHQ({ initial, archive, members, me }: {
   async function act(path: string, body: unknown, success?: string) {
     setBusy(true); setMessage(null);
     try {
-      await jsonRequest(path, { method: path.endsWith(event.id) || path.endsWith("/schedule") || path.includes("/cars/") ? "PATCH" : "POST", body: JSON.stringify(body) });
+      await jsonRequest(path, { method: path.endsWith(event.id) || path.endsWith("/schedule") || (path.includes("/cars/") && !path.endsWith("/trades") && !path.endsWith("/preferences")) ? "PATCH" : "POST", body: JSON.stringify(body) });
       if (success) setMessage(success);
       await refresh();
       return true;
@@ -143,8 +143,11 @@ export default function RaceHQ({ initial, archive, members, me }: {
         onReady={() => act(`/api/race-hq/${event.id}/readiness`, { ready: !ready }, ready ? "Readiness removed." : "The team can see you’re ready.")}
         onPlan={(id) => { setSelectedCar(id); setTab("stints"); }} onUpdates={() => setTab("updates")} />}
       {tab === "teams" && <CarTeams data={data} busy={busy} onSave={(carId, body, success) => act(`/api/race-hq/${event.id}/cars/${carId}`, body, success)} />}
+      {data.trades.some((t) => t.to_driver_id === me.id) && <div className={styles.message}><button className={styles.primary} onClick={() => { setSelectedCar(data.trades.find((t) => t.to_driver_id === me.id)!.event_car_id); setTab("stints"); }}>You have a stint offer · View request</button></div>}
       {tab === "stints" && <StintSchedule key={car.id} data={data} car={car} setSelected={setSelectedCar}
-        now={now} busy={busy} onAction={(body, success) => act(`/api/race-hq/${event.id}/cars/${car.id}/schedule`, body, success)} />}
+        now={now} busy={busy} feedback={message} onAction={(body, success) => act(`/api/race-hq/${event.id}/cars/${car.id}/schedule`, body, success)}
+        onTrade={(body, success) => act(`/api/race-hq/${event.id}/cars/${car.id}/trades`, body, success)}
+        onPreference={(body, success) => act(`/api/race-hq/${event.id}/cars/${car.id}/preferences`, body, success)} />}
       {tab === "updates" && <Updates data={data} busy={busy} onPost={(body, kind, carId) =>
         act(`/api/race-hq/${event.id}/updates`, { body, kind, car_id: carId }, kind === "official" ? "Official update posted." : "Comment posted.")} />}
       {tab === "pit" && <>

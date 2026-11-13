@@ -27,3 +27,26 @@
 .totals p { display:flex; justify-content:space-between; gap:10px; padding:7px 0; font-size:.82rem; color:#a1a1aa; }
 .totals strong { color:#e4e4e7; font-weight:500; }
 @media(max-width:600px) { .fields { grid-template-columns:minmax(0,1fr) 80px; } .fields label:last-child { grid-column:1 / -1; } .row { padding:14px; } }
+
+.panel button.slot { display:block; width:100%; text-align:left; padding:18px; background:#19191e; border-radius:12px; }
+.panel button.slot:hover:not(:disabled) { background:#222226; border-color:#d6b64c; transform:translateY(-1px); }
+.panel button.slot[data-mine] { border-left:4px solid #78b69c; }
+.panel button.slot[data-preferred] { background:#252319; }
+.slotTime,.slotAction,.preferenceNames { display:block; margin-top:8px; line-height:1.6; }
+.slotTime { color:#a1a1aa; font-size:.82rem; }
+.slotAction,.preferenceNames { color:#e5c86b; font-size:.8rem; }
+.preferenceNames { overflow-wrap:anywhere; }
+.leadControls { margin:18px 0; padding:12px; border:1px solid #3f3f46; border-radius:10px; color:#a1a1aa; font-size:.82rem; }
+.leadControls summary { cursor:pointer; }
+.offers { margin-top:24px; }
+.offers h4,.tradeForm h4 { font-size:1rem; color:#fff; font-weight:600; margin-bottom:8px; }
+.offers article { margin:12px 0; }
+.dialog { padding:0; max-width:620px; width:calc(100% - 28px); max-height:90dvh; overflow:auto; margin:auto; color:#e4e4e7; background:#19191e; border:1px solid #52525b; border-radius:16px; }
+.dialog::backdrop { background:rgba(0,0,0,.75); }
+.dialogBody { padding:24px; }
+.dialogTime { color:#f4f4f5; font-size:1rem; line-height:1.7; margin:20px 0 12px; }
+.tradeForm,.preferenceBox { border-top:1px solid #3f3f46; padding-top:18px; margin-top:22px; }
+.tradeForm label { margin:14px 0; }
+.dialogBody > button { margin:10px 8px 0 0; }
+.preferenceBox button[aria-pressed=true] { border-color:#e4bd46; color:#f5d76c; }
+@media(max-width:600px) { .panel button.slot { padding:16px; min-height:125px; } .dialogBody { padding:18px; } }

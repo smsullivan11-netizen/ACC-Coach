@@ -50,7 +50,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
         if (driver !== null && (typeof driver!=="string" || !drivers.has(driver))) throw new ScheduleError("Choose a driver from this car’s roster.");
         if (!lead) {
           if (!car.roster_confirmed || !drivers.has(String(me.id))) throw new ScheduleError("Join this car’s confirmed roster first.",403);
-          if (car.schedule_status!=="open") throw new ScheduleError("Qualifying booking is closed. Ask a lead to reopen booking.",409);
+          if (car.schedule_status==="confirmed") throw new ScheduleError("This plan is confirmed. Ask a lead to reopen qualifying booking.",409);
           if (driver === null ? String(car.qualifying_driver_id)!==String(me.id) : driver!==String(me.id) || car.qualifying_driver_id!==null)
             throw new ScheduleError("Book an open qualifying slot or release only your own.",409);
         }
@@ -96,7 +96,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
         await tx`update event_car set schedule_status = ${body.status} where id = ${carId}`;
         message = body.status === "open" ? "Stint booking opened for this car’s drivers." : body.status === "confirmed" ? "Stint schedule confirmed." : "Stint schedule returned to draft.";
       } else {
-        if (car.schedule_status !== "open") throw new ScheduleError("Booking is closed. Ask a race lead to open this car’s schedule.", 409);
+        if (car.schedule_status === "confirmed") throw new ScheduleError("This plan is confirmed. Ask a lead to reopen booking, or arrange a trade with the assigned driver.", 409);
         if (!car.roster_confirmed || !drivers.has(String(me.id))) throw new ScheduleError("You must be on this car’s confirmed roster to book a stint.", 403);
         if (typeof body.stint_id !== "string" || !/^\d+$/.test(body.stint_id)) throw new ScheduleError("Choose a stint.");
         const slot = saved.find((s) => String(s.id) === body.stint_id);

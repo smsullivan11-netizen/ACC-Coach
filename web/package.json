@@ -14,7 +14,8 @@
     "test:race-engineer": "node test/race-engineer.test.mjs",
     "test:acc-identity": "node test/acc-identity.test.mjs",
     "test:acc-scores": "node test/acc-only-scores.test.mjs",
-    "test:stints": "node test/stint-booking.test.mjs"
+    "test:stints": "node test/stint-booking.test.mjs",
+    "test:stint-trades": "node test/stint-trades.test.mjs && node test/stint-interactions.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.52.0",
