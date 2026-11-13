@@ -4,6 +4,7 @@ import { sql } from "@/lib/db";
 export async function POST(request: Request, ctx: RouteContext<"/api/race-hq/[id]/signup">) {
   const me = await currentDriver();
   if (!me) return Response.json({ error: "Sign in with Discord to register." }, { status: 401 });
+  if (me.is_reviewer) return Response.json({ error: "The Store Reviewer account is for certification and cannot enter races." }, { status: 403 });
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin)
     return Response.json({ error: "Use the signup button on this site." }, { status: 403 });

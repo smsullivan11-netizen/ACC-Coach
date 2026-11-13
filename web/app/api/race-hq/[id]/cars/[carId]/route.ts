@@ -42,8 +42,8 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
         const ids = drivers as string[];
         if (body.confirmed && ids.length < 4) throw new EditError("A confirmed roster needs 4–6 drivers.");
         if (ids.length) {
-          const eligible = await tx`select driver_id from event_signup where event_id = ${id}
-            union select driver_id from event_car_driver where event_id = ${id} and event_car_id = ${carId}`;
+          const eligible = await tx`select s.driver_id from event_signup s join driver d on d.id=s.driver_id where s.event_id = ${id} and d.discord_id is distinct from 'review-store'
+            union select r.driver_id from event_car_driver r join driver d on d.id=r.driver_id where r.event_id = ${id} and r.event_car_id = ${carId} and d.discord_id is distinct from 'review-store'`;
           const allowed = new Set(eligible.map((r) => String(r.driver_id)));
           if (ids.some((d) => !allowed.has(d))) throw new EditError("Drivers must sign up before being added to a car.");
           const assigned = await tx`select driver_id from event_car_driver where event_id = ${id} and event_car_id <> ${carId}`;
@@ -54,6 +54,8 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
         // Keep started stints; clear only future assignments outside the new roster.
         if (ids.length) await tx`update event_car_stint set driver_id = null where event_car_id = ${carId} and starts_at > now() and driver_id not in ${tx(ids)}`;
         else await tx`update event_car_stint set driver_id = null where event_car_id = ${carId} and starts_at > now()`;
+        if (event.qualifying_starts_at && new Date(event.qualifying_starts_at).getTime() > Date.now() && car.qualifying_driver_id && !ids.includes(String(car.qualifying_driver_id)))
+          await tx`update event_car set qualifying_driver_id=null where id=${carId}`;
         await tx`update event_car set roster_confirmed = ${body.confirmed}, schedule_status = 'draft', schedule_revision = schedule_revision + 1 where id = ${carId}`;
       } else if (body.action === "strategy") {
         const s = body.strategy;

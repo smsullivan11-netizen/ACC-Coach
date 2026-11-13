@@ -6,12 +6,13 @@ import { instant, protectStarted, ScheduleError, validateSlots, type SavedSlot, 
 export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[id]/cars/[carId]/schedule">) {
   const me = await currentDriver();
   if (!me) return Response.json({ error: "Sign in first." }, { status: 401 });
+  if (me.is_reviewer) return Response.json({ error: "The Store Reviewer account cannot book race sessions." }, { status: 403 });
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return Response.json({ error: "Use Race Day HQ on this site." }, { status: 403 });
   const { id, carId } = await ctx.params;
   if (!/^\d+$/.test(id) || !/^\d+$/.test(carId)) return Response.json({ error: "Car not found." }, { status: 404 });
   const body = await request.json().catch(() => null);
-  if (!body || !["save", "status", "claim", "release"].includes(body.action) || !Number.isSafeInteger(body.revision) || body.revision < 0)
+  if (!body || !["save", "status", "claim", "release", "qualifier"].includes(body.action) || !Number.isSafeInteger(body.revision) || body.revision < 0)
     return Response.json({ error: "Send a schedule action and its current revision." }, { status: 400 });
   const lead = await canLead(id, me);
   if (["save", "status"].includes(body.action) && !lead) return Response.json({ error: "Race leads only." }, { status: 403 });
@@ -25,7 +26,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
       if (!car) throw new ScheduleError("Car not found in this race.", 404);
       if (car.schedule_revision !== body.revision) throw new ScheduleError("The schedule changed. Reload the latest plan and try again.", 409);
       const saved = await tx<SavedSlot[]>`select id, n, driver_id, starts_at, ends_at, note from event_car_stint where event_car_id = ${carId} order by n`;
-      const roster = await tx`select driver_id from event_car_driver where event_car_id = ${carId}`;
+      const roster = await tx`select r.driver_id from event_car_driver r join driver d on d.id=r.driver_id where r.event_car_id = ${carId} and d.discord_id is distinct from 'review-store'`;
       const drivers = new Set(roster.map((r) => String(r.driver_id)));
       const start = instant(event.starts_at), end = start + event.duration_min * 60000, now = Date.now();
       const normalize = () => saved.map((s) => ({ id: String(s.id), driver_id: s.driver_id === null ? null : String(s.driver_id),
@@ -42,7 +43,25 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
           throw new ScheduleError("A driver is already scheduled in the other car during that time.", 409);
       };
       let message = "";
-      if (body.action === "save") {
+      if (body.action === "qualifier") {
+        if (!event.qualifying_starts_at) throw new ScheduleError("Set the qualifying time in the event timetable first.",409);
+        if (instant(event.qualifying_starts_at)<=now) throw new ScheduleError("Qualifying has started; its assignment is locked.",409);
+        const driver = body.driver_id;
+        if (driver !== null && (typeof driver!=="string" || !drivers.has(driver))) throw new ScheduleError("Choose a driver from this car’s roster.");
+        if (!lead) {
+          if (!car.roster_confirmed || !drivers.has(String(me.id))) throw new ScheduleError("Join this car’s confirmed roster first.",403);
+          if (car.schedule_status!=="open") throw new ScheduleError("Qualifying booking is closed. Ask a lead to reopen booking.",409);
+          if (driver === null ? String(car.qualifying_driver_id)!==String(me.id) : driver!==String(me.id) || car.qualifying_driver_id!==null)
+            throw new ScheduleError("Book an open qualifying slot or release only your own.",409);
+        }
+        if (driver) {
+          const [other] = await tx`select id from event_car where event_id=${id} and id<>${carId} and qualifying_driver_id=${driver}`;
+          if (other) throw new ScheduleError("This driver is qualifying in another car.",409);
+        }
+        await tx`update event_car set qualifying_driver_id=${driver} where id=${carId}`;
+        if (lead) await tx`update event_car set schedule_status='draft' where id=${carId}`;
+        message = driver ? `Qualifying driver assigned: ${driver === String(me.id) ? me.display_name : "car roster updated"}.` : "Qualifying slot released.";
+      } else if (body.action === "save") {
         const slots = validateSlots(body.stints, start, end);
         protectStarted(slots, saved, now);
         checkRoster(slots);
@@ -67,6 +86,10 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
           if (!car.roster_confirmed || drivers.size < 4 || drivers.size > 6) throw new ScheduleError("Confirm this car’s 4–6 driver roster first.", 409);
           const slots = validateSlots(normalize(), start, end);
           checkRoster(slots);
+          if (event.qualifying_starts_at && instant(event.qualifying_starts_at)>now && car.qualifying_driver_id && !drivers.has(String(car.qualifying_driver_id)))
+            throw new ScheduleError("Choose a qualifying driver from the current roster.",409);
+          if (body.status==="confirmed" && event.qualifying_starts_at && !car.qualifying_driver_id)
+            throw new ScheduleError("Assign this car’s qualifying slot before confirming.",409);
           await checkOverlap(slots);
           if (body.status === "confirmed" && slots.some((s) => !s.driver_id)) throw new ScheduleError("Assign every open slot before confirming the schedule.", 409);
         }
@@ -94,7 +117,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
       await tx`update event_car set schedule_revision = schedule_revision + 1 where id = ${carId}`;
       await tx`update event set updated_at = now() where id = ${id}`;
       await tx`insert into event_update (event_id, event_car_id, author_id, kind, body)
-        values (${id}, ${carId}, ${me.id}, ${lead && ["save", "status"].includes(body.action) ? "official" : "system"}, ${message})`;
+        values (${id}, ${carId}, ${me.id}, ${lead && ["save", "status", "qualifier"].includes(body.action) ? "official" : "system"}, ${message})`;
     });
     return Response.json({ ok: true });
   } catch (error) {

@@ -52,6 +52,8 @@ export async function POST(request: Request) {
                 ${duration >= 120 ? "endurance" : "sprint"}, ${clean(body?.league, 100) || null},
                 ${clean(body?.server, 200) || null}, ${clean(body?.notes, 4000) || null}, 0,
                 ${me.id}, 'upcoming', 'schedule') returning id`;
+      await tx`update event set practice_starts_at=starts_at-interval '90 minutes',briefing_starts_at=starts_at-interval '40 minutes',
+        qualifying_starts_at=starts_at-interval '30 minutes' where id=${event.id}`;
       await tx`insert into event_role (event_id, driver_id, role) values (${event.id}, ${me.id}, 'lead')`;
       for (let i = 0; i < cars.length; i++) {
         const c = cars[i];

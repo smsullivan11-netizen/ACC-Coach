@@ -28,8 +28,8 @@ function adapter(conn) {
 await test("independent car teams, strategies and signup lifecycle", async (t) => {
   const db = new PGlite();
   try {
-    await db.exec(`create table driver (id bigint primary key, display_name text not null, avatar_url text, is_admin boolean default false);
-      insert into driver select n, 'Driver '||n, null, n=1 from generate_series(1,18) n;
+    await db.exec(`create table driver (id bigint primary key, display_name text not null, avatar_url text, discord_id text, is_admin boolean default false);
+      insert into driver (id,display_name,avatar_url,is_admin) select n, 'Driver '||n, null, n=1 from generate_series(1,18) n;
       create table event (id bigint generated always as identity primary key, title text, track_key text, starts_at timestamptz,
         duration_min int, kind text, league text, server text, notes text, min_pit_stops int, created_by bigint references driver);
     `);
@@ -49,6 +49,7 @@ await test("independent car teams, strategies and signup lifecycle", async (t) =
       assert.equal(roster.length, 1); assert.equal(Number(roster[0].driver_id), 2);
     });
     await db.exec(readFileSync(new URL("../scripts/migrations/0024_stint_booking.sql", import.meta.url), "utf8"));
+    await db.exec(readFileSync(new URL("../scripts/migrations/0025_race_agenda_and_qualifying.sql", import.meta.url), "utf8"));
     let me = null;
     const sql = adapter(db), cache = new Map();
     function load(path) {

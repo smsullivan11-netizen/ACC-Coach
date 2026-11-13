@@ -7,9 +7,10 @@ export type RaceEvent = {
   league: string | null; server: string | null; notes: string | null;
   status: "upcoming" | "live" | "finished";
   clock_remaining_s: number | null; clock_updated_at: string | null;
+  practice_starts_at: string | null; practice_min: number; briefing_starts_at: string | null; briefing_min: number; qualifying_starts_at: string | null; qualifying_min: number; timing_revision: number;
   clock_source: "schedule" | "manual" | "acc" | null; archived_at: string | null; server_now: string;
 };
-export type RaceCar = { id: string; number: string; name: string; car_key: string | null; sort_order: number; roster_confirmed: boolean; schedule_status: "draft" | "open" | "confirmed"; schedule_revision: number };
+export type RaceCar = { id: string; number: string; name: string; car_key: string | null; sort_order: number; roster_confirmed: boolean; schedule_status: "draft" | "open" | "confirmed"; schedule_revision: number; qualifying_driver_id: string | null; qualifying_driver: string | null };
 export type RaceStint = {
   id: string; event_car_id: string; n: number; driver_id: string | null; driver: string | null;
   avatar_url: string | null; starts_at: string; ends_at: string; note: string | null;
@@ -49,14 +50,20 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
   const rows = eventId
     ? await tx<RaceEvent[]>`select id, title, track_key,
         to_char(starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as starts_at, duration_min,
-        league, server, notes, status, clock_remaining_s,
+        league, server, notes, status, clock_remaining_s, practice_min, briefing_min, qualifying_min, timing_revision,
+        to_char(practice_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as practice_starts_at,
+        to_char(briefing_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as briefing_starts_at,
+        to_char(qualifying_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as qualifying_starts_at,
         to_char(clock_updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as clock_updated_at,
         clock_source, to_char(archived_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as archived_at,
         to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as server_now
         from event where id = ${eventId}`
     : await tx<RaceEvent[]>`select id, title, track_key,
         to_char(starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as starts_at, duration_min,
-        league, server, notes, status, clock_remaining_s,
+        league, server, notes, status, clock_remaining_s, practice_min, briefing_min, qualifying_min, timing_revision,
+        to_char(practice_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as practice_starts_at,
+        to_char(briefing_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as briefing_starts_at,
+        to_char(qualifying_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as qualifying_starts_at,
         to_char(clock_updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as clock_updated_at,
         clock_source, to_char(archived_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as archived_at,
         to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as server_now
@@ -65,7 +72,7 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
   const event = rows[0];
   if (!event) return null;
   const [cars, stints, updates, leads, readiness, lead, signups, rosters, strategies] = await Promise.all([
-    tx<RaceCar[]>`select id, number, name, car_key, sort_order, roster_confirmed, schedule_status, schedule_revision from event_car where event_id = ${event.id} order by sort_order, id`,
+    tx<RaceCar[]>`select c.id, c.number, c.name, c.car_key, c.sort_order, c.roster_confirmed, c.schedule_status, c.schedule_revision, c.qualifying_driver_id, d.display_name as qualifying_driver from event_car c left join driver d on d.id=c.qualifying_driver_id where c.event_id = ${event.id} order by c.sort_order, c.id`,
     tx<RaceStint[]>`select s.id, s.event_car_id, s.n, s.driver_id, d.display_name as driver, d.avatar_url,
         to_char(s.starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as starts_at,
         to_char(s.ends_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as ends_at, s.note
@@ -86,10 +93,10 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
         from event_readiness where event_id = ${event.id}`,
     me.is_admin ? Promise.resolve(true) : tx`select 1 from event_role where event_id = ${event.id} and driver_id = ${me.id} and role = 'lead'`.then((rows) => Boolean(rows.length)),
     tx<RaceSignup[]>`select s.driver_id, d.display_name from event_signup s
-      join driver d on d.id = s.driver_id where s.event_id = ${event.id}
+      join driver d on d.id = s.driver_id where s.event_id = ${event.id} and d.discord_id is distinct from 'review-store'
       order by s.created_at, s.driver_id`,
     tx<CarRosterDriver[]>`select r.event_car_id, r.driver_id, d.display_name, r.sort_order from event_car_driver r
-      join driver d on d.id = r.driver_id where r.event_id = ${event.id} order by r.event_car_id, r.sort_order, r.driver_id`,
+      join driver d on d.id = r.driver_id where r.event_id = ${event.id} and d.discord_id is distinct from 'review-store' order by r.event_car_id, r.sort_order, r.driver_id`,
     tx<CarStrategy[]>`select s.* from event_car_strategy s join event_car c on c.id = s.event_car_id where c.event_id = ${event.id}`,
 
   ]);
@@ -110,5 +117,5 @@ export async function raceArchive() {
 
 export async function raceMembers() {
   return sql<{ id: string; display_name: string; avatar_url: string | null }[]>`
-    select id, display_name, avatar_url from driver order by display_name`;
+    select id, display_name, avatar_url from driver where discord_id is distinct from 'review-store' order by display_name`;
 }

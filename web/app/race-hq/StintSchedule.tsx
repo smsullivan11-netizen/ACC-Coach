@@ -22,10 +22,11 @@ export default function StintSchedule({ data, car, now, busy, setSelected, onAct
   const [local, setLocal] = useState(false), [onlyMine, setOnlyMine] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stale = editor !== null && editor.revision !== car.schedule_revision;
-  const time = (ms: number) => new Intl.DateTimeFormat("en-GB", {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
     weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
     ...(local ? {} : { timeZone: "UTC" }),
-  }).format(ms);
+  });
+  const time = (ms: number) => formatter.format(ms);
   const zone = local ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
   const toDraft = (): DraftSlot[] => source.map((s) => ({ key: s.id, id: s.id, driver_id: s.driver_id,
     minutes: (+new Date(s.ends_at) - +new Date(s.starts_at)) / 60000, note: s.note ?? "" }));
@@ -40,6 +41,10 @@ export default function StintSchedule({ data, car, now, busy, setSelected, onAct
   }) ?? [];
   const invalid = draft.length < 1 || draft.length > 300 || draft.some((s) => !Number.isFinite(s.minutes) || s.minutes < 1 || s.minutes > 240) || cursor !== end;
   const vacancies = source.filter((s) => !s.driver_id).length;
+  const needsQualifier = Boolean(data.event.qualifying_starts_at && !car.qualifying_driver_id);
+  const qualifyingFuture = Boolean(data.event.qualifying_starts_at && +new Date(data.event.qualifying_starts_at)>now);
+  const qualifyingAction = (driver: string | null) => onAction({ action:"qualifier",driver_id:driver,revision:car.schedule_revision },
+    driver ? "Qualifying driver saved." : "Qualifying slot released.");
   const changeStatus = (status: "draft" | "open" | "confirmed") => onAction({ action: "status", status, revision: car.schedule_revision },
     status === "open" ? "Booking is open. Drivers can choose stints for this car." : status === "confirmed" ? "Schedule confirmed." : "Schedule returned to draft.");
   function generate() {
@@ -83,10 +88,19 @@ export default function StintSchedule({ data, car, now, busy, setSelected, onAct
     </div>}
     {lead && !editor && <div className={styles.tools}>
       {car.schedule_status !== "open" && <button type="button" disabled={busy || !source.length || !car.roster_confirmed} onClick={() => void changeStatus("open")}>Open booking</button>}
-      {car.schedule_status !== "confirmed" && <button type="button" disabled={busy || !source.length || vacancies > 0 || !car.roster_confirmed} onClick={() => void changeStatus("confirmed")}>Confirm schedule</button>}
+      {car.schedule_status !== "confirmed" && <button type="button" disabled={busy || !source.length || vacancies > 0 || needsQualifier || !car.roster_confirmed} onClick={() => void changeStatus("confirmed")}>Confirm schedule</button>}
       {car.schedule_status !== "draft" && <button type="button" disabled={busy} onClick={() => void changeStatus("draft")}>Return to draft</button>}
       {vacancies > 0 && <span>{vacancies} slot{vacancies === 1 ? "" : "s"} still need a driver before confirmation.</span>}
     </div>}
+    {!editor && <article className={styles.row} aria-label={`Qualifying slot for car ${car.number}`}>
+      <div className={styles.rowHead}><strong>Qualifying · #{car.number}</strong><span>{car.qualifying_driver ?? "Open slot"}{car.qualifying_driver_id===data.me.id ? " · you" : ""}</span></div>
+      <p className={styles.hint}>{data.event.qualifying_starts_at ? `${time(+new Date(data.event.qualifying_starts_at))} → ${time(+new Date(data.event.qualifying_starts_at)+data.event.qualifying_min*60000)} · ${zone} · ${data.event.qualifying_min} min` : "Set the qualifying session in the event timetable."}</p>
+      {lead && qualifyingFuture ? <label>Assign qualifying driver<select disabled={busy} value={car.qualifying_driver_id??""} onChange={(e)=>void qualifyingAction(e.target.value||null)}>
+        <option value="">Open slot</option>{roster.map((r)=><option key={r.driver_id} value={r.driver_id}>{r.display_name}</option>)}</select></label> :
+        writable && qualifyingFuture && mine && car.roster_confirmed && car.schedule_status==="open" && (!car.qualifying_driver_id || car.qualifying_driver_id===data.me.id) ?
+          <button type="button" disabled={busy} onClick={()=>void qualifyingAction(car.qualifying_driver_id ? null : data.me.id)}>{car.qualifying_driver_id ? "Release my qualifying slot" : "Book qualifying"}</button> : null}
+      {needsQualifier && <p className={styles.hint}>Choose a qualifying driver before confirming this car’s schedule.</p>}
+    </article>}
     {editor ? <>
       <div className={styles.notice}>Change durations to move the following handovers together. Saving returns the plan to draft. Save or cancel before switching cars.</div>
       {stale && <div className={styles.warning} role="alert">Someone changed the schedule while you were editing. Your draft is preserved, but you must reload the latest plan before saving. <button type="button" onClick={openEditor}>Reload latest plan</button></div>}
@@ -149,7 +163,7 @@ export default function StintSchedule({ data, car, now, busy, setSelected, onAct
       {onlyMine && !source.some((s) => s.driver_id === data.me.id) && <p className={styles.notice}>You haven’t booked any stints for this car.</p>}
       {roster.length > 0 && <div className={styles.totals}><h4>Planned time per driver</h4>{roster.map((r) => {
         const slots = source.filter((s) => s.driver_id === r.driver_id), minutes = Math.round(slots.reduce((sum, s) => sum + (+new Date(s.ends_at) - +new Date(s.starts_at)) / 60000, 0));
-        return <p key={r.driver_id}><span>{r.display_name}</span><strong>{Math.floor(minutes / 60)}h {minutes % 60}m · {slots.length} stint{slots.length === 1 ? "" : "s"}</strong></p>;
+        return <p key={r.driver_id}><span>{r.display_name}</span><strong>{Math.floor(minutes / 60)}h {minutes % 60}m · {slots.length} stint{slots.length === 1 ? "" : "s"}{car.qualifying_driver_id===r.driver_id ? " + qualifying" : ""}</strong></p>;
       })}</div>}
     </>}
   </section>;

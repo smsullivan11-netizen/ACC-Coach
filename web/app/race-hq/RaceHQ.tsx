@@ -14,6 +14,7 @@ import styles from "./RaceHQ.module.css";
 import CarTeams from "./CarTeams";
 import CarStrategy from "./CarStrategy";
 import StintSchedule from "./StintSchedule";
+import EventTimetable from "./EventTimetable";
 
 type Member = { id: string; display_name: string; avatar_url: string | null };
 type ArchiveRow = { id: string; title: string; track_key: string; starts_at: string; duration_min: number; cars: number };
@@ -80,7 +81,7 @@ export default function RaceHQ({ initial, archive, members, me }: {
   async function act(path: string, body: unknown, success?: string) {
     setBusy(true); setMessage(null);
     try {
-      await jsonRequest(path, { method: path.endsWith(event.id) || path.includes("/cars/") ? "PATCH" : "POST", body: JSON.stringify(body) });
+      await jsonRequest(path, { method: path.endsWith(event.id) || path.endsWith("/schedule") || path.includes("/cars/") ? "PATCH" : "POST", body: JSON.stringify(body) });
       if (success) setMessage(success);
       await refresh();
       return true;
@@ -103,12 +104,12 @@ export default function RaceHQ({ initial, archive, members, me }: {
         <p className="mt-2 text-sm text-zinc-300">Sign up as {me.display_name}. Race leads assign you to a car. Then choose your stints in the Stints tab when booking opens.</p>
         <p className="mt-3 text-sm text-accent">{data.rosters.some((r) => r.driver_id === me.id) ? `Your car: #${data.cars.find((c) => c.id === data.rosters.find((r) => r.driver_id === me.id)?.event_car_id)?.number}` : "Car assignment pending."}</p>
         <p className="mt-3 text-sm text-accent">{data.signups.some((s) => s.driver_id === me.id) ? "You’re signed up for this race." : "You haven’t signed up for this race yet."}</p>
-        {event.status === "upcoming" && !event.archived_at && new Date(event.starts_at).getTime() > now ? (
+        {!me.is_reviewer && event.status === "upcoming" && !event.archived_at && new Date(event.starts_at).getTime() > now ? (
           <button className={`${styles.primary} mt-3`} disabled={busy}
             onClick={() => { const registered = !data.signups.some((s) => s.driver_id === me.id); void act(`/api/race-hq/${event.id}/signup`, { registered }, registered ? "You’re signed up!" : "Your signup was withdrawn."); }}>
             {busy ? "Saving…" : data.signups.some((s) => s.driver_id === me.id) ? "Withdraw signup" : "Sign up for this race"}
           </button>
-        ) : <p className="mt-3 text-sm text-zinc-400">Signups are closed for this race.</p>}
+        ) : <p className="mt-3 text-sm text-zinc-400">{me.is_reviewer ? "Store Reviewer is a certification account and cannot sign up for races." : "Signups are closed for this race."}</p>}
         <h4 className="mt-5 font-semibold text-white">Registered drivers ({data.signups.length})</h4>
         {data.signups.length ? <ul className="mt-2 flex flex-wrap gap-2">{data.signups.map((s) => <li key={s.driver_id} className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-200">{s.display_name}{s.driver_id === me.id ? " · you" : ""}</li>)}</ul> : <p className="mt-2 text-sm text-zinc-400">Be the first to sign up.</p>}
       </section>
@@ -126,6 +127,8 @@ export default function RaceHQ({ initial, archive, members, me }: {
         <div className={styles.progress}><span style={{ width: `${progress}%` }} /></div>
         <div className={styles.clockFoot}><span>{duration(elapsed)} elapsed</span><span>Scheduled {event.duration_min / 60}h</span></div>
       </section>
+
+      <EventTimetable data={data} busy={busy} onSave={(body) => act(`/api/race-hq/${event.id}/schedule`, body, "Timetable saved. Both car plans need review before reopening booking.")} />
 
       <nav className={styles.tabs} aria-label="Race Day HQ sections" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>
         {(["overview", "teams", "stints", "updates", "pit", "archive"] as Tab[]).map((x) => (
