@@ -112,4 +112,3 @@ await test("only incoming offers present accept and decline; outgoing offers can
   f.data.me={id:"1",display_name:"Alice"};root.render();assert(!button(root,"Accept swap"));assert(button(root,"Cancel offer"));
 });
 
-console.log("Stint UI interaction checks completed: 5");
