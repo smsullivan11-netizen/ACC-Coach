@@ -1,6 +1,7 @@
 // Independent checks run together so a failure does not hide the remaining results.
 import {spawn} from "node:child_process";
 const checks=[
+  ["Planning-driver lifecycle","node",["test/planning-drivers.test.mjs"]],
   ["Trade and preference rules","node",["test/stint-trades.test.mjs"]],
   ["Stint click interactions","node",["--test","test/stint-interactions.test.mjs"]],
   ["Booking and qualifying rules","npm",["run","test:stints"]],

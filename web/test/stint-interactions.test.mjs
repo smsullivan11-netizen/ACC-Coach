@@ -56,7 +56,7 @@ function fixture(){
   const car={id:"1",number:"330",name:"Car A",roster_confirmed:true,schedule_status:"draft",schedule_revision:1,qualifying_driver_id:null,qualifying_driver:null};
   const data={event:{id:"1",starts_at:new Date(start).toISOString(),duration_min:180,status:"upcoming",archived_at:null,qualifying_starts_at:new Date(start-1800000).toISOString(),qualifying_min:25},
     cars:[car],me:{id:"1",display_name:"Alice"},can_lead:false,
-    signups:[{driver_id:"1",display_name:"Alice"}],preferences:[],trades:[],strategies:[],
+    planning_drivers:[],signups:[{driver_id:"1",display_name:"Alice"}],preferences:[],trades:[],strategies:[],
     rosters:[{event_car_id:"1",driver_id:"1",display_name:"Alice"},{event_car_id:"1",driver_id:"2",display_name:"Bob"},{event_car_id:"1",driver_id:"3",display_name:"Charlie"},{event_car_id:"1",driver_id:"4",display_name:"Dana"}],
     stints:[null,"1","2"].map((driver,i)=>({id:String(i+1),n:i+1,event_car_id:"1",driver_id:driver,driver:driver==="1"?"Alice":driver==="2"?"Bob":null,
       starts_at:new Date(start+i*3600000).toISOString(),ends_at:new Date(start+(i+1)*3600000).toISOString(),note:null}))};
@@ -182,4 +182,36 @@ await test("a withdrawn selected signup stays visible so the lead can remove it"
   assert.equal(button(root,"Confirm roster").props.disabled,true);
   assert(label(root.tree).includes("no longer registered"));
   choose(root,"Driver 8",false);assert.equal(checkbox(root,"Driver 9").props.disabled,false);
+});
+
+await test("a race lead can confirm three joined drivers plus a named planning spot",async()=>{
+  const h=host(),f=teamFixture(),calls=[];
+  f.data.planning_drivers=[{id:"20",event_car_id:"2",name:"Future teammate"}];
+  const root=secondRoster(h,f,async(id,body)=>{calls.push([id,plain(body)]);return true;});
+  await click(root,"Assign registered drivers");
+  assert.equal(button(root,"Confirm roster").props.disabled,false);
+  assert(label(root.tree).includes("1 awaiting Discord"));
+  await click(root,"Confirm roster");
+  assert.deepEqual(calls,[["2",{action:"roster",driver_ids:["5","6","7"],confirmed:true}]]);
+});
+await test("any race lead can add and link a planning driver using the signed-up profile",async()=>{
+  const h=host(),f=fixture(),calls=[];
+  f.data.can_lead=true;f.data.me.is_admin=false;
+  f.data.planning_drivers=[];
+  const root=h.mount(h.load("app/race-hq/PlanningDrivers.tsx").default,{data:f.data,carId:"1",busy:false,onAction:async(id,body)=>{calls.push([id,plain(body)]);return true;}});
+  const input=nodes(root.tree).find(n=>n.type==="input");input.props.onChange({target:{value:"Future teammate"}});root.render();
+  const form=nodes(root.tree).find(n=>n.type==="form");await form.props.onSubmit({preventDefault(){}});await flush();root.render();
+  assert.deepEqual(calls,[["1",{action:"add",name:"Future teammate"}]]);
+  f.data.planning_drivers=[{id:"20",event_car_id:"1",name:"Future teammate"}];root.render();
+  const select=nodes(root.tree).find(n=>n.type==="select");select.props.onChange({target:{value:"1"}});root.render();
+  await click(root,"Link account & assign stints");
+  assert.deepEqual(calls[1],["1",{action:"link",planning_driver_id:"20",driver_id:"1"}]);
+});
+await test("a reserved planning-driver stint cannot be claimed as an open slot",async()=>{
+  const h=host(),f=fixture();
+  f.data.stints[0].planning_driver_id="20";f.data.stints[0].driver="Future teammate";
+  f.data.planning_drivers=[{id:"20",event_car_id:"1",name:"Future teammate"}];
+  const root=h.mount(h.load("app/race-hq/StintActions.tsx").default,{...f,stintId:"1",busy:false,time:()=> "10:30",zone:"UTC",close:()=>{},onAction:async()=>true,onPreference:async()=>true,onTrade:async()=>true});
+  assert(!button(root,"I’ll drive this stint"));
+  assert(label(root.tree).includes("awaiting Discord"));
 });

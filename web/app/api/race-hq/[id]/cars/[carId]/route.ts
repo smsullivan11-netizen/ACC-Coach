@@ -35,12 +35,14 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
       if (!event || event.archived_at || event.status === "finished") throw new EditError("Archived races are read-only.", 409);
       const [car] = await tx`select * from event_car where id = ${carId} and event_id = ${id}`;
       if (!car) throw new EditError("Car not found in this race.", 404);
+      const planning = await tx`select id from event_planning_driver where event_car_id=${carId} and linked_driver_id is null and removed_at is null order by id`;
       if (body.action === "roster") {
         const drivers: unknown = body.driver_ids;
         if (!Array.isArray(drivers) || drivers.length > 6 || drivers.some((d) => typeof d !== "string" || !/^\d+$/.test(d)) || new Set(drivers).size !== drivers.length || typeof body.confirmed !== "boolean")
           throw new EditError("Choose up to six different drivers.");
         const ids = drivers as string[];
-        if (body.confirmed && ids.length < 4) throw new EditError("A confirmed roster needs 4–6 drivers.");
+        if (ids.length+planning.length>6) throw new EditError("Choose at most six joined or planning drivers.");
+        if (body.confirmed && ids.length+planning.length<4) throw new EditError("A confirmed roster needs 4–6 joined or planning drivers.");
         if (ids.length) {
           const eligible = await tx`select s.driver_id from event_signup s join driver d on d.id=s.driver_id where s.event_id = ${id} and d.discord_id is distinct from 'review-store'
             union select r.driver_id from event_car_driver r join driver d on d.id=r.driver_id where r.event_id = ${id} and r.event_car_id = ${carId} and d.discord_id is distinct from 'review-store'`;
@@ -72,9 +74,10 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
         if (event.status !== "upcoming" || !event.before_start) throw new EditError("Rebuild plans only before the race starts. Edit live stints individually.", 409);
         if (car.schedule_status !== "draft") throw new EditError("Return the schedule to draft before rebuilding it. This protects drivers’ bookings.", 409);
         const drivers = await tx`select driver_id from event_car_driver where event_car_id = ${carId} order by sort_order, driver_id`;
-        if (!car.roster_confirmed || drivers.length < 4 || drivers.length > 6) throw new EditError("Confirm this car’s 4–6 driver roster first.", 409);
+        if (!car.roster_confirmed || drivers.length+planning.length < 4 || drivers.length+planning.length > 6) throw new EditError("Confirm this car’s 4–6 driver roster first.", 409);
         const [strategy] = await tx`select stint_min from event_car_strategy where event_car_id = ${carId}`;
-        await generateCarPlan(tx, carId, new Date(event.starts_at).toISOString(), event.duration_min, strategy?.stint_min ?? 65, drivers.map((r) => String(r.driver_id)));
+        const participants:(string|{planning_driver_id:string})[]=[...drivers.map(r=>String(r.driver_id)),...planning.map(p=>({planning_driver_id:String(p.id)}))];
+        await generateCarPlan(tx, carId, new Date(event.starts_at).toISOString(), event.duration_min, strategy?.stint_min ?? 65, participants);
         await tx`update event_car set schedule_revision = schedule_revision + 1 where id = ${carId}`;
       }
       await tx`update event set updated_at = now() where id = ${id}`;

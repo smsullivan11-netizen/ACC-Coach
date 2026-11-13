@@ -142,7 +142,8 @@ export default function RaceHQ({ initial, archive, members, me }: {
       {tab === "overview" && <Overview data={data} now={now} myNext={myNext} ready={ready} busy={busy}
         onReady={() => act(`/api/race-hq/${event.id}/readiness`, { ready: !ready }, ready ? "Readiness removed." : "The team can see you’re ready.")}
         onPlan={(id) => { setSelectedCar(id); setTab("stints"); }} onUpdates={() => setTab("updates")} />}
-      {tab === "teams" && <CarTeams data={data} busy={busy} onSave={(carId, body, success, onError) => act(`/api/race-hq/${event.id}/cars/${carId}`, body, success, onError)} />}
+      {tab === "teams" && <CarTeams data={data} busy={busy} onSave={(carId, body, success, onError) => act(`/api/race-hq/${event.id}/cars/${carId}`, body, success, onError)}
+        onPlanning={(carId,body,success,onError)=>act(`/api/race-hq/${event.id}/cars/${carId}/planning-drivers`,body,success,onError)} />}
       {data.trades.some((t) => t.to_driver_id === me.id) && <div className={styles.message}><button className={styles.primary} onClick={() => { setSelectedCar(data.trades.find((t) => t.to_driver_id === me.id)!.event_car_id); setTab("stints"); }}>You have a stint offer · View request</button></div>}
       {tab === "stints" && <StintSchedule key={car.id} data={data} car={car} setSelected={setSelectedCar}
         now={now} busy={busy} feedback={message} onAction={(body, success) => act(`/api/race-hq/${event.id}/cars/${car.id}/schedule`, body, success)}

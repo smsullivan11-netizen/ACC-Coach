@@ -51,6 +51,7 @@ await test("independent car teams, strategies and signup lifecycle", async (t) =
     await db.exec(readFileSync(new URL("../scripts/migrations/0024_stint_booking.sql", import.meta.url), "utf8"));
     await db.exec(readFileSync(new URL("../scripts/migrations/0025_race_agenda_and_qualifying.sql", import.meta.url), "utf8"));
     await db.exec(readFileSync(new URL("../scripts/migrations/0026_stint_trades.sql", import.meta.url), "utf8"));
+    await db.exec(readFileSync(new URL("../scripts/migrations/0027_planning_drivers.sql", import.meta.url), "utf8"));
     let me = null;
     const sql = adapter(db), cache = new Map();
     function load(path) {

@@ -14,6 +14,8 @@ export default function StintActions({data,car,stintId,now,busy,time,zone,onActi
   useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
   const qualifying=stintId==="qualifying";
   const slot=data.stints.find((s)=>s.id===stintId && s.event_car_id===car.id);
+  const planningId=qualifying?car.qualifying_planning_driver_id:slot?.planning_driver_id;
+  const planning=(data.planning_drivers??[]).filter(p=>p.event_car_id===car.id);
   const driverId=qualifying?car.qualifying_driver_id:slot?.driver_id??null;
   const driverName=qualifying?car.qualifying_driver:slot?.driver??null;
   const starts=qualifying?data.event.qualifying_starts_at:slot?.starts_at;
@@ -43,7 +45,7 @@ export default function StintActions({data,car,stintId,now,busy,time,zone,onActi
     <div className={styles.dialogBody}>
       <header className={styles.header}><div><p className={styles.hint}>Car #{car.number} · {car.name}</p><h3 id="stint-action-title">{label}</h3></div><button type="button" disabled={busy} onClick={close} aria-label="Close stint details">Close</button></header>
       <p className={styles.dialogTime}>{starts&&ends?`${time(+new Date(starts))} → ${time(+new Date(ends))} · ${zone}`:"This slot is no longer scheduled."}</p>
-      <p className={styles.notice}>Assigned driver: <strong>{driverName??"Open slot"}{mine?" · you":""}</strong></p>
+      <p className={styles.notice}>Assigned driver: <strong>{driverName??"Open slot"}{planningId?" · awaiting Discord":""}{mine?" · you":""}</strong></p>
       {slot?.note&&<p className={styles.note}>{slot.note}</p>}
       {stale&&<p className={styles.warning} role="status">The schedule changed while this was open. Review the latest details before booking or trading. <button type="button" disabled={busy} onClick={()=>{setRevision(car.schedule_revision);setExchange("");setRecipient("");setFailed(false);}}>Use latest details</button></p>}
       {!qualifying && writable && <div className={styles.preferenceBox}>
@@ -53,9 +55,20 @@ export default function StintActions({data,car,stintId,now,busy,time,zone,onActi
         {!participant&&<p className={styles.hint}>Sign up for this race to mark your preferences.</p>}
         {preferenceNames.length>0&&<p className={styles.hint}>Preferred by: {preferenceNames.join(", ")}</p>}
       </div>}
+      {planningId&&<p className={styles.hint}>Reserved for a planning driver. A race lead can link their Discord account in Teams after signup.</p>}
+      {data.can_lead&&writable&&<details className={styles.tradeForm}><summary>Lead assignment</summary>
+        <label>Assign this stint<select disabled={busy||stale} value={planningId?`planning:${planningId}`:driverId??""} onChange={e=>{
+          const value=e.target.value;
+          void run(()=>onAction({action:qualifying?"qualifier":"assign",stint_id:qualifying?undefined:stintId,revision,driver_id:value.startsWith("planning:")?null:value||null,
+            planning_driver_id:value.startsWith("planning:")?value.slice(9):null},"Stint assigned. The plan is ready for lead review."));
+        }}><option value="">Open slot</option>
+          {roster.map(r=><option key={r.driver_id} value={r.driver_id}>{r.display_name}</option>)}
+          {planning.map(p=><option key={`planning:${p.id}`} value={`planning:${p.id}`}>{p.name} · awaiting Discord</option>)}
+        </select></label>
+      </details>}
       {!future && <p className={styles.hint}>Started and completed stints are locked.</p>}
       {writable&&!canDrive&&<p className={styles.hint}>To book or trade, join this car’s confirmed roster in Teams.</p>}
-      {canDrive && !driverId && booking && <button type="button" className={styles.primary} disabled={busy||stale} onClick={()=>void run(()=>onAction(
+      {canDrive && !driverId && !planningId && booking && <button type="button" className={styles.primary} disabled={busy||stale} onClick={()=>void run(()=>onAction(
         qualifying?{action:"qualifier",driver_id:data.me.id,revision}:{action:"claim",stint_id:stintId,revision},"You’re assigned to this stint."))}>I’ll drive this stint</button>}
       {canDrive && booking && mine && <button type="button" disabled={busy||stale} onClick={()=>void run(()=>onAction(
         qualifying?{action:"qualifier",driver_id:null,revision}:{action:"release",stint_id:stintId,revision},"Your stint was released."))}>Release my stint</button>}

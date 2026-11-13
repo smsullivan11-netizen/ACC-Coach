@@ -23,12 +23,13 @@ export async function POST(request: Request, ctx: RouteContext<"/api/race-hq/[id
       if (!car) throw new ScheduleError("Car not found in this race.",404);
       const roster=await tx`select r.driver_id,d.display_name from event_car_driver r join driver d on d.id=r.driver_id
         where r.event_car_id=${carId} and d.discord_id is distinct from 'review-store'`;
+      const planning=await tx`select id from event_planning_driver where event_car_id=${carId} and linked_driver_id is null and removed_at is null`;
       const drivers=new Map(roster.map((r)=>[String(r.driver_id),String(r.display_name)]));
       const now=Date.now();
       const saved=await tx<SavedSlot[]>`select * from event_car_stint where event_car_id=${carId} order by n`;
       const find=(slotId: unknown)=>saved.find((s)=>String(s.id)===slotId);
       const eligible=()=>{
-        if (!car.roster_confirmed || roster.length<4 || roster.length>6 || !drivers.has(String(me.id)))
+        if (!car.roster_confirmed || roster.length+planning.length<4 || roster.length+planning.length>6 || !drivers.has(String(me.id)))
           throw new ScheduleError("Join this car’s confirmed roster before trading stints.",403);
       };
       let message="";
