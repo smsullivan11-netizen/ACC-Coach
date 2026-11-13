@@ -51,10 +51,10 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
         }
         await tx`delete from event_car_driver where event_id = ${id} and event_car_id = ${carId}`;
         for (let i = 0; i < ids.length; i++) await tx`insert into event_car_driver (event_id, event_car_id, driver_id, sort_order) values (${id}, ${carId}, ${ids[i]}, ${i})`;
-        // Keep historical stints; clear only unfinished assignments outside the new roster.
-        if (ids.length) await tx`update event_car_stint set driver_id = null where event_car_id = ${carId} and ends_at > now() and driver_id not in ${tx(ids)}`;
-        else await tx`update event_car_stint set driver_id = null where event_car_id = ${carId} and ends_at > now()`;
-        await tx`update event_car set roster_confirmed = ${body.confirmed} where id = ${carId}`;
+        // Keep started stints; clear only future assignments outside the new roster.
+        if (ids.length) await tx`update event_car_stint set driver_id = null where event_car_id = ${carId} and starts_at > now() and driver_id not in ${tx(ids)}`;
+        else await tx`update event_car_stint set driver_id = null where event_car_id = ${carId} and starts_at > now()`;
+        await tx`update event_car set roster_confirmed = ${body.confirmed}, schedule_status = 'draft', schedule_revision = schedule_revision + 1 where id = ${carId}`;
       } else if (body.action === "strategy") {
         const s = body.strategy;
         if (!s || !Number.isInteger(s.stint_min) || s.stint_min < 10 || s.stint_min > 240) throw new EditError("Stint length must be 10–240 whole minutes.");
@@ -68,10 +68,12 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
             min_pit_stops = excluded.min_pit_stops, pit_window = excluded.pit_window, notes = excluded.notes`;
       } else {
         if (event.status !== "upcoming" || !event.before_start) throw new EditError("Rebuild plans only before the race starts. Edit live stints individually.", 409);
+        if (car.schedule_status !== "draft") throw new EditError("Return the schedule to draft before rebuilding it. This protects drivers’ bookings.", 409);
         const drivers = await tx`select driver_id from event_car_driver where event_car_id = ${carId} order by sort_order, driver_id`;
         if (!car.roster_confirmed || drivers.length < 4 || drivers.length > 6) throw new EditError("Confirm this car’s 4–6 driver roster first.", 409);
         const [strategy] = await tx`select stint_min from event_car_strategy where event_car_id = ${carId}`;
         await generateCarPlan(tx, carId, new Date(event.starts_at).toISOString(), event.duration_min, strategy?.stint_min ?? 65, drivers.map((r) => String(r.driver_id)));
+        await tx`update event_car set schedule_revision = schedule_revision + 1 where id = ${carId}`;
       }
       await tx`update event set updated_at = now() where id = ${id}`;
       await tx`insert into event_update (event_id, event_car_id, author_id, kind, body)

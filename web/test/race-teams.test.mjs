@@ -48,6 +48,7 @@ await test("independent car teams, strategies and signup lifecycle", async (t) =
       const roster = (await db.query("select * from event_car_driver")).rows;
       assert.equal(roster.length, 1); assert.equal(Number(roster[0].driver_id), 2);
     });
+    await db.exec(readFileSync(new URL("../scripts/migrations/0024_stint_booking.sql", import.meta.url), "utf8"));
     let me = null;
     const sql = adapter(db), cache = new Map();
     function load(path) {
@@ -129,13 +130,13 @@ await test("independent car teams, strategies and signup lifecycle", async (t) =
       assert.equal((await change(a,{action:"generate"})).status,200);
       assert.deepEqual((await db.query("select * from event_car_stint where event_car_id=$1 order by n",[b])).rows,bBefore);
     });
-    await t.test("plan edits cannot insert other-car drivers or tamper with only part of a plan", async () => {
+    await t.test("legacy plan endpoint cannot bypass booking and revision checks", async () => {
       const data=await hq.raceHQ(eventId,me), stints=Array.from(data.stints).filter(s=>String(s.event_car_id)===a).map(s=>({...s,id:String(s.id),driver_id:String(s.driver_id)}));
       const save=(rows)=>planRoute.PATCH(req(`/api/race-hq/${eventId}`,"PATCH",{action:"plan",car_id:a,stints:rows}),{params:Promise.resolve({id:eventId})});
-      assert.equal((await save(stints)).status,200);
-      assert.equal((await save([{...stints[0],driver_id:"5"},...stints.slice(1)])).status,400);
+      assert.equal((await save(stints)).status,409);
+      assert.equal((await save([{...stints[0],driver_id:"5"},...stints.slice(1)])).status,409);
       assert.equal((await save(stints.slice(1))).status,409);
-      assert.equal((await save([stints[0],stints[0],...stints.slice(2)])).status,400);
+      assert.equal((await save([stints[0],stints[0],...stints.slice(2)])).status,409);
     });
     await t.test("roster removal clears unfinished assignments, isolates other car and permits withdrawal", async () => {
       assert.equal((await change(a,{action:"roster",driver_ids:["2","3","4","11"],confirmed:true})).status,200);
