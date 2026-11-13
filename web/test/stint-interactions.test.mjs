@@ -91,7 +91,7 @@ await test("clicking a teammate’s stint can offer a specific owned stint as a 
     onAction:async()=>true,onPreference:async()=>true,onTrade:async b=>{calls.push(plain(b));return true;}});
   const select=nodes(root.tree).find((n)=>n.type==="select");select.props.onChange({target:{value:"2"}});root.render();
   await click(root,"Propose swap");
-  assert.deepEqual(calls,[{action:"offer",to_driver_id:"2",give_stint_id:"2",take_stint_id:"3"}]);
+  assert.deepEqual(calls,[{action:"offer",revision:1,to_driver_id:"2",give_stint_id:"2",take_stint_id:"3"}]);
   assert.equal(f.data.stints[1].driver_id,"1");assert.equal(f.data.stints[2].driver_id,"2");
 });
 await test("a changed revision blocks booking until the driver reviews current details",async()=>{
@@ -111,3 +111,5 @@ await test("only incoming offers present accept and decline; outgoing offers can
   await click(root,"Accept swap");assert.deepEqual(calls,[{action:"accept",trade_id:"1"}]);
   f.data.me={id:"1",display_name:"Alice"};root.render();assert(!button(root,"Accept swap"));assert(button(root,"Cancel offer"));
 });
+
+console.log("Stint UI interaction checks completed: 5");

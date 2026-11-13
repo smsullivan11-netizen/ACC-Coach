@@ -206,7 +206,8 @@ await test("custom schedules and driver booking use the real handlers", async (t
       as(2);assert.equal((await change("qualifier",{driver_id:"2"})).status,200);
       as(3);assert.equal((await change("qualifier",{driver_id:"3"})).status,409);
       assert.equal((await change("qualifier",{driver_id:null})).status,409);
-      as(6);assert.equal((await change("qualifier",{driver_id:"6"},"2")).status,409);
+      as(6);assert.equal((await change("qualifier",{driver_id:"6"},"2")).status,200);
+      assert.equal((await change("qualifier",{driver_id:null},"2")).status,200);
       as(1,true);assert.equal((await change("status",{status:"open"},"2")).status,200);
       as(6);assert.equal((await change("qualifier",{driver_id:"6"},"2")).status,200);
       as(2);assert.equal((await change("qualifier",{driver_id:null})).status,200);

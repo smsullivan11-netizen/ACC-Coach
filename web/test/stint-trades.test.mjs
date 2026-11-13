@@ -64,7 +64,12 @@ await test("stint trades and non-binding preferences",async(t)=>{
     for(const car of [1,2])for(let i=0;i<4;i++)await db.query("insert into event_car_stint(event_car_id,n,driver_id,starts_at,ends_at) values($1,$2,$3,$4,$5)",
       [car,i+1,(car-1)*4+i+1,new Date(+new Date(start)+i*3600000).toISOString(),new Date(+new Date(start)+(i+1)*3600000).toISOString()]);
     const request=(body,origin="https://example.com")=>new Request("https://example.com/api/race-hq/1/cars/1/trades",{method:"POST",headers:{origin,"content-type":"application/json"},body:JSON.stringify(body)});
-    const call=(body,car="1",origin)=>route.POST(request(body,origin),{params:Promise.resolve({id:"1",carId:car})});
+    const call=async(body,car="1",origin)=>{
+      const actor=me;
+      const current=(await db.query("select schedule_revision from event_car where id=$1",[car])).rows[0]?.schedule_revision;
+      me=actor;
+      return route.POST(request({revision:current,...body},origin),{params:Promise.resolve({id:"1",carId:car})});
+    };
     const prefer=(stint,preferred,car="1")=>preferences.POST(request({stint_id:String(stint),preferred}),{params:Promise.resolve({id:"1",carId:car})});
     const assignments=async()=> (await db.query("select id,driver_id,starts_at,ends_at from event_car_stint order by id")).rows;
     const offer=async(give,take,to="2")=>{
@@ -107,6 +112,9 @@ await test("stint trades and non-binding preferences",async(t)=>{
       assert.deepEqual(after.map(r=>[r.id,r.starts_at,r.ends_at]),before.map(r=>[r.id,r.starts_at,r.ends_at]));
       const car=(await db.query("select * from event_car where id=1")).rows[0];assert.equal(car.schedule_revision,rev+1);assert.equal(car.schedule_status,"confirmed");
       assert.equal((await call({action:"accept",trade_id:swapId})).status,409);
+    });
+    await t.test("a stale click cannot create an offer for a retimed plan",async()=>{
+      as(1);assert.equal((await call({action:"offer",revision:0,to_driver_id:"3",give_stint_id:"2",take_stint_id:"3"})).status,409);
     });
     await t.test("cover requests work in either direction, with explicit consent",async()=>{
       as(1);const give=await offer(2,null,"3");

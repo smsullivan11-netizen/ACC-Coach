@@ -83,7 +83,7 @@ export default function StintSchedule({ data, car, now, busy, setSelected, onAct
     <div className={styles.tools}>
       <button type="button" onClick={() => setLocal(!local)}>{local ? "Show UTC" : "Show my time"}</button>
       {!editor && <button type="button" aria-pressed={onlyMine} onClick={() => {setOnlyMine(!onlyMine);setOnlyPreferred(false);}}>{onlyMine ? "Show all stints" : "My stints"}</button>}
-      {!editor && <button type="button" aria-pressed={onlyPreferred} onClick={()=>{setOnlyPreferred(!onlyPreferred);setOnlyMine(false);}}>{onlyPreferred?"Show all preferences":"My preferences"}</button>}
+      {!editor && <button type="button" aria-pressed={onlyPreferred} onClick={()=>{setOnlyPreferred(!onlyPreferred);setOnlyMine(false);}}>{onlyPreferred?"Show all stints":"My preferences"}</button>}
     </div>
     {!editor && <div className={styles.notice}>
       {car.schedule_status === "draft" ? "Choose your stints directly below. The race lead can confirm the plan once everyone is assigned." :

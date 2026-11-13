@@ -34,6 +34,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/race-hq/[id
       let message="";
       if (body.action==="offer") {
         eligible();
+        if (!Number.isSafeInteger(body.revision)||body.revision!==car.schedule_revision) throw new ScheduleError("The schedule changed. Reopen the stint before sending an offer.",409);
         if (!identifier(body.to_driver_id)||body.to_driver_id===String(me.id)||!drivers.has(body.to_driver_id))
           throw new ScheduleError("Choose another driver from this car’s roster.");
         const giveId=body.give_stint_id??null,takeId=body.take_stint_id??null;
