@@ -31,7 +31,7 @@ await test("planning drivers reserve assignments without creating login profiles
     await db.exec(`create table driver(id bigint primary key,display_name text,avatar_url text,discord_id text,is_admin boolean default false);
       insert into driver(id,display_name) select n,'Driver '||n from generate_series(1,12) n;
       create table event(id bigint generated always as identity primary key,title text,track_key text,starts_at timestamptz,duration_min int,kind text,league text,server text,notes text,min_pit_stops int,created_by bigint references driver);`);
-    for(const path of ["../../db/migrations/0020_race_hq.sql","../scripts/migrations/0021_race_signups.sql","../scripts/migrations/0022_car_teams.sql","../scripts/migrations/0024_stint_booking.sql","../scripts/migrations/0025_race_agenda_and_qualifying.sql","../scripts/migrations/0026_stint_trades.sql","../scripts/migrations/0027_planning_drivers.sql","../scripts/migrations/0028_race_clock.sql"])
+    for(const path of ["../../db/migrations/0020_race_hq.sql","../scripts/migrations/0021_race_signups.sql","../scripts/migrations/0022_car_teams.sql","../scripts/migrations/0024_stint_booking.sql","../scripts/migrations/0025_race_agenda_and_qualifying.sql","../scripts/migrations/0026_stint_trades.sql","../scripts/migrations/0027_planning_drivers.sql","../scripts/migrations/0028_race_clock.sql","../scripts/migrations/0029_stint_timer.sql"])
       await db.exec(readFileSync(new URL(path,import.meta.url),"utf8"));
     let me = null;
     const sql = adapter(db), cache = new Map();
@@ -152,4 +152,5 @@ await test("planning drivers reserve assignments without creating login profiles
     });
   }finally{await db.close();}
 });
+
 

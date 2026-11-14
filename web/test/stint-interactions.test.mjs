@@ -237,4 +237,17 @@ await test("viewers get the clock without sync controls, and invalid minute entr
   const minutes=nodes(modal.tree).find(n=>n.type==="input"&&n.props["aria-label"]==="Minutes");minutes.props.onChange({target:{value:"60"}});modal.render();
   assert.equal(button(modal,"Sync to this time remaining").props.disabled,true);
 });
+await test("a car member can start the shared stint timer with a chosen target",async()=>{
+  const h=host(),f=fixture(),calls=[];
+  const root=h.mount(h.load("app/race-hq/StintTimer.tsx").default,{...f,busy:false,onAction:async b=>{calls.push(plain(b));return true;}});
+  const input=nodes(root.tree).find(n=>n.type==="input");input.props.onChange({target:{value:"60"}});root.render();
+  await click(root,"Start stint now");assert.deepEqual(calls,[{action:"start",revision:0,duration_min:60}]);
+});
+await test("the stint timer shows elapsed, remaining and overtime from the saved timestamp",()=>{
+  const h=host(),f=fixture();f.car.stint_timer_started_at=new Date(f.now-30*60000).toISOString();f.car.stint_timer_duration_min=60;
+  const root=h.mount(h.load("app/race-hq/StintTimer.tsx").default,{...f,busy:false,onAction:async()=>true});
+  assert(label(root.tree).includes("00:30:00"));
+  root.props.now=f.now+31*60000;root.render();assert(label(root.tree).includes("+00:01:00"));assert(label(root.tree).includes("Target exceeded"));
+});
+
 

@@ -14,6 +14,7 @@ import styles from "./RaceHQ.module.css";
 import CarTeams from "./CarTeams";
 import CarStrategy from "./CarStrategy";
 import RaceClock from "./RaceClock";
+import StintTimer from "./StintTimer";
 import { raceClock, raceClockSample, alignedRaceTime } from "@/lib/race-clock";
 import StintSchedule from "./StintSchedule";
 import EventTimetable from "./EventTimetable";
@@ -114,6 +115,9 @@ export default function RaceHQ({ initial, archive, members, me }: {
 
       <RaceClock event={event} now={now} canLead={data.can_lead} busy={busy} feedback={message} connection={connection}
         onSync={(body,success)=>act(`/api/race-hq/${event.id}`,body,success)} />
+
+      <div className="grid gap-3 md:grid-cols-2">{data.cars.map(timerCar=><StintTimer key={timerCar.id} data={data} car={timerCar} now={now} busy={busy} feedback={message}
+        onAction={(body,success)=>act(`/api/race-hq/${event.id}/cars/${timerCar.id}/stint-timer`,body,success)} />)}</div>
 
       <section id="signup" className="card my-5 scroll-mt-6 p-5" aria-labelledby="race-signup-title">
         <h3 id="race-signup-title" className="text-xl font-semibold text-white">Race signup</h3>

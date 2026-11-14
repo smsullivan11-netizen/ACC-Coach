@@ -71,6 +71,7 @@ await test("clock API, database and fresh viewer agree on a shared authoritative
       await db.exec(readFileSync(new URL(path,import.meta.url),"utf8"));
     await db.exec("insert into event(title,starts_at,duration_min,status,archived_at,clock_source,clock_remaining_s,clock_updated_at) values('Old manual',now()-interval '2 days',1440,'finished',now()-interval '1 day','manual',3600,now()-interval '1 hour')");
     await db.exec(readFileSync(new URL("../scripts/migrations/0028_race_clock.sql",import.meta.url),"utf8"));
+    await db.exec(readFileSync(new URL("../scripts/migrations/0029_stint_timer.sql",import.meta.url),"utf8"));
     const old=(await db.query("select clock_mode,clock_manual_remaining_s from event where id=1")).rows[0];
     assert.equal(old.clock_mode,"manual");assert.equal(old.clock_manual_remaining_s,3600);
     let me = null;
@@ -92,6 +93,7 @@ await test("clock API, database and fresh viewer agree on a shared authoritative
     }
 
     const route=load("app/api/race-hq/[id]/route.ts"),live=load("app/api/race-hq/live/route.ts"),hq=load("lib/race-hq.ts");
+    const timer=load("app/api/race-hq/[id]/cars/[carId]/stint-timer/route.ts");
     const start=new Date(Date.now()-7200000).toISOString();
     await db.query("insert into event(title,track_key,starts_at,duration_min,status,clock_source) values('Live race','nurburgring_24h',$1,1440,'upcoming','schedule')",[start]);
     await db.exec("insert into event_car(event_id,number,name,roster_confirmed) values(2,'330','A',true)");
@@ -139,6 +141,22 @@ await test("clock API, database and fresh viewer agree on a shared authoritative
       const mismatch=await packet({track:"spa",remaining_s:1000,session:"race"});assert.equal(mismatch.status,200);assert.equal((await mismatch.json()).matched,false);
       as(9);const outsider=await packet({track:"nurburgring_24h",remaining_s:50000,session:"race"});assert.equal((await outsider.json()).matched,false);
     });
+    await t.test("per-car stint timers persist across viewers and cannot be overwritten from a stale page",async()=>{
+      const set=(body,carId="1",origin)=>timer.PATCH(request("/api/race-hq/2/cars/"+carId+"/stint-timer",body,origin),{params:Promise.resolve({id:"2",carId})});
+      as(9);assert.equal((await set({action:"start",duration_min:65,revision:0})).status,403);
+      as(2);assert.equal((await set({action:"start",duration_min:0,revision:0})).status,400);
+      assert.equal((await set({action:"start",duration_min:65,revision:0},"1","https://evil.example")).status,403);
+      assert.equal((await set({action:"start",duration_min:65,revision:0})).status,200);
+      assert.equal((await set({action:"start",duration_min:65,revision:0})).status,409);
+      const data=await hq.raceHQ("2",me);assert.equal(data.cars[0].stint_timer_duration_min,65);assert(data.cars[0].stint_timer_started_at);
+      const first=data.cars[0].stint_timer_started_at;
+      await db.exec("insert into event_car(event_id,number,name) values(2,'331','B')");
+      assert.equal((await set({action:"start",duration_min:60,revision:0},"2")).status,403);
+      as(1);assert.equal((await set({action:"start",duration_min:60,revision:0},"2")).status,200);
+      const fresh=await hq.raceHQ("2",me);assert.equal(fresh.cars[0].stint_timer_started_at,first);assert.equal(fresh.cars[1].stint_timer_duration_min,60);
+      assert.equal((await set({action:"clear",revision:1})).status,200);
+      const cleared=await hq.raceHQ("2",me);assert.equal(cleared.cars[0].stint_timer_started_at,null);assert(cleared.cars[1].stint_timer_started_at);
+    });
     await t.test("zero can be synced without finishing, and a closed race cannot be resurrected",async()=>{
       as(1);assert.equal((await change({action:"clock",mode:"manual",remaining_s:0})).status,200);
       const data=await hq.raceHQ("2",me);assert.equal(data.event.status,"live");assert.equal(raceClock(data.event,Date.parse(data.event.server_now)).phase,"elapsed");
@@ -146,7 +164,9 @@ await test("clock API, database and fresh viewer agree on a shared authoritative
       assert.equal((await change({action:"clock",mode:"manual",remaining_s:72000})).status,409);
       as(2);const late=await packet({track:"nurburgring_24h",remaining_s:50000,session:"race"});assert.equal((await late.json()).matched,false);
       assert.equal((await event()).status,"finished");
+      as(1);assert.equal((await timer.PATCH(request("/api/race-hq/2/cars/1/stint-timer",{action:"start",revision:2,duration_min:65}),{params:Promise.resolve({id:"2",carId:"1"})})).status,409);
     });
   }finally{await db.close();}
 });
+
 
