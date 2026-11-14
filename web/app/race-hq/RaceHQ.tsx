@@ -72,8 +72,8 @@ export default function RaceHQ({ initial, archive, members, me }: {
     const tick = window.setInterval(update, 1000);
     const poll = data && data.event.status !== "finished" ? window.setInterval(() => refresh(true), 15_000) : undefined;
     document.addEventListener("visibilitychange",resume);window.addEventListener("focus",resume);window.addEventListener("online",resume);window.addEventListener("offline",offline);
-    void refresh(true);
-    return () => { window.clearInterval(tick); if (poll) window.clearInterval(poll);
+    const firstPoll=window.setTimeout(()=>{void refresh(true);},0);
+    return () => { window.clearTimeout(firstPoll);window.clearInterval(tick); if (poll) window.clearInterval(poll);
       document.removeEventListener("visibilitychange",resume);window.removeEventListener("focus",resume);window.removeEventListener("online",resume);window.removeEventListener("offline",offline); };
   // Refresh interval deliberately follows the active event id, not each polling response.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,6 +113,9 @@ export default function RaceHQ({ initial, archive, members, me }: {
 
       {message && <p className={styles.message} role="status">{message}</p>}
 
+      <RaceClock event={event} now={now} canLead={data.can_lead} busy={busy} feedback={message} connection={connection}
+        onSync={(body,success)=>act(`/api/race-hq/${event.id}`,body,success)} />
+
       <section id="signup" className="card my-5 scroll-mt-6 p-5" aria-labelledby="race-signup-title">
         <h3 id="race-signup-title" className="text-xl font-semibold text-white">Race signup</h3>
         <p className="mt-2 text-sm text-zinc-300">Sign up as {me.display_name}. Race leads assign you to a car. Then choose your stints in the Stints tab when booking opens.</p>
@@ -127,9 +130,6 @@ export default function RaceHQ({ initial, archive, members, me }: {
         <h4 className="mt-5 font-semibold text-white">Registered drivers ({data.signups.length})</h4>
         {data.signups.length ? <ul className="mt-2 flex flex-wrap gap-2">{data.signups.map((s) => <li key={s.driver_id} className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-200">{s.display_name}{s.driver_id === me.id ? " · you" : ""}</li>)}</ul> : <p className="mt-2 text-sm text-zinc-400">Be the first to sign up.</p>}
       </section>
-
-      <RaceClock event={event} now={now} canLead={data.can_lead} busy={busy} feedback={message} connection={connection}
-        onSync={(body,success)=>act(`/api/race-hq/${event.id}`,body,success)} />
 
       <EventTimetable data={data} busy={busy} onSave={(body) => act(`/api/race-hq/${event.id}/schedule`, body, "Timetable saved. Both car plans need review before reopening booking.")} />
 
