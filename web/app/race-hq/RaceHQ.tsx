@@ -85,8 +85,7 @@ export default function RaceHQ({ initial, archive, members, me }: {
   );
 
   const clock=raceClock(data.event,now);
-  const status=clock.phase==="upcoming"?"upcoming":clock.phase==="finished"?"finished":"live";
-  const event = {...data.event,status};
+  const event:RaceHQData["event"] = {...data.event,status:clock.phase==="upcoming"?"upcoming":clock.phase==="finished"?"finished":"live"};
   const car = data.cars.find((c) => c.id === selectedCar) ?? data.cars[0];
   const ready = data.readiness.find((r) => r.driver_id === me.id)?.ready ?? false;
   const myNext = data.stints.filter((s) => s.driver_id === me.id && new Date(s.ends_at).getTime() > now)
