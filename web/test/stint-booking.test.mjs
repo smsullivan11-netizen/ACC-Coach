@@ -32,7 +32,7 @@ await test("custom schedules and driver booking use the real handlers", async (t
       insert into driver (id,display_name,avatar_url,is_admin) select n, 'Driver '||n, null, n=1 from generate_series(1,10) n;
       create table event (id bigint generated always as identity primary key, title text, track_key text, starts_at timestamptz,
         duration_min int, kind text, league text, server text, notes text, min_pit_stops int, created_by bigint references driver);`);
-    for (const file of ["../../db/migrations/0020_race_hq.sql", "../scripts/migrations/0021_race_signups.sql", "../scripts/migrations/0022_car_teams.sql", "../scripts/migrations/0024_stint_booking.sql", "../scripts/migrations/0025_race_agenda_and_qualifying.sql","../scripts/migrations/0026_stint_trades.sql","../scripts/migrations/0027_planning_drivers.sql"])
+    for (const file of ["../../db/migrations/0020_race_hq.sql", "../scripts/migrations/0021_race_signups.sql", "../scripts/migrations/0022_car_teams.sql", "../scripts/migrations/0024_stint_booking.sql", "../scripts/migrations/0025_race_agenda_and_qualifying.sql","../scripts/migrations/0026_stint_trades.sql","../scripts/migrations/0027_planning_drivers.sql","../scripts/migrations/0028_race_clock.sql"])
       await db.exec(readFileSync(new URL(file, import.meta.url), "utf8"));
     let me = null;
     const sql = adapter(db), cache = new Map();
@@ -242,11 +242,14 @@ await test("custom schedules and driver booking use the real handlers", async (t
       assert(count>8,"successful schedule changes should appear in the shared race feed");
     });
     await t.test("November 14 migration preserves race assignments and removes only upcoming reviewer participation",async()=>{
-      // Reapply the actual migration to a fresh schema shape, inside this isolated database.
+      // Replay the date-scoped SQL against future fixture dates: it intentionally refuses started stints.
+      const fixtureDay=new Date(Date.now()+2*86400000).toISOString().slice(0,10);
+      const followingDay=new Date(Date.now()+3*86400000).toISOString().slice(0,10);
+      const futureFixture=value=>value.replaceAll("2026-11-14",fixtureDay).replaceAll("2026-11-15",followingDay);
       await db.exec("alter table event_car drop column qualifying_driver_id");
       for(const column of ["practice_starts_at","practice_min","briefing_starts_at","briefing_min","qualifying_starts_at","qualifying_min","timing_revision"])
         await db.exec("alter table event drop column "+column);
-      await db.exec(`insert into event(title,starts_at,duration_min,status) values('November race','2026-11-14T11:00:00Z',1440,'upcoming');
+      await db.exec(futureFixture(`insert into event(title,starts_at,duration_min,status) values('November race','2026-11-14T11:00:00Z',1440,'upcoming');
         insert into event_car(event_id,number,name,roster_confirmed) values(2,'330','Next A',true),(2,'331','Next B',true);
         insert into event_signup(event_id,driver_id) values(2,2),(2,10);
         insert into event_car_driver(event_id,event_car_id,driver_id) values(2,3,2),(2,4,10);
@@ -254,14 +257,14 @@ await test("custom schedules and driver booking use the real handlers", async (t
           select car,n,case when car=3 then 2 else 10 end,'2026-11-14T11:00:00Z'::timestamptz+(n-1)*interval '4 hours',
           '2026-11-14T11:00:00Z'::timestamptz+n*interval '4 hours','Keep note'
           from generate_series(3,4) car cross join generate_series(1,6) n;
-        insert into event_car_stint(event_car_id,n,driver_id,starts_at,ends_at,note) values(2,5,10,'2020-01-01T00:00:00Z','2020-01-01T01:00:00Z','Reviewer history');`);
+        insert into event_car_stint(event_car_id,n,driver_id,starts_at,ends_at,note) values(2,5,10,'2020-01-01T00:00:00Z','2020-01-01T01:00:00Z','Reviewer history');`));
       const before=(await db.query("select * from event_car_stint where event_car_id=3 order by n")).rows;
-      await db.exec(readFileSync(new URL("../scripts/migrations/0025_race_agenda_and_qualifying.sql",import.meta.url),"utf8"));
+      await db.exec(futureFixture(readFileSync(new URL("../scripts/migrations/0025_race_agenda_and_qualifying.sql",import.meta.url),"utf8")));
       const event=(await db.query("select * from event where id=2")).rows[0];
-      assert.equal(new Date(event.starts_at).toISOString(),"2026-11-14T10:30:00.000Z");
-      assert.equal(new Date(event.practice_starts_at).toISOString(),"2026-11-14T09:00:00.000Z");
-      assert.equal(new Date(event.briefing_starts_at).toISOString(),"2026-11-14T09:50:00.000Z");
-      assert.equal(new Date(event.qualifying_starts_at).toISOString(),"2026-11-14T10:00:00.000Z");
+      assert.equal(new Date(event.starts_at).toISOString(),fixtureDay+"T10:30:00.000Z");
+      assert.equal(new Date(event.practice_starts_at).toISOString(),fixtureDay+"T09:00:00.000Z");
+      assert.equal(new Date(event.briefing_starts_at).toISOString(),fixtureDay+"T09:50:00.000Z");
+      assert.equal(new Date(event.qualifying_starts_at).toISOString(),fixtureDay+"T10:00:00.000Z");
       assert.equal(event.duration_min,1440);
       const after=(await db.query("select * from event_car_stint where event_car_id=3 order by n")).rows;
       after.forEach((r,i)=>{assert.equal(r.driver_id,before[i].driver_id);assert.equal(r.note,before[i].note);assert.equal(+new Date(r.starts_at)-+new Date(before[i].starts_at),-30*60000);});
@@ -272,3 +275,4 @@ await test("custom schedules and driver booking use the real handlers", async (t
     });
   } finally { await db.close(); }
 });
+

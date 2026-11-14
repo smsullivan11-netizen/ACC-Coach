@@ -26,6 +26,7 @@ function host() {
       if(id==="react")return react;
       if(id==="react/jsx-runtime")return {jsx,jsxs:jsx,Fragment:"fragment"};
       if(id.endsWith(".css"))return {__esModule:true,default:new Proxy({},{get:(_,p)=>String(p)})};
+      if(id.startsWith("@/"))return load(resolve(id.slice(2))+".ts");
       if(id.startsWith("./"))return load(resolve(path,"..",id)+".tsx");
       throw new Error("Unexpected client dependency "+id);
     }});
@@ -215,3 +216,25 @@ await test("a reserved planning-driver stint cannot be claimed as an open slot",
   assert(!button(root,"I’ll drive this stint"));
   assert(label(root.tree).includes("awaiting Discord"));
 });
+await test("a race lead can enter ACC time remaining through the prominent sync control",async()=>{
+  const h=host(),f=fixture(),calls=[];
+  const root=h.mount(h.load("app/race-hq/RaceClock.tsx").default,{event:f.data.event,now:f.now,canLead:true,busy:false,connection:"online",onSync:async b=>{calls.push(plain(b));return true;}});
+  await click(root,"Sync race clock");
+  const child=nodes(root.tree).find(n=>typeof n.type==="function"&&n.type.name==="ClockSync");
+  assert(child);const modal=h.mount(child.type,child.props);
+  const inputs=nodes(modal.tree).filter(n=>n.type==="input");
+  ["2","15","30"].forEach((value,i)=>{inputs[i].props.onChange({target:{value}});modal.render();});
+  const form=nodes(modal.tree).find(n=>n.type==="form");await form.props.onSubmit({preventDefault(){}});await flush();
+  assert.deepEqual(calls,[{action:"clock",mode:"manual",status:"live",remaining_s:8130,observed_at:new Date(f.now).toISOString()}]);
+});
+await test("viewers get the clock without sync controls, and invalid minute entries cannot be saved",async()=>{
+  const h=host(),f=fixture();
+  const root=h.mount(h.load("app/race-hq/RaceClock.tsx").default,{event:f.data.event,now:f.now,canLead:false,busy:false,connection:"offline",onSync:async()=>true});
+  assert(!button(root,"Sync race clock"));assert(label(root.tree).includes("Offline"));
+  root.props.canLead=true;await click(root,"Sync race clock");
+  const child=nodes(root.tree).find(n=>typeof n.type==="function"&&n.type.name==="ClockSync");
+  const modal=h.mount(child.type,{...child.props,connection:"online"});
+  const minutes=nodes(modal.tree).find(n=>n.type==="input"&&n.props["aria-label"]==="Minutes");minutes.props.onChange({target:{value:"60"}});modal.render();
+  assert.equal(button(modal,"Sync to this time remaining").props.disabled,true);
+});
+

@@ -2,17 +2,19 @@
 
 import {
   AlarmClock, Archive, ArrowLeft, ArrowRight, CalendarClock, Check, ChevronRight,
-  Clock3, Flag, Fuel, History, Megaphone,
-  Plus, Radio, Send, Settings2, ShieldCheck, Timer, Trash2, UserRound, Users, X,
+  Flag, Fuel, History, Megaphone,
+  Plus, Send, Settings2, ShieldCheck, Trash2, UserRound, Users, X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Driver } from "@/lib/auth";
 import type { RaceHQData, RaceStint, RaceUpdate } from "@/lib/race-hq";
 import styles from "./RaceHQ.module.css";
 import CarTeams from "./CarTeams";
 import CarStrategy from "./CarStrategy";
+import RaceClock from "./RaceClock";
+import { raceClock, raceClockSample, alignedRaceTime } from "@/lib/race-clock";
 import StintSchedule from "./StintSchedule";
 import EventTimetable from "./EventTimetable";
 
@@ -39,6 +41,8 @@ export default function RaceHQ({ initial, archive, members, me }: {
   const [tab, setTab] = useState<Tab>("overview");
   const [selectedCar, setSelectedCar] = useState(initial?.cars[0]?.id ?? "");
   const [now, setNow] = useState(() => initial ? new Date(initial.event.server_now).getTime() : 0);
+  const timeBase = useRef<{ id:string;serverMs:number;clientMs:number }|null>(null);
+  const [connection,setConnection]=useState<"online"|"offline"|"reconnecting">("online");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [create, setCreate] = useState(false);
@@ -47,15 +51,30 @@ export default function RaceHQ({ initial, archive, members, me }: {
   async function refresh(silent = false) {
     if (!data) return;
     try {
-      const result = await jsonRequest(`/api/race-hq?id=${data.event.id}`);
+      const sentAt=performance.now();
+      const result = await jsonRequest(`/api/race-hq?id=${data.event.id}`,{cache:"no-store"});
+      const receivedAt=performance.now(),serverMs=Date.parse(result.data?.event.server_now);
+      if(Number.isFinite(serverMs)){
+        const sample=raceClockSample(serverMs,sentAt,receivedAt);
+        timeBase.current={id:data.event.id,...sample};setNow(sample.serverMs);
+      }
+      setConnection("online");
       setData(result.data);
       if (!selectedCar && result.data?.cars[0]) setSelectedCar(result.data.cars[0].id);
-    } catch (e) { if (!silent) setMessage((e as Error).message); }
+    } catch (e) { setConnection("offline");if (!silent) setMessage((e as Error).message); }
   }
   useEffect(() => {
-    const tick = window.setInterval(() => setNow(Date.now()), 1000);
+    if(!data)return;
+    if(timeBase.current?.id!==data.event.id)timeBase.current={id:data.event.id,serverMs:Date.parse(data.event.server_now),clientMs:performance.now()};
+    const update=()=>{const base=timeBase.current;if(base)setNow(alignedRaceTime(base,performance.now()));};
+    const resume=()=>{if(document.visibilityState==="visible"){setConnection("reconnecting");update();void refresh(true);}};
+    const offline=()=>setConnection("offline");
+    const tick = window.setInterval(update, 1000);
     const poll = data && data.event.status !== "finished" ? window.setInterval(() => refresh(true), 15_000) : undefined;
-    return () => { window.clearInterval(tick); if (poll) window.clearInterval(poll); };
+    document.addEventListener("visibilitychange",resume);window.addEventListener("focus",resume);window.addEventListener("online",resume);window.addEventListener("offline",offline);
+    void refresh(true);
+    return () => { window.clearInterval(tick); if (poll) window.clearInterval(poll);
+      document.removeEventListener("visibilitychange",resume);window.removeEventListener("focus",resume);window.removeEventListener("online",resume);window.removeEventListener("offline",offline); };
   // Refresh interval deliberately follows the active event id, not each polling response.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.event.id, data?.event.status]);
@@ -65,14 +84,9 @@ export default function RaceHQ({ initial, archive, members, me }: {
              onCreated={() => window.location.reload()} />
   );
 
-  const event = data.event;
-  const startMs = new Date(event.starts_at).getTime(), scheduledEnd = startMs + event.duration_min * 60_000;
-  const sourceMs = event.clock_updated_at ? new Date(event.clock_updated_at).getTime() : null;
-  const remaining = event.status === "finished" ? 0 : event.status === "live" && event.clock_remaining_s != null && sourceMs
-    ? Math.max(0, event.clock_remaining_s - Math.floor((now - sourceMs) / 1000))
-    : Math.max(0, Math.floor(((event.status === "upcoming" ? startMs : scheduledEnd) - now) / 1000));
-  const elapsed = Math.max(0, event.duration_min * 60 - remaining);
-  const progress = event.status === "upcoming" ? 0 : Math.min(100, elapsed / (event.duration_min * 60) * 100);
+  const clock=raceClock(data.event,now);
+  const status=clock.phase==="upcoming"?"upcoming":clock.phase==="finished"?"finished":"live";
+  const event = {...data.event,status};
   const car = data.cars.find((c) => c.id === selectedCar) ?? data.cars[0];
   const ready = data.readiness.find((r) => r.driver_id === me.id)?.ready ?? false;
   const myNext = data.stints.filter((s) => s.driver_id === me.id && new Date(s.ends_at).getTime() > now)
@@ -114,19 +128,8 @@ export default function RaceHQ({ initial, archive, members, me }: {
         {data.signups.length ? <ul className="mt-2 flex flex-wrap gap-2">{data.signups.map((s) => <li key={s.driver_id} className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-200">{s.display_name}{s.driver_id === me.id ? " · you" : ""}</li>)}</ul> : <p className="mt-2 text-sm text-zinc-400">Be the first to sign up.</p>}
       </section>
 
-      <section className={styles.clock}>
-        <div className={styles.clockTop}>
-          <span><i className={event.status === "live" ? styles.redDot : styles.yellowDot} />{event.status === "upcoming" ? "RACE STARTS IN" : event.status === "finished" ? "RACE COMPLETE" : "RACE LIVE"}</span>
-          <button onClick={() => data.can_lead && event.status !== "finished" && setControls(true)} disabled={!data.can_lead || event.status === "finished"}>
-            {event.clock_source === "acc" ? <Radio size={13} /> : <Clock3 size={13} />}
-            {event.clock_source === "acc" ? `ACC · ${sourceMs ? Math.max(0, Math.floor((now - sourceMs) / 1000)) : 0}s ago` : event.clock_source ?? "schedule"}
-          </button>
-        </div>
-        <div className={styles.bigClock}>{duration(remaining)}</div>
-        <p>{event.status === "upcoming" ? `Green flag ${day(event.starts_at)} · ${hm(event.starts_at)}` : "TIME REMAINING"}</p>
-        <div className={styles.progress}><span style={{ width: `${progress}%` }} /></div>
-        <div className={styles.clockFoot}><span>{duration(elapsed)} elapsed</span><span>Scheduled {event.duration_min / 60}h</span></div>
-      </section>
+      <RaceClock event={event} now={now} canLead={data.can_lead} busy={busy} feedback={message} connection={connection}
+        onSync={(body,success)=>act(`/api/race-hq/${event.id}`,body,success)} />
 
       <EventTimetable data={data} busy={busy} onSave={(body) => act(`/api/race-hq/${event.id}/schedule`, body, "Timetable saved. Both car plans need review before reopening booking.")} />
 
@@ -239,11 +242,9 @@ function Updates({ data, busy, onPost }: { data: RaceHQData; busy: boolean; onPo
 }
 
 function RaceControls({ data, members, busy, close, onAction }: { data: RaceHQData; members: Member[]; busy: boolean; close: () => void; onAction: (body: unknown, success: string) => void }) {
-  const [clock, setClock] = useState(duration(data.event.clock_remaining_s ?? data.event.duration_min * 60));
   const [lead, setLead] = useState("");
   return <div className={styles.overlay} onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}><section className={styles.modal} role="dialog" aria-modal="true" aria-label="Race controls">
     <header><h3>Race controls</h3><button onClick={close} aria-label="Close"><X size={17} /></button></header>
-    <div className={styles.controlBlock}><label>Time remaining</label><input value={clock} onChange={(e) => setClock(e.target.value)} placeholder="18:42:16" /><button className={styles.primary} disabled={busy} onClick={() => { const p = clock.split(":").map(Number); if (p.length !== 3 || p.some(Number.isNaN)) return; onAction({ action: "clock", remaining_s: p[0] * 3600 + p[1] * 60 + p[2], status: "live" }, "Race clock updated."); }}><Timer size={15} /> Start or correct race clock</button></div>
     <div className={styles.controlBlock}><label>Race leads</label><div className={styles.leads}>{data.leads.map((l) => <span key={l.id}>{l.display_name}{data.me.is_admin && l.id !== data.me.id && <button onClick={() => onAction({ action: "lead", driver_id: l.id, enabled: false }, "Race lead removed.")}><X size={12} /></button>}</span>)}</div>{data.me.is_admin && <><select value={lead} onChange={(e) => setLead(e.target.value)}><option value="">Choose teammate…</option>{members.filter((m) => !data.leads.some((l) => l.id === m.id)).map((m) => <option value={m.id} key={m.id}>{m.display_name}</option>)}</select><button disabled={!lead || busy} onClick={() => onAction({ action: "lead", driver_id: lead, enabled: true }, "Race lead added.")}><Users size={14} /> Add race lead</button></>}</div>
     <div className={styles.danger}><button disabled={busy} onClick={() => onAction({ action: "finish" }, "Race moved to the archive.")}><Archive size={14} /> Finish and archive race</button></div>
   </section></div>;
@@ -281,3 +282,5 @@ function CreateRace({ close, created }: { close: () => void; created: () => void
     {error && <p className={styles.error}>{error}</p>}<button className={styles.primary} disabled={busy}><Flag size={15} /> {busy ? "Creating…" : "Create Race Day HQ"}</button>
   </form></div>;
 }
+
+

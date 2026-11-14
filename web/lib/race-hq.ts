@@ -1,11 +1,13 @@
 import "server-only";
 import { sql } from "./db";
 import type { Driver } from "./auth";
+import {raceClock} from "./race-clock";
 
 export type RaceEvent = {
   id: string; title: string; track_key: string; starts_at: string; duration_min: number;
   league: string | null; server: string | null; notes: string | null;
   status: "upcoming" | "live" | "finished";
+  clock_mode:"auto"|"manual";clock_manual_remaining_s:number|null;clock_manual_updated_at:string|null;
   clock_remaining_s: number | null; clock_updated_at: string | null;
   practice_starts_at: string | null; practice_min: number; briefing_starts_at: string | null; briefing_min: number; qualifying_starts_at: string | null; qualifying_min: number; timing_revision: number;
   clock_source: "schedule" | "manual" | "acc" | null; archived_at: string | null; server_now: string;
@@ -60,7 +62,8 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
   const rows = eventId
     ? await tx<RaceEvent[]>`select id, title, track_key,
         to_char(starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as starts_at, duration_min,
-        league, server, notes, status, clock_remaining_s, practice_min, briefing_min, qualifying_min, timing_revision,
+        league, server, notes, status, clock_remaining_s,clock_mode,clock_manual_remaining_s,
+        to_char(clock_manual_updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as clock_manual_updated_at, practice_min, briefing_min, qualifying_min, timing_revision,
         to_char(practice_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as practice_starts_at,
         to_char(briefing_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as briefing_starts_at,
         to_char(qualifying_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as qualifying_starts_at,
@@ -70,7 +73,8 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
         from event where id = ${eventId}`
     : await tx<RaceEvent[]>`select id, title, track_key,
         to_char(starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as starts_at, duration_min,
-        league, server, notes, status, clock_remaining_s, practice_min, briefing_min, qualifying_min, timing_revision,
+        league, server, notes, status, clock_remaining_s,clock_mode,clock_manual_remaining_s,
+        to_char(clock_manual_updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as clock_manual_updated_at, practice_min, briefing_min, qualifying_min, timing_revision,
         to_char(practice_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as practice_starts_at,
         to_char(briefing_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as briefing_starts_at,
         to_char(qualifying_starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as qualifying_starts_at,
@@ -81,6 +85,8 @@ export async function raceHQ(eventId: string | null, me: Driver): Promise<RaceHQ
         where status in ('upcoming', 'live') and archived_at is null order by starts_at limit 1`;
   const event = rows[0];
   if (!event) return null;
+  const clock=raceClock(event,Date.parse(event.server_now));
+  event.status=clock.phase==="finished"?"finished":clock.phase==="upcoming"?"upcoming":"live";
   const [cars, stints, updates, leads, readiness, lead, signups, rosters, strategies, trades, preferences, planningDrivers] = await Promise.all([
     tx<RaceCar[]>`select c.id, c.number, c.name, c.car_key, c.sort_order, c.roster_confirmed, c.schedule_status, c.schedule_revision, c.qualifying_driver_id,c.qualifying_planning_driver_id,coalesce(d.display_name,p.name) as qualifying_driver from event_car c left join driver d on d.id=c.qualifying_driver_id left join event_planning_driver p on p.id=c.qualifying_planning_driver_id where c.event_id = ${event.id} order by c.sort_order, c.id`,
     tx<RaceStint[]>`select s.id, s.event_car_id, s.n, s.driver_id,s.planning_driver_id,coalesce(d.display_name,p.name) as driver, d.avatar_url,
@@ -144,3 +150,5 @@ export async function raceMembers() {
   return sql<{ id: string; display_name: string; avatar_url: string | null }[]>`
     select id, display_name, avatar_url from driver where discord_id is distinct from 'review-store' order by display_name`;
 }
+
+

@@ -1,9 +1,11 @@
 import { currentDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { canLead } from "@/lib/race-hq";
+import {ScheduleError} from "@/lib/stint-schedule";
+import {raceClockText} from "@/lib/race-clock";
 
 type Edit =
-  | { action: "clock"; remaining_s?: number; status?: "upcoming" | "live" }
+  | { action: "clock"; remaining_s?: number; status?: "upcoming" | "live";mode?:"auto"|"manual";observed_at?:string }
   | { action: "finish" }
   | { action: "archive" }
   | { action: "details"; notes?: string }
@@ -13,6 +15,8 @@ type Edit =
 export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[id]">) {
   const me = await currentDriver();
   if (!me) return Response.json({ error: "sign in" }, { status: 401 });
+  const origin=request.headers.get("origin");
+  if(origin&&origin!==new URL(request.url).origin)return Response.json({error:"Use Race Day HQ on this site."},{status:403});
   const { id } = await ctx.params;
   if (!/^\d+$/.test(id)) return Response.json({ error: "not found" }, { status: 404 });
   const body = (await request.json().catch(() => null)) as Edit | null;
@@ -22,17 +26,38 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
   if (!active) return Response.json({ error: "archived races are read-only" }, { status: 409 });
 
   if (body.action === "clock") {
-    if (body.status === "upcoming") {
-      await sql`update event set status = 'upcoming', clock_remaining_s = null, clock_updated_at = null,
-                clock_source = 'schedule', updated_at = now() where id = ${id}`;
-    } else {
-      const seconds = Math.round(Number(body.remaining_s));
-      if (!Number.isFinite(seconds) || seconds < 0 || seconds > 24 * 3600)
-        return Response.json({ error: "time remaining must be between 0 and 24 hours" }, { status: 400 });
-      await sql`update event set status = 'live', clock_remaining_s = ${seconds}, clock_updated_at = now(),
-                clock_source = 'manual', updated_at = now() where id = ${id}`;
+    try {
+      await sql.begin(async(tx)=>{
+        const [event]=await tx`select * from event where id=${id} for update`;
+        if(!event||event.archived_at||event.status==="finished")throw new ScheduleError("Finished races are read-only.",409);
+        if(body.mode!==undefined&&body.mode!=="auto"&&body.mode!=="manual")throw new ScheduleError("Choose manual or automatic timing.");
+        let message="";
+        if(body.mode==="auto"){
+          await tx`update event set clock_mode='auto',updated_at=now() where id=${id}`;
+          message="Automatic race timing enabled. ACC can refresh the clock when an update arrives.";
+        } else if(body.status==="upcoming"){
+          await tx`update event set status=case when starts_at>now() then 'upcoming' else 'live' end,clock_mode='auto',
+            clock_source='schedule',clock_remaining_s=null,clock_updated_at=null,clock_manual_remaining_s=null,clock_manual_updated_at=null,updated_at=now() where id=${id}`;
+          message="Race clock returned to scheduled timing.";
+        } else {
+          const seconds=body.remaining_s;
+          if(typeof seconds!=="number"||!Number.isInteger(seconds)||seconds<0||seconds>event.duration_min*60)
+            throw new ScheduleError("Enter a valid remaining time within this race’s duration.");
+          const observed=body.observed_at===undefined?Date.now():Date.parse(body.observed_at);
+          if(!Number.isFinite(observed)||observed>Date.now()+5000||observed<Date.now()-120000)
+            throw new ScheduleError("Refresh the shared clock, then enter the current ACC time and try again.");
+          const at=new Date(observed).toISOString();
+          await tx`update event set status='live',clock_mode='manual',clock_manual_remaining_s=${seconds},clock_manual_updated_at=${at},
+            clock_remaining_s=${seconds},clock_updated_at=${at},clock_source='manual',updated_at=now() where id=${id}`;
+          message=`Race clock synced by a race lead to ${raceClockText(seconds)} remaining. Manual timing is in control.`;
+        }
+        await tx`insert into event_update(event_id,author_id,kind,body) values(${id},${me.id},'official',${message})`;
+      });
+      return Response.json({ok:true});
+    }catch(error){
+      if(error instanceof ScheduleError)return Response.json({error:error.message},{status:error.status});
+      throw error;
     }
-    return Response.json({ ok: true });
   }
   if (body.action === "finish" || body.action === "archive") {
     await sql`update event set status = 'finished', archived_at = coalesce(archived_at, now()),
@@ -62,3 +87,5 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
     return Response.json({ error: "Refresh Race Day HQ and use the Stints editor to save this schedule." }, { status: 409 });
   return Response.json({ error: "unknown action" }, { status: 400 });
 }
+
+

@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const id = new URL(request.url).searchParams.get("id");
   if (id && !/^\d+$/.test(id)) return Response.json({ error: "not found" }, { status: 404 });
   const [data, members] = await Promise.all([raceHQ(id, me), raceMembers()]);
-  return Response.json({ data, members });
+  return Response.json({ data, members }, {headers:{"Cache-Control":"private, no-store"}});
 }
 
 export async function POST(request: Request) {
@@ -74,3 +74,4 @@ export async function POST(request: Request) {
     throw error;
   }
 }
+
