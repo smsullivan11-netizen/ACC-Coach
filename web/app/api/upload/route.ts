@@ -6,7 +6,7 @@ import { afterUpload } from "@/lib/corner-maps";
 import { refreshCornerRefsForSession } from "@/lib/corner-refs";
 import { announceRelease, announceSession } from "@/lib/discord";
 import { sql } from "@/lib/db";
-import { importBundle, Rejected, type Bundle } from "@/lib/import-bundle";
+import { importBundle, validateBundle, Rejected, type Bundle } from "@/lib/import-bundle";
 import { compressOldTraces, pruneTraces } from "@/lib/storage";
 import { rankFor } from "@/lib/ranks";
 import { rateSession } from "@/lib/ratings";
@@ -33,9 +33,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "not a session bundle (.json.gz)" }, { status: 400 });
   }
 
-  await ensureReferences(sql);   // the reference lap times, imported once after the deploy (lib/references.ts)
   let result;
   try {
+    validateBundle(bundle);
+    await ensureReferences(sql);
     result = await importBundle(bundle, driver.id);
   } catch (e) {
     if (e instanceof Rejected) return Response.json({ error: e.message }, { status: e.status });
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
   await flagTooFast(sql, { sessionId: result.sessionId });
   // The rating before this session, for the change in the app's notification (app 0.4+)
   const [before] = await sql<{ rating: number }[]>`
-    select rating from driver_rating where driver_id = ${driver.id} order by id desc limit 1`;
+    select rating from acc_driver_rating where driver_id = ${driver.id} order by id desc limit 1`;
   const rating = await rateSession(sql, result.sessionId);
   await afterUpload(result.sessionId);
   // Achievements and the Discord post must never fail an upload

@@ -1,0 +1,15 @@
+.clock{margin:20px 0;padding:22px;border:1px solid #48412b;border-radius:16px;background:linear-gradient(130deg,#242116,#16161b);color:#f4f4f5}
+.clock header,.dialog header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.phase,.live{font-size:.75rem;font-weight:700;letter-spacing:.12em;color:#e8cc72}.live{color:#f8a6a6}
+.clock button,.dialog button{padding:9px 12px;border:1px solid #5a523d;background:#292722;border-radius:8px;color:#f4e2a6;font-size:.8rem;cursor:pointer}
+.clock button:disabled,.dialog button:disabled{opacity:.45;cursor:not-allowed}
+.clock button:focus-visible,.dialog input:focus-visible,.dialog button:focus-visible{outline:2px solid #f2ce64;outline-offset:3px}
+.timer{font-variant-numeric:tabular-nums;font-size:clamp(2.8rem,11vw,5.3rem);font-weight:700;letter-spacing:.03em;line-height:1.25;text-align:center;padding-top:16px}
+.caption{font-size:.75rem;text-align:center;color:#c7c3b9;letter-spacing:.05em;margin-bottom:18px}
+.progress{height:5px;border-radius:5px;background:#39362b;overflow:hidden}.progress span{display:block;height:100%;background:#e9c557;transition:width 1s linear}
+.summary{display:flex;justify-content:space-between;gap:12px;margin:13px 0;color:#d4d4d8;font-size:.85rem}
+.detail{font-size:.78rem;line-height:1.6;color:#a1a1aa;margin:8px 0}.warning{font-size:.82rem;color:#f2d28a;margin:12px 0;line-height:1.6}
+.dialog{margin:auto;padding:0;max-width:530px;width:calc(100% - 28px);max-height:90dvh;overflow:auto;border:1px solid #52525b;border-radius:16px;background:#19191e;color:#e4e4e7}
+.dialog::backdrop{background:rgba(0,0,0,.75)}.dialogBody{padding:24px}.dialog h3{font-size:1.15rem;font-weight:700}.dialogBody>p{margin:18px 0;line-height:1.65;font-size:.85rem}
+.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0}.fields label{display:grid;gap:8px;font-size:.8rem;color:#a1a1aa}.fields input{width:100%;min-width:0;border:1px solid #52525b;border-radius:8px;background:#111115;color:#fff;padding:12px;font-size:1.5rem;text-align:center;font-variant-numeric:tabular-nums}
+.dialog button.primary{background:#e6c04e;color:#151515;font-weight:700;border-color:#e6c04e;margin:8px 0 18px}.dialog form{margin-bottom:10px}

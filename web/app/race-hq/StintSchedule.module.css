@@ -1,0 +1,52 @@
+.panel { margin: 24px 0; }
+.header,.rowHead { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.header h3 { color:#fff; font-size:1.25rem; font-weight:700; }
+.header p,.hint { color:#a1a1aa; font-size:.82rem; line-height:1.6; }
+.badge { border:1px solid #645926; background:#302b18; color:#f5d76c; padding:6px 12px; border-radius:999px; font-size:.75rem; }
+.cars,.tools { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:16px 0; }
+.panel button { border:1px solid #3f3f46; border-radius:8px; padding:8px 12px; font-size:.8rem; color:#e4e4e7; background:#222227; cursor:pointer; }
+.panel button:hover:not(:disabled) { border-color:#d6b64c; }
+.panel button:focus-visible,.panel input:focus-visible,.panel select:focus-visible { outline:2px solid #f5d76c; outline-offset:3px; }
+.panel button:disabled { opacity:.4; cursor:not-allowed; }
+.cars button[aria-pressed=true],.tools button[aria-pressed=true] { border-color:#d6b64c; color:#f5d76c; }
+.panel .primary { background:#e4bd46; color:#141414; border-color:#e4bd46; font-weight:700; }
+.notice { padding:14px 16px; border:1px solid #3f3f46; border-radius:10px; background:#1b1b20; color:#c4c4cc; font-size:.85rem; line-height:1.65; margin:16px 0; }
+.warning { color:#f7d17a; border:1px solid #66502e; border-radius:8px; padding:12px; margin:16px 0; font-size:.85rem; }
+.rows { display:grid; gap:12px; margin:20px 0; }
+.row { padding:18px; border:1px solid #34343b; border-radius:12px; background:#19191e; min-width:0; }
+.row[data-active] { border-color:#d6b64c; }
+.rowHead strong { font-size:.9rem; color:#f4f4f5; }
+.rowHead span,.tools span { color:#a1a1aa; font-size:.78rem; }
+.fields { display:grid; grid-template-columns: minmax(0,1fr) 90px minmax(0,1fr); gap:12px; margin-top:14px; }
+.panel label { display:grid; gap:6px; font-size:.78rem; color:#a1a1aa; }
+.panel input,.panel select { width:100%; min-width:0; border:1px solid #3f3f46; background:#111115; color:#f4f4f5; padding:9px; border-radius:7px; }
+.tools label { max-width:140px; }
+.note { color:#c4c4cc; font-size:.85rem; white-space:pre-wrap; overflow-wrap:anywhere; margin:8px 0; }
+.totals { padding:16px; border:1px solid #34343b; border-radius:12px; }
+.totals h4 { color:#f4f4f5; margin-bottom:12px; }
+.totals p { display:flex; justify-content:space-between; gap:10px; padding:7px 0; font-size:.82rem; color:#a1a1aa; }
+.totals strong { color:#e4e4e7; font-weight:500; }
+@media(max-width:600px) { .fields { grid-template-columns:minmax(0,1fr) 80px; } .fields label:last-child { grid-column:1 / -1; } .row { padding:14px; } }
+
+.panel button.slot { display:block; width:100%; text-align:left; padding:18px; background:#19191e; border-radius:12px; }
+.panel button.slot:hover:not(:disabled) { background:#222226; border-color:#d6b64c; transform:translateY(-1px); }
+.panel button.slot[data-mine] { border-left:4px solid #78b69c; }
+.panel button.slot[data-preferred] { background:#252319; }
+.slotTime,.slotAction,.preferenceNames { display:block; margin-top:8px; line-height:1.6; }
+.slotTime { color:#a1a1aa; font-size:.82rem; }
+.slotAction,.preferenceNames { color:#e5c86b; font-size:.8rem; }
+.preferenceNames { overflow-wrap:anywhere; }
+.leadControls { margin:18px 0; padding:12px; border:1px solid #3f3f46; border-radius:10px; color:#a1a1aa; font-size:.82rem; }
+.leadControls summary { cursor:pointer; }
+.offers { margin-top:24px; }
+.offers h4,.tradeForm h4 { font-size:1rem; color:#fff; font-weight:600; margin-bottom:8px; }
+.offers article { margin:12px 0; }
+.dialog { padding:0; max-width:620px; width:calc(100% - 28px); max-height:90dvh; overflow:auto; margin:auto; color:#e4e4e7; background:#19191e; border:1px solid #52525b; border-radius:16px; }
+.dialog::backdrop { background:rgba(0,0,0,.75); }
+.dialogBody { padding:24px; }
+.dialogTime { color:#f4f4f5; font-size:1rem; line-height:1.7; margin:20px 0 12px; }
+.tradeForm,.preferenceBox { border-top:1px solid #3f3f46; padding-top:18px; margin-top:22px; }
+.tradeForm label { margin:14px 0; }
+.dialogBody > button { margin:10px 8px 0 0; }
+.preferenceBox button[aria-pressed=true] { border-color:#e4bd46; color:#f5d76c; }
+@media(max-width:600px) { .panel button.slot { padding:16px; min-height:125px; } .dialogBody { padding:18px; } }

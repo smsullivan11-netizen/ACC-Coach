@@ -2,38 +2,12 @@ import "server-only";
 import { sql } from "./db";
 import type { EncodedChannel } from "./trace";
 import { decodeStored } from "./trace-store";
+import { TRACKS } from "./track-catalog";
+export { TRACKS } from "./track-catalog";
 
 // The ACC tracks: full names and countries (flags in public/flags/) and their photos
 // (public/tracks/<key>.jpg: the team's ACC screenshots; credits in track-photo-credits.json). Every track listed here has a photo; the
 // outline (from the team's best lap with car positions) is only for other tracks.
-
-export const TRACKS: Record<string, { name: string; country: string }> = {
-  barcelona: { name: "Circuit de Barcelona-Catalunya", country: "es" },
-  brands_hatch: { name: "Brands Hatch", country: "gb" },
-  cota: { name: "Circuit of the Americas", country: "us" },
-  donington: { name: "Donington Park", country: "gb" },
-  hungaroring: { name: "Hungaroring", country: "hu" },
-  imola: { name: "Imola", country: "it" },
-  indianapolis: { name: "Indianapolis", country: "us" },
-  kyalami: { name: "Kyalami", country: "za" },
-  laguna_seca: { name: "Laguna Seca", country: "us" },
-  misano: { name: "Misano", country: "it" },
-  monza: { name: "Monza", country: "it" },
-  mount_panorama: { name: "Mount Panorama", country: "au" },
-  nurburgring: { name: "Nürburgring GP", country: "de" },
-  nurburgring_24h: { name: "Nürburgring Nordschleife", country: "de" },
-  oulton_park: { name: "Oulton Park", country: "gb" },
-  paul_ricard: { name: "Paul Ricard", country: "fr" },
-  red_bull_ring: { name: "Red Bull Ring", country: "at" },
-  silverstone: { name: "Silverstone", country: "gb" },
-  snetterton: { name: "Snetterton", country: "gb" },
-  spa: { name: "Spa-Francorchamps", country: "be" },
-  suzuka: { name: "Suzuka", country: "jp" },
-  valencia: { name: "Valencia (Ricardo Tormo)", country: "es" },
-  watkins_glen: { name: "Watkins Glen", country: "us" },
-  zandvoort: { name: "Zandvoort", country: "nl" },
-  zolder: { name: "Zolder", country: "be" },
-};
 
 // ACC names some tracks with capitals ("Zolder", "Paul_Ricard", "Barcelona") and others in lowercase:
 // every lookup goes through the lowercase key.

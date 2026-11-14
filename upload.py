@@ -64,7 +64,12 @@ def post_json(url: str, token: str, payload: dict, timeout: float = 15) -> tuple
 def upload_file(path: Path, url: str, token: str) -> dict:
     """Processes a session and uploads it. Returns {status, message, laps?, session_url?, rating?…} with
     status: uploaded, no_laps, duplicate, unauthorized, offline (retry later) or refused."""
-    head, laps, ref = acc.load_any(str(path))
+    try:
+        head, laps, ref = acc.load_any(str(path))
+        from acc_identity import validate_source
+        validate_source(head.venue, head.vehicleid, getattr(head, "simulator", None), getattr(head, "simulator_identity", None))
+    except ValueError as error:
+        return {"status": "refused", "message": str(error)}
     if not laps:
         return {"status": "no_laps", "message": "no complete lap"}
     status, team_map = request(f"{url}/api/corner-maps/{head.venue}", token)

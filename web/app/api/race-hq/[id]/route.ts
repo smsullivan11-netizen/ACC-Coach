@@ -1,9 +1,11 @@
 import { currentDriver } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { canLead } from "@/lib/race-hq";
+import {ScheduleError} from "@/lib/stint-schedule";
+import {raceClockText} from "@/lib/race-clock";
 
 type Edit =
-  | { action: "clock"; remaining_s?: number; status?: "upcoming" | "live" }
+  | { action: "clock"; remaining_s?: number; status?: "upcoming" | "live";mode?:"auto"|"manual";observed_at?:string }
   | { action: "finish" }
   | { action: "archive" }
   | { action: "details"; notes?: string }
@@ -13,6 +15,8 @@ type Edit =
 export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[id]">) {
   const me = await currentDriver();
   if (!me) return Response.json({ error: "sign in" }, { status: 401 });
+  const origin=request.headers.get("origin");
+  if(origin&&origin!==new URL(request.url).origin)return Response.json({error:"Use Race Day HQ on this site."},{status:403});
   const { id } = await ctx.params;
   if (!/^\d+$/.test(id)) return Response.json({ error: "not found" }, { status: 404 });
   const body = (await request.json().catch(() => null)) as Edit | null;
@@ -22,17 +26,38 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
   if (!active) return Response.json({ error: "archived races are read-only" }, { status: 409 });
 
   if (body.action === "clock") {
-    if (body.status === "upcoming") {
-      await sql`update event set status = 'upcoming', clock_remaining_s = null, clock_updated_at = null,
-                clock_source = 'schedule', updated_at = now() where id = ${id}`;
-    } else {
-      const seconds = Math.round(Number(body.remaining_s));
-      if (!Number.isFinite(seconds) || seconds < 0 || seconds > 24 * 3600)
-        return Response.json({ error: "time remaining must be between 0 and 24 hours" }, { status: 400 });
-      await sql`update event set status = 'live', clock_remaining_s = ${seconds}, clock_updated_at = now(),
-                clock_source = 'manual', updated_at = now() where id = ${id}`;
+    try {
+      await sql.begin(async(tx)=>{
+        const [event]=await tx`select * from event where id=${id} for update`;
+        if(!event||event.archived_at||event.status==="finished")throw new ScheduleError("Finished races are read-only.",409);
+        if(body.mode!==undefined&&body.mode!=="auto"&&body.mode!=="manual")throw new ScheduleError("Choose manual or automatic timing.");
+        let message="";
+        if(body.mode==="auto"){
+          await tx`update event set clock_mode='auto',updated_at=now() where id=${id}`;
+          message="Automatic race timing enabled. ACC can refresh the clock when an update arrives.";
+        } else if(body.status==="upcoming"){
+          await tx`update event set status=case when starts_at>now() then 'upcoming' else 'live' end,clock_mode='auto',
+            clock_source='schedule',clock_remaining_s=null,clock_updated_at=null,clock_manual_remaining_s=null,clock_manual_updated_at=null,updated_at=now() where id=${id}`;
+          message="Race clock returned to scheduled timing.";
+        } else {
+          const seconds=body.remaining_s;
+          if(typeof seconds!=="number"||!Number.isInteger(seconds)||seconds<0||seconds>event.duration_min*60)
+            throw new ScheduleError("Enter a valid remaining time within this race’s duration.");
+          const observed=body.observed_at===undefined?Date.now():Date.parse(body.observed_at);
+          if(!Number.isFinite(observed)||observed>Date.now()+5000||observed<Date.now()-120000)
+            throw new ScheduleError("Refresh the shared clock, then enter the current ACC time and try again.");
+          const at=new Date(observed).toISOString();
+          await tx`update event set status='live',clock_mode='manual',clock_manual_remaining_s=${seconds},clock_manual_updated_at=${at},
+            clock_remaining_s=${seconds},clock_updated_at=${at},clock_source='manual',updated_at=now() where id=${id}`;
+          message=`Race clock synced by a race lead to ${raceClockText(seconds)} remaining. Manual timing is in control.`;
+        }
+        await tx`insert into event_update(event_id,author_id,kind,body) values(${id},${me.id},'official',${message})`;
+      });
+      return Response.json({ok:true});
+    }catch(error){
+      if(error instanceof ScheduleError)return Response.json({error:error.message},{status:error.status});
+      throw error;
     }
-    return Response.json({ ok: true });
   }
   if (body.action === "finish" || body.action === "archive") {
     await sql`update event set status = 'finished', archived_at = coalesce(archived_at, now()),
@@ -58,38 +83,9 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/race-hq/[i
               values (${id}, ${me.id}, 'official', 'Race and pit notes were updated.')`;
     return Response.json({ ok: true });
   }
-  if (body.action === "plan") {
-    const stints = body.stints;
-    if (!body.car_id || !/^\d+$/.test(body.car_id) || !Array.isArray(stints) || !stints.length || stints.length > 100)
-      return Response.json({ error: "invalid stint plan" }, { status: 400 });
-    const carId = body.car_id;
-    const [car] = await sql`select 1 from event_car where id = ${carId} and event_id = ${id}`;
-    if (!car) return Response.json({ error: "car not found" }, { status: 404 });
-    const parsed = stints.map((s) => ({
-      id: String(s.id ?? ""), driver: String(s.driver_id ?? ""), start: new Date(s.starts_at ?? ""),
-      end: new Date(s.ends_at ?? ""), note: s.note?.trim().slice(0, 300) || null,
-    }));
-    if (parsed.some((s) => !/^\d+$/.test(s.id) || !/^\d+$/.test(s.driver) ||
-        Number.isNaN(s.start.getTime()) || Number.isNaN(s.end.getTime()) || s.end <= s.start))
-      return Response.json({ error: "every stint needs a driver and valid start/end" }, { status: 400 });
-    const ordered = [...parsed].sort((a, b) => a.start.getTime() - b.start.getTime());
-    if (ordered.some((s, i) => i > 0 && s.start.getTime() !== ordered[i - 1].end.getTime()))
-      return Response.json({ error: "stints must form a continuous plan" }, { status: 400 });
-    const drivers = [...new Set(parsed.map((s) => s.driver))];
-    const validDrivers = await sql<{ id: string }[]>`select id from driver where id in ${sql(drivers)}`;
-    if (validDrivers.length !== drivers.length) return Response.json({ error: "driver not found" }, { status: 400 });
-    await sql.begin(async (tx) => {
-      for (const s of parsed) {
-        const rows = await tx`update event_car_stint set driver_id = ${s.driver}, starts_at = ${s.start.toISOString()},
-                              ends_at = ${s.end.toISOString()}, note = ${s.note}
-                              where id = ${s.id} and event_car_id = ${carId} returning id`;
-        if (!rows.length) throw new Error("stint not found");
-      }
-      await tx`update event set updated_at = now() where id = ${id}`;
-      await tx`insert into event_update (event_id, event_car_id, author_id, kind, body)
-               values (${id}, ${carId}, ${me.id}, 'official', 'The stint plan was updated.')`;
-    });
-    return Response.json({ ok: true });
-  }
+  if (body.action === "plan")
+    return Response.json({ error: "Refresh Race Day HQ and use the Stints editor to save this schedule." }, { status: 409 });
   return Response.json({ error: "unknown action" }, { status: 400 });
 }
+
+

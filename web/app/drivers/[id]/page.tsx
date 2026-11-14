@@ -40,7 +40,7 @@ export default async function DriverPage(props: PageProps<"/drivers/[id]">) {
 
   const [history, [parts], best, recent, style] = await Promise.all([
     sql<Point[]>`select r.rating, r.session_score, to_char(coalesce(s.recorded_at, s.uploaded_at), 'DD Mon') as date, t.key as track
-                 from driver_rating r join session s on s.id = r.session_id join track t on t.id = s.track_id
+                 from acc_driver_rating r join session s on s.id = r.session_id join track t on t.id = s.track_id
                  where r.driver_id = ${id} order by r.id`,
     formParts(sql, id).then((p): Parts[] => [p]),
     sql<{ track: string; car_class: string | null; car: string | null; lap_id: string; lap_time_ms: number; position: number; drivers: number }[]>`

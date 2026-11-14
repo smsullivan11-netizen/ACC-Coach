@@ -2,30 +2,32 @@
 
 import {
   AlarmClock, Archive, ArrowLeft, ArrowRight, CalendarClock, Check, ChevronRight,
-  CircleAlert, Clock3, Edit3, Flag, Fuel, History, Megaphone,
-  Plus, Radio, Save, Send, Settings2, ShieldCheck, Timer, Trash2, UserRound, Users, X,
+  Flag, Fuel, History, Megaphone,
+  Plus, Send, Settings2, ShieldCheck, Trash2, UserRound, Users, X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Driver } from "@/lib/auth";
 import type { RaceHQData, RaceStint, RaceUpdate } from "@/lib/race-hq";
 import styles from "./RaceHQ.module.css";
+import CarTeams from "./CarTeams";
+import CarStrategy from "./CarStrategy";
+import RaceClock from "./RaceClock";
+import StintTimer from "./StintTimer";
+import { raceClock, raceClockSample, alignedRaceTime } from "@/lib/race-clock";
+import StintSchedule from "./StintSchedule";
+import EventTimetable from "./EventTimetable";
 
 type Member = { id: string; display_name: string; avatar_url: string | null };
 type ArchiveRow = { id: string; title: string; track_key: string; starts_at: string; duration_min: number; cars: number };
-type Tab = "overview" | "stints" | "updates" | "pit" | "archive";
+type Tab = "overview" | "teams" | "stints" | "updates" | "pit" | "archive";
 
 const pad = (n: number) => String(Math.max(0, Math.floor(n))).padStart(2, "0");
 const duration = (seconds: number) => `${pad(seconds / 3600)}:${pad((seconds % 3600) / 60)}:${pad(seconds % 60)}`;
 const hm = (iso: string) => new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 const day = (iso: string) => new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" }).format(new Date(iso));
 const initials = (name: string | null) => (name ?? "?").split(/\s+/).map((x) => x[0]).join("").slice(0, 2).toUpperCase();
-const inputDate = (iso: string) => {
-  const d = new Date(iso), local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
-};
-
 async function jsonRequest(url: string, init?: RequestInit) {
   const res = await fetch(url, { ...init, headers: { "Content-Type": "application/json", ...init?.headers } });
   const data = await res.json().catch(() => ({}));
@@ -40,6 +42,8 @@ export default function RaceHQ({ initial, archive, members, me }: {
   const [tab, setTab] = useState<Tab>("overview");
   const [selectedCar, setSelectedCar] = useState(initial?.cars[0]?.id ?? "");
   const [now, setNow] = useState(() => initial ? new Date(initial.event.server_now).getTime() : 0);
+  const timeBase = useRef<{ id:string;serverMs:number;clientMs:number }|null>(null);
+  const [connection,setConnection]=useState<"online"|"offline"|"reconnecting">("online");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [create, setCreate] = useState(false);
@@ -48,15 +52,30 @@ export default function RaceHQ({ initial, archive, members, me }: {
   async function refresh(silent = false) {
     if (!data) return;
     try {
-      const result = await jsonRequest(`/api/race-hq?id=${data.event.id}`);
+      const sentAt=performance.now();
+      const result = await jsonRequest(`/api/race-hq?id=${data.event.id}`,{cache:"no-store"});
+      const receivedAt=performance.now(),serverMs=Date.parse(result.data?.event.server_now);
+      if(Number.isFinite(serverMs)){
+        const sample=raceClockSample(serverMs,sentAt,receivedAt);
+        timeBase.current={id:data.event.id,...sample};setNow(sample.serverMs);
+      }
+      setConnection("online");
       setData(result.data);
       if (!selectedCar && result.data?.cars[0]) setSelectedCar(result.data.cars[0].id);
-    } catch (e) { if (!silent) setMessage((e as Error).message); }
+    } catch (e) { setConnection("offline");if (!silent) setMessage((e as Error).message); }
   }
   useEffect(() => {
-    const tick = window.setInterval(() => setNow(Date.now()), 1000);
+    if(!data)return;
+    if(timeBase.current?.id!==data.event.id)timeBase.current={id:data.event.id,serverMs:Date.parse(data.event.server_now),clientMs:performance.now()};
+    const update=()=>{const base=timeBase.current;if(base)setNow(alignedRaceTime(base,performance.now()));};
+    const resume=()=>{if(document.visibilityState==="visible"){setConnection("reconnecting");update();void refresh(true);}};
+    const offline=()=>setConnection("offline");
+    const tick = window.setInterval(update, 1000);
     const poll = data && data.event.status !== "finished" ? window.setInterval(() => refresh(true), 15_000) : undefined;
-    return () => { window.clearInterval(tick); if (poll) window.clearInterval(poll); };
+    document.addEventListener("visibilitychange",resume);window.addEventListener("focus",resume);window.addEventListener("online",resume);window.addEventListener("offline",offline);
+    const firstPoll=window.setTimeout(()=>{void refresh(true);},0);
+    return () => { window.clearTimeout(firstPoll);window.clearInterval(tick); if (poll) window.clearInterval(poll);
+      document.removeEventListener("visibilitychange",resume);window.removeEventListener("focus",resume);window.removeEventListener("online",resume);window.removeEventListener("offline",offline); };
   // Refresh interval deliberately follows the active event id, not each polling response.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.event.id, data?.event.status]);
@@ -66,26 +85,21 @@ export default function RaceHQ({ initial, archive, members, me }: {
              onCreated={() => window.location.reload()} />
   );
 
-  const event = data.event;
-  const startMs = new Date(event.starts_at).getTime(), scheduledEnd = startMs + event.duration_min * 60_000;
-  const sourceMs = event.clock_updated_at ? new Date(event.clock_updated_at).getTime() : null;
-  const remaining = event.status === "finished" ? 0 : event.status === "live" && event.clock_remaining_s != null && sourceMs
-    ? Math.max(0, event.clock_remaining_s - Math.floor((now - sourceMs) / 1000))
-    : Math.max(0, Math.floor(((event.status === "upcoming" ? startMs : scheduledEnd) - now) / 1000));
-  const elapsed = Math.max(0, event.duration_min * 60 - remaining);
-  const progress = event.status === "upcoming" ? 0 : Math.min(100, elapsed / (event.duration_min * 60) * 100);
+  const clock=raceClock(data.event,now);
+  const event:RaceHQData["event"] = {...data.event,status:clock.phase==="upcoming"?"upcoming":clock.phase==="finished"?"finished":"live"};
   const car = data.cars.find((c) => c.id === selectedCar) ?? data.cars[0];
   const ready = data.readiness.find((r) => r.driver_id === me.id)?.ready ?? false;
   const myNext = data.stints.filter((s) => s.driver_id === me.id && new Date(s.ends_at).getTime() > now)
     .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))[0];
 
-  async function act(path: string, body: unknown, success?: string) {
+  async function act(path: string, body: unknown, success?: string, onError?: (message: string) => void) {
     setBusy(true); setMessage(null);
     try {
-      await jsonRequest(path, { method: path.endsWith(event.id) ? "PATCH" : "POST", body: JSON.stringify(body) });
+      await jsonRequest(path, { method: path.endsWith(event.id) || path.endsWith("/schedule") || (path.includes("/cars/") && !path.endsWith("/trades") && !path.endsWith("/preferences")) ? "PATCH" : "POST", body: JSON.stringify(body) });
       if (success) setMessage(success);
       await refresh();
-    } catch (e) { setMessage((e as Error).message); }
+      return true;
+    } catch (e) { const error=(e as Error).message;setMessage(error);onError?.(error);await refresh(true);return false; }
     finally { setBusy(false); }
   }
 
@@ -97,39 +111,56 @@ export default function RaceHQ({ initial, archive, members, me }: {
         <div className={event.status === "live" ? styles.live : styles.status}>{event.status}</div>
       </div>
 
-      <section className={styles.clock}>
-        <div className={styles.clockTop}>
-          <span><i className={event.status === "live" ? styles.redDot : styles.yellowDot} />{event.status === "upcoming" ? "RACE STARTS IN" : event.status === "finished" ? "RACE COMPLETE" : "RACE LIVE"}</span>
-          <button onClick={() => data.can_lead && event.status !== "finished" && setControls(true)} disabled={!data.can_lead || event.status === "finished"}>
-            {event.clock_source === "acc" ? <Radio size={13} /> : <Clock3 size={13} />}
-            {event.clock_source === "acc" ? `ACC · ${sourceMs ? Math.max(0, Math.floor((now - sourceMs) / 1000)) : 0}s ago` : event.clock_source ?? "schedule"}
+      {message && <p className={styles.message} role="status">{message}</p>}
+
+      <RaceClock event={event} now={now} canLead={data.can_lead} busy={busy} feedback={message} connection={connection}
+        onSync={(body,success)=>act(`/api/race-hq/${event.id}`,body,success)} />
+
+      <div className="grid gap-3 md:grid-cols-2">{data.cars.map(timerCar=><StintTimer key={timerCar.id} data={data} car={timerCar} now={now} busy={busy} feedback={message}
+        onAction={(body,success)=>act(`/api/race-hq/${event.id}/cars/${timerCar.id}/stint-timer`,body,success)} />)}</div>
+
+      <section id="signup" className="card my-5 scroll-mt-6 p-5" aria-labelledby="race-signup-title">
+        <h3 id="race-signup-title" className="text-xl font-semibold text-white">Race signup</h3>
+        <p className="mt-2 text-sm text-zinc-300">Sign up as {me.display_name}. Race leads assign you to a car. Then choose your stints in the Stints tab when booking opens.</p>
+        <p className="mt-3 text-sm text-accent">{data.rosters.some((r) => r.driver_id === me.id) ? `Your car: #${data.cars.find((c) => c.id === data.rosters.find((r) => r.driver_id === me.id)?.event_car_id)?.number}` : "Car assignment pending."}</p>
+        <p className="mt-3 text-sm text-accent">{data.signups.some((s) => s.driver_id === me.id) ? "You’re signed up for this race." : "You haven’t signed up for this race yet."}</p>
+        {!me.is_reviewer && event.status === "upcoming" && !event.archived_at && new Date(event.starts_at).getTime() > now ? (
+          <button className={`${styles.primary} mt-3`} disabled={busy}
+            onClick={() => { const registered = !data.signups.some((s) => s.driver_id === me.id); void act(`/api/race-hq/${event.id}/signup`, { registered }, registered ? "You’re signed up!" : "Your signup was withdrawn."); }}>
+            {busy ? "Saving…" : data.signups.some((s) => s.driver_id === me.id) ? "Withdraw signup" : "Sign up for this race"}
           </button>
-        </div>
-        <div className={styles.bigClock}>{duration(remaining)}</div>
-        <p>{event.status === "upcoming" ? `Green flag ${day(event.starts_at)} · ${hm(event.starts_at)}` : "TIME REMAINING"}</p>
-        <div className={styles.progress}><span style={{ width: `${progress}%` }} /></div>
-        <div className={styles.clockFoot}><span>{duration(elapsed)} elapsed</span><span>Scheduled {event.duration_min / 60}h</span></div>
+        ) : <p className="mt-3 text-sm text-zinc-400">{me.is_reviewer ? "Store Reviewer is a certification account and cannot sign up for races." : "Signups are closed for this race."}</p>}
+        <h4 className="mt-5 font-semibold text-white">Registered drivers ({data.signups.length})</h4>
+        {data.signups.length ? <ul className="mt-2 flex flex-wrap gap-2">{data.signups.map((s) => <li key={s.driver_id} className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-200">{s.display_name}{s.driver_id === me.id ? " · you" : ""}</li>)}</ul> : <p className="mt-2 text-sm text-zinc-400">Be the first to sign up.</p>}
       </section>
 
-      <nav className={styles.tabs} aria-label="Race Day HQ sections" style={{ gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}>
-        {(["overview", "stints", "updates", "pit", "archive"] as Tab[]).map((x) => (
+      <EventTimetable data={data} busy={busy} onSave={(body) => act(`/api/race-hq/${event.id}/schedule`, body, "Timetable saved. Both car plans need review before reopening booking.")} />
+
+      <nav className={styles.tabs} aria-label="Race Day HQ sections" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>
+        {(["overview", "teams", "stints", "updates", "pit", "archive"] as Tab[]).map((x) => (
           <button key={x} onClick={() => setTab(x)} aria-current={tab === x ? "page" : undefined}>
-            {x === "pit" ? "Pit kit" : x[0].toUpperCase() + x.slice(1)}
+            {x === "pit" ? "Strategy" : x[0].toUpperCase() + x.slice(1)}
             {x === "updates" && data.updates.filter((u) => u.kind === "official").length > 0 && <i>{data.updates.filter((u) => u.kind === "official").length}</i>}
           </button>
         ))}
       </nav>
 
-      {message && <p className={styles.message}>{message}</p>}
       {tab === "overview" && <Overview data={data} now={now} myNext={myNext} ready={ready} busy={busy}
         onReady={() => act(`/api/race-hq/${event.id}/readiness`, { ready: !ready }, ready ? "Readiness removed." : "The team can see you’re ready.")}
         onPlan={(id) => { setSelectedCar(id); setTab("stints"); }} onUpdates={() => setTab("updates")} />}
-      {tab === "stints" && <StintPlan data={data} car={car} selected={selectedCar} setSelected={setSelectedCar}
-        members={members} now={now} busy={busy} onSave={(stints) => act(`/api/race-hq/${event.id}`, { action: "plan", car_id: car.id, stints }, "Stint plan updated and posted to the race feed.")} />}
+      {tab === "teams" && <CarTeams data={data} busy={busy} onSave={(carId, body, success, onError) => act(`/api/race-hq/${event.id}/cars/${carId}`, body, success, onError)}
+        onPlanning={(carId,body,success,onError)=>act(`/api/race-hq/${event.id}/cars/${carId}/planning-drivers`,body,success,onError)} />}
+      {data.trades.some((t) => t.to_driver_id === me.id) && <div className={styles.message}><button className={styles.primary} onClick={() => { setSelectedCar(data.trades.find((t) => t.to_driver_id === me.id)!.event_car_id); setTab("stints"); }}>You have a stint offer · View request</button></div>}
+      {tab === "stints" && <StintSchedule key={car.id} data={data} car={car} setSelected={setSelectedCar}
+        now={now} busy={busy} feedback={message} onAction={(body, success) => act(`/api/race-hq/${event.id}/cars/${car.id}/schedule`, body, success)}
+        onTrade={(body, success) => act(`/api/race-hq/${event.id}/cars/${car.id}/trades`, body, success)}
+        onPreference={(body, success) => act(`/api/race-hq/${event.id}/cars/${car.id}/preferences`, body, success)} />}
       {tab === "updates" && <Updates data={data} busy={busy} onPost={(body, kind, carId) =>
         act(`/api/race-hq/${event.id}/updates`, { body, kind, car_id: carId }, kind === "official" ? "Official update posted." : "Comment posted.")} />}
-      {tab === "pit" && <PitKit data={data} selected={selectedCar} setSelected={setSelectedCar} busy={busy}
-        onSave={(notes) => act(`/api/race-hq/${event.id}`, { action: "details", notes }, "Race and pit notes updated.")} />}
+      {tab === "pit" && <>
+        <div className={styles.carSwitch}>{data.cars.map((c) => <button key={c.id} onClick={() => setSelectedCar(c.id)} aria-pressed={car.id === c.id}><b>#{c.number}</b><span>{c.name}</span></button>)}</div>
+        <CarStrategy key={car.id} data={data} carId={car.id} busy={busy} onSave={(body, success) => act(`/api/race-hq/${event.id}/cars/${car.id}`, body, success)} />
+      </>}
       {tab === "archive" && <ArchiveList events={archive} currentId={event.id} />}
 
       <footer className={styles.footer}>
@@ -164,7 +195,7 @@ function Overview({ data, now, myNext, ready, busy, onReady, onPlan, onUpdates }
   return <>
     {myNext && <section className={`${styles.personal} ${ready ? styles.ready : ""}`}>
       <div className={styles.personalTop}><span><UserRound size={13} /> YOUR NEXT DRIVE</span><b>{ready ? "READY CONFIRMED" : "NOT CONFIRMED"}</b></div>
-      <div className={styles.personalMain}><div><h3>{myNext.driver}, your plan is set.</h3><p>{myNext.event_car_id && `Car #${data.cars.find((c) => c.id === myNext.event_car_id)?.number}`} · {day(myNext.starts_at)} {hm(myNext.starts_at)}–{hm(myNext.ends_at)}</p></div><Avatar name={myNext.driver} mine /></div>
+      <div className={styles.personalMain}><div><h3>{myNext.driver}, {data.cars.find((c) => c.id === myNext.event_car_id)?.schedule_status === "confirmed" ? "your plan is confirmed." : "here’s your planned drive."}</h3><p>{myNext.event_car_id && `Car #${data.cars.find((c) => c.id === myNext.event_car_id)?.number}`} · {day(myNext.starts_at)} {hm(myNext.starts_at)}–{hm(myNext.ends_at)}</p></div><Avatar name={myNext.driver} mine /></div>
       <div className={styles.personalBottom}><span><AlarmClock size={13} /> Be ready by <b>{hm(new Date(+new Date(myNext.starts_at) - 15 * 60_000).toISOString())}</b></span>{data.event.status !== "finished" && <button onClick={onReady} disabled={busy}><Check size={14} /> {ready ? "Ready confirmed" : "I’m ready"}</button>}</div>
     </section>}
     <Heading title="The team, right now" note="All times local" />
@@ -198,31 +229,6 @@ function UpdateCard({ update }: { update: RaceUpdate }) {
   </article>;
 }
 
-function StintPlan({ data, car, selected, setSelected, members, now, busy, onSave }: {
-  data: RaceHQData; car: RaceHQData["cars"][number]; selected: string; setSelected: (id: string) => void;
-  members: Member[]; now: number; busy: boolean; onSave: (stints: unknown[]) => void;
-}) {
-  const source = useMemo(() => data.stints.filter((s) => s.event_car_id === car.id).sort((a, b) => a.n - b.n), [data.stints, car.id]);
-  const [full, setFull] = useState(false), [editing, setEditing] = useState(false), [draft, setDraft] = useState(source);
-  const current = source.find((s) => +new Date(s.starts_at) <= now && +new Date(s.ends_at) > now);
-  const plan = editing ? draft : source;
-  const shown = full ? plan : plan.filter((s) => !current || (s.n >= current.n - 1 && s.n <= current.n + 5));
-  function patch(id: string, values: Partial<RaceStint>) { setDraft((all) => all.map((s) => s.id === id ? { ...s, ...values } : s)); }
-  return <>
-    <div className={styles.panelTitle}><div><h3>Stint plan</h3><p>Plan A · changes are posted to the race feed</p></div>{data.can_lead && data.event.status !== "finished" && <button onClick={() => { if (!editing) setDraft(source); setEditing(!editing); }}><Edit3 size={14} /> {editing ? "Cancel" : "Edit"}</button>}</div>
-    <div className={styles.carSwitch}>{data.cars.map((c) => <button key={c.id} onClick={() => { setEditing(false); setSelected(c.id); }} aria-pressed={selected === c.id}><b>#{c.number}</b><span>{c.name}</span></button>)}</div>
-    <div className={styles.planTools}><div><button onClick={() => setFull(false)} aria-pressed={!full}>Now & next</button><button onClick={() => setFull(true)} aria-pressed={full}>Full race</button></div><span>{day(data.event.starts_at)} · local time</span></div>
-    <div className={styles.schedule}>{shown.map((stint) => {
-      const active = stint.id === current?.id;
-      return <div className={`${styles.stint} ${active ? styles.activeStint : ""}`} key={stint.id}>
-        <b>{stint.n}</b><div>{editing ? <select value={stint.driver_id ?? ""} onChange={(e) => patch(stint.id, { driver_id: e.target.value, driver: members.find((m) => m.id === e.target.value)?.display_name ?? null })}>{members.map((m) => <option value={m.id} key={m.id}>{m.display_name}</option>)}</select> : <strong>{stint.driver ?? "TBC"}{stint.driver_id === data.me.id ? " · you" : ""}</strong>}<small>{active ? "On track" : stint.note || "Planned stint"}</small></div>
-        <span>{editing ? <><input type="datetime-local" value={inputDate(stint.starts_at)} onChange={(e) => patch(stint.id, { starts_at: new Date(e.target.value).toISOString() })} /><input type="datetime-local" value={inputDate(stint.ends_at)} onChange={(e) => patch(stint.id, { ends_at: new Date(e.target.value).toISOString() })} /></> : <>{hm(stint.starts_at)}–{hm(stint.ends_at)}<small>{Math.round((+new Date(stint.ends_at) - +new Date(stint.starts_at)) / 60_000)} min</small></>}</span>
-      </div>;
-    })}</div>
-    {editing && <button className={styles.primary} disabled={busy} onClick={() => { onSave(draft.map((s) => ({ id: s.id, driver_id: s.driver_id, starts_at: s.starts_at, ends_at: s.ends_at, note: s.note }))); setEditing(false); }}><Save size={15} /> Save plan & post update</button>}
-  </>;
-}
-
 function Updates({ data, busy, onPost }: { data: RaceHQData; busy: boolean; onPost: (body: string, kind: string, carId: string | null) => void }) {
   const [filter, setFilter] = useState<"all" | "official">("all"), [body, setBody] = useState(""), [official, setOfficial] = useState(false), [car, setCar] = useState("");
   const updates = filter === "official" ? data.updates.filter((u) => u.kind === "official") : data.updates;
@@ -238,34 +244,20 @@ function Updates({ data, busy, onPost }: { data: RaceHQData; busy: boolean; onPo
   </>;
 }
 
-function PitKit({ data, selected, setSelected, busy, onSave }: { data: RaceHQData; selected: string; setSelected: (id: string) => void; busy: boolean; onSave: (notes: string) => void }) {
-  const car = data.cars.find((c) => c.id === selected) ?? data.cars[0];
-  const [editing, setEditing] = useState(false), [notes, setNotes] = useState(data.event.notes ?? "");
-  return <>
-    <div className={styles.panelTitle}><div><h3>Pit kit</h3><p>The essentials, ready when you need them.</p></div>{data.can_lead && data.event.status !== "finished" && <button onClick={() => setEditing(!editing)}><Edit3 size={14} /> {editing ? "Cancel" : "Edit notes"}</button>}</div>
-    <div className={styles.carSwitch}>{data.cars.map((c) => <button key={c.id} onClick={() => setSelected(c.id)} aria-pressed={selected === c.id}><b>#{c.number}</b><span>{c.name}</span></button>)}</div>
-    <div className={styles.callout}><CircleAlert size={17} /><div><strong>Confirm these values in practice</strong><p>Race leads can keep the final pit menu and setup notes in the event notes.</p></div></div>
-    <section className={styles.kit}><h4><Fuel size={15} /> Standard stop · #{car.number}</h4><dl><div><dt>Planned stint</dt><dd>{Math.round(data.event.duration_min / Math.max(1, data.stints.filter((s) => s.event_car_id === car.id).length))} min average</dd></div><div><dt>Safe fuel</dt><dd>TBC</dd></div><div><dt>Tyre change</dt><dd>TBC</dd></div></dl></section>
-    <section className={styles.kit}><h4><Settings2 size={15} /> Race notes</h4>{editing ? <><textarea className="mt-3 w-full rounded-lg border border-white/10 bg-white/[0.05] p-3 text-sm text-zinc-100" rows={6} maxLength={4000} value={notes} onChange={(e) => setNotes(e.target.value)} /><button className={styles.primary} disabled={busy} onClick={() => { onSave(notes); setEditing(false); }}><Save size={14} /> Save race notes</button></> : <p>{data.event.notes || "No confirmed pit or setup notes yet."}</p>}</section>
-  </>;
-}
-
 function RaceControls({ data, members, busy, close, onAction }: { data: RaceHQData; members: Member[]; busy: boolean; close: () => void; onAction: (body: unknown, success: string) => void }) {
-  const [clock, setClock] = useState(duration(data.event.clock_remaining_s ?? data.event.duration_min * 60));
   const [lead, setLead] = useState("");
   return <div className={styles.overlay} onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}><section className={styles.modal} role="dialog" aria-modal="true" aria-label="Race controls">
     <header><h3>Race controls</h3><button onClick={close} aria-label="Close"><X size={17} /></button></header>
-    <div className={styles.controlBlock}><label>Time remaining</label><input value={clock} onChange={(e) => setClock(e.target.value)} placeholder="18:42:16" /><button className={styles.primary} disabled={busy} onClick={() => { const p = clock.split(":").map(Number); if (p.length !== 3 || p.some(Number.isNaN)) return; onAction({ action: "clock", remaining_s: p[0] * 3600 + p[1] * 60 + p[2], status: "live" }, "Race clock updated."); }}><Timer size={15} /> Start or correct race clock</button></div>
     <div className={styles.controlBlock}><label>Race leads</label><div className={styles.leads}>{data.leads.map((l) => <span key={l.id}>{l.display_name}{data.me.is_admin && l.id !== data.me.id && <button onClick={() => onAction({ action: "lead", driver_id: l.id, enabled: false }, "Race lead removed.")}><X size={12} /></button>}</span>)}</div>{data.me.is_admin && <><select value={lead} onChange={(e) => setLead(e.target.value)}><option value="">Choose teammate…</option>{members.filter((m) => !data.leads.some((l) => l.id === m.id)).map((m) => <option value={m.id} key={m.id}>{m.display_name}</option>)}</select><button disabled={!lead || busy} onClick={() => onAction({ action: "lead", driver_id: lead, enabled: true }, "Race lead added.")}><Users size={14} /> Add race lead</button></>}</div>
     <div className={styles.danger}><button disabled={busy} onClick={() => onAction({ action: "finish" }, "Race moved to the archive.")}><Archive size={14} /> Finish and archive race</button></div>
   </section></div>;
 }
 
-function EmptyHQ({ archive, members, me, open, setOpen, onCreated }: { archive: ArchiveRow[]; members: Member[]; me: Driver; open: boolean; setOpen: (x: boolean) => void; onCreated: () => void }) {
+function EmptyHQ({ archive, me, open, setOpen, onCreated }: { archive: ArchiveRow[]; members: Member[]; me: Driver; open: boolean; setOpen: (x: boolean) => void; onCreated: () => void }) {
   return <div className={styles.shell}>
-    <div className={styles.empty}><Flag size={30} /><h2>No active race</h2><p>The next race will appear here with its clock, cars, stint plan and team updates.</p>{me.is_admin && <button className={styles.primary} onClick={() => setOpen(true)}><CalendarClock size={15} /> Create the next race</button>}</div>
+    <div className={styles.empty}><Flag size={30} /><h2>No active race</h2><p>Signups open here once the next race is scheduled. The race clock, cars, stint plan and team updates will appear here too.</p>{me.is_admin && <button className={styles.primary} onClick={() => setOpen(true)}><CalendarClock size={15} /> Create the next race</button>}</div>
     {archive.length > 0 && <><Heading title="Race archive" note={`${archive.length} saved`} /><div className={styles.archive}>{archive.map((e) => <Link href={`/race-hq?event=${e.id}`} key={e.id}><span><strong>{e.title}</strong><small>{day(e.starts_at)} · {e.cars} car{e.cars === 1 ? "" : "s"}</small></span><ChevronRight size={17} /></Link>)}</div></>}
-    {open && <CreateRace members={members} close={() => setOpen(false)} created={onCreated} />}
+    {open && <CreateRace close={() => setOpen(false)} created={onCreated} />}
   </div>;
 }
 
@@ -276,20 +268,22 @@ function ArchiveList({ events, currentId }: { events: ArchiveRow[]; currentId?: 
   </>;
 }
 
-function CreateRace({ members, close, created }: { members: Member[]; close: () => void; created: () => void }) {
+function CreateRace({ close, created }: { close: () => void; created: () => void }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
-  const four = members.slice(0, Math.min(4, members.length)).map((m) => m.id);
-  const [cars, setCars] = useState([{ number: "330", name: "Ford Mustang GT3", car_key: "ford_mustang_gt3", driver_ids: four }, { number: "331", name: "Team car 2", car_key: "", driver_ids: four }]);
-  const [title, setTitle] = useState("24 Hours of the Nürburgring"), [track, setTrack] = useState("nurburgring_24h"), [start, setStart] = useState(""), [stint, setStint] = useState(65), [notes, setNotes] = useState("");
+  const [cars, setCars] = useState([{ number: "330", name: "Ford Mustang GT3", car_key: "ford_mustang_gt3", stint_min: 65 }, { number: "331", name: "Team car 2", car_key: "", stint_min: 65 }]);
+  const [title, setTitle] = useState("24 Hours of the Nürburgring"), [track, setTrack] = useState("nurburgring_24h"), [start, setStart] = useState(""), [notes, setNotes] = useState(""), [raceMinutes, setRaceMinutes] = useState(1440);
   function carPatch(i: number, patch: Partial<(typeof cars)[number]>) { setCars((all) => all.map((c, k) => k === i ? { ...c, ...patch } : c)); }
-  return <div className={styles.overlay}><form className={`${styles.modal} ${styles.create}`} onSubmit={async (e) => { e.preventDefault(); setBusy(true); setError(null); try { await jsonRequest("/api/race-hq", { method: "POST", body: JSON.stringify({ title, track_key: track, starts_at: new Date(start).toISOString(), duration_min: 1440, stint_min: stint, notes, cars }) }); created(); } catch (x) { setError((x as Error).message); setBusy(false); } }}>
+  return <div className={styles.overlay}><form className={`${styles.modal} ${styles.create}`} onSubmit={async (e) => { e.preventDefault(); setBusy(true); setError(null); try { await jsonRequest("/api/race-hq", { method: "POST", body: JSON.stringify({ title, track_key: track, starts_at: new Date(start).toISOString(), duration_min: raceMinutes, notes, cars }) }); created(); } catch (x) { setError((x as Error).message); setBusy(false); } }}>
     <header><h3>Create the next race</h3><button type="button" onClick={close} aria-label="Close"><X size={17} /></button></header>
     <label>Race title<input value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
     <div className={styles.formGrid}><label>Track key<input value={track} onChange={(e) => setTrack(e.target.value)} required /></label><label>Green flag<input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} required /></label></div>
-    <label>Planned stint length, minutes<input type="number" min={10} max={240} value={stint} onChange={(e) => setStint(+e.target.value)} /></label>
-    {cars.map((car, i) => <fieldset key={i}><legend>Team car {i + 1}</legend><div className={styles.formGrid}><label>Number<input value={car.number} onChange={(e) => carPatch(i, { number: e.target.value })} required /></label><label>Car name<input value={car.name} onChange={(e) => carPatch(i, { name: e.target.value })} required /></label></div><label>Four drivers<select multiple size={Math.min(6, members.length)} value={car.driver_ids} onChange={(e) => carPatch(i, { driver_ids: [...e.target.selectedOptions].map((o) => o.value) })}>{members.map((m) => <option value={m.id} key={m.id}>{m.display_name}</option>)}</select><small>Hold Ctrl or Command to choose four.</small></label>{cars.length > 1 && <button type="button" className="mt-3 inline-flex items-center gap-1.5 text-xs text-red-300" onClick={() => setCars((all) => all.filter((_, k) => k !== i))}><Trash2 size={13} /> Remove this car</button>}</fieldset>)}
-    {cars.length < 4 && <button type="button" className={styles.primary} onClick={() => setCars((all) => [...all, { number: "", name: "", car_key: "", driver_ids: four }])}><Plus size={14} /> Add another team car</button>}
-    <label>Race and pit notes<textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
-    {error && <p className={styles.error}>{error}</p>}<button className={styles.primary} disabled={busy || members.length < 1}><Flag size={15} /> {busy ? "Creating…" : "Create Race Day HQ"}</button>
+    <label>Race duration (minutes)<input type="number" min={30} max={1440} value={raceMinutes} onChange={(e) => setRaceMinutes(Number(e.target.value))} required /></label>
+    <p className="text-sm text-zinc-400">Create the race to open signups. Assign 4–6 registered drivers per car in Teams, then create slots in Stints and open booking.</p>
+    {cars.map((car, i) => <fieldset key={i}><legend>Team car {i + 1}</legend><div className={styles.formGrid}><label>Number<input value={car.number} onChange={(e) => carPatch(i, { number: e.target.value })} required /></label><label>Car name<input value={car.name} onChange={(e) => carPatch(i, { name: e.target.value })} required /></label></div><label>Planned stint length (minutes)<input type="number" min={10} max={240} value={car.stint_min} onChange={(e) => carPatch(i, { stint_min: +e.target.value })} required /></label>{cars.length > 1 && <button type="button" className="mt-3 inline-flex items-center gap-1.5 text-xs text-red-300" onClick={() => setCars((all) => all.filter((_, k) => k !== i))}><Trash2 size={13} /> Remove this car</button>}</fieldset>)}
+    {cars.length < 4 && <button type="button" className={styles.primary} onClick={() => setCars((all) => [...all, { number: "", name: "", car_key: "", stint_min: 65 }])}><Plus size={14} /> Add another team car</button>}
+    <label>Shared race notes<textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+    {error && <p className={styles.error}>{error}</p>}<button className={styles.primary} disabled={busy}><Flag size={15} /> {busy ? "Creating…" : "Create Race Day HQ"}</button>
   </form></div>;
 }
+
+

@@ -8,12 +8,14 @@ While ACC runs, it publishes three memory pages that any app on the same PC can 
 
 Layouts follow Kunos' "ACC Shared Memory Documentation v1.8.12" (C structs packed on 4 bytes,
 wchar_t = 2 bytes). Field names follow that document. The reader never creates the pages: it only
-opens the ones ACC created, so nothing exists (and nothing is read) while the game is closed.
+opens existing pages only after positively identifying ACC. AC uses the same page names, so a
+process check is required even when an existing view is already open.
 """
 import ctypes
 import sys
 
 import numpy as np
+from acc_identity import GameProbe
 
 # --- Layouts (official field order) ---------------------------------------------
 # (name, type, shape): type "i" = int32, "f" = float32, "w" = wchar_t string of `shape` characters
@@ -174,6 +176,8 @@ class SharedMemory:
     def __init__(self, prefix: str = DEFAULT_PREFIX):
         self.prefix = prefix
         self.views = {}     # page -> (handle, address, size)
+        self.game_probe = GameProbe()
+        self.identity = None
         k = ctypes.WinDLL("kernel32", use_last_error=True)
         k.OpenFileMappingW.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_wchar_p]
         k.OpenFileMappingW.restype = ctypes.c_void_p
@@ -185,6 +189,13 @@ class SharedMemory:
         self._k = k
 
     def open(self) -> bool:
+        # Both games use acpmf_* names. Recheck even when views are already open.
+        # Custom prefixes belong to the isolated fake-game test harness only.
+        if self.prefix == DEFAULT_PREFIX:
+            self.identity = self.game_probe()
+            if not self.identity:
+                self.close()
+                return False
         if self.views:
             return True
         for page, (suffix, struct, _) in PAGES.items():
@@ -199,6 +210,11 @@ class SharedMemory:
                 self.close()
                 return False
             self.views[page] = (handle, addr, size)
+        if self.prefix == DEFAULT_PREFIX:
+            st = decode("static", self.snapshot("static"))
+            if text(st["carModel"]).lower() not in STEER_LOCK_DEG:
+                self.close()
+                return False
         return True
 
     def close(self):

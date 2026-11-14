@@ -91,6 +91,9 @@ def build_bundle(source_path: str, head, laps: list, ref: float, cmap: dict,
                  results: dict | None = None, car_id=None) -> dict:
     source_path = Path(source_path)
     kind = getattr(head, "source_kind", "motec")
+    from acc_identity import validate_source
+    validate_source(head.venue, head.vehicleid or car_from_filename(source_path, head.venue),
+                    getattr(head, "simulator", None), getattr(head, "simulator_identity", None))
     corners = cn.scaled_corners(cmap, ref)
     out_laps = []
     for l in laps:
@@ -124,7 +127,8 @@ def build_bundle(source_path: str, head, laps: list, ref: float, cmap: dict,
         "agent": AGENT,
         "simulator": "acc",
         "source": {"kind": kind, "file": source_path.name,
-                   "sha256": hashlib.sha256(source_path.read_bytes()).hexdigest()},
+                   "sha256": hashlib.sha256(source_path.read_bytes()).hexdigest(),
+                   "simulator_identity": getattr(head, "simulator_identity", None)},
         "session": {
             "track": head.venue,
             "track_length_m": ref,

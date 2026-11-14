@@ -16,6 +16,6 @@ export async function POST(request: Request, ctx: RouteContext<"/api/sessions/[i
   const [s] = await sql<{ driver_id: string }[]>`update session set rating_type = ${type ?? null} where id = ${id} returning driver_id`;
   if (!s) return Response.json({ error: "not found" }, { status: 404 });
   await rebuildDriverRatings(sql, s.driver_id);
-  const [r] = await sql<{ rating: number }[]>`select rating from driver_rating where driver_id = ${s.driver_id} order by id desc limit 1`;
+  const [r] = await sql<{ rating: number }[]>`select rating from acc_driver_rating where driver_id = ${s.driver_id} order by id desc limit 1`;
   return Response.json({ ok: true, rating: r?.rating ?? null });
 }

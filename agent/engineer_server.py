@@ -88,6 +88,9 @@ class LiveEngineer:
         last_id = None
         while not stop.is_set():
             if not mem.open():
+                last_id = None
+                with self.lock:
+                    self.engineer.reset()
                 stop.wait(2.0)
                 continue
             try:

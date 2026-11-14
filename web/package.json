@@ -8,7 +8,15 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs"
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
+    "prebuild": "node scripts/prepare-race-signups.mjs",
+    "test:race-teams": "node test/race-teams.test.mjs",
+    "test:race-engineer": "node test/race-engineer.test.mjs",
+    "test:acc-identity": "node test/acc-identity.test.mjs",
+    "test:acc-scores": "node test/acc-only-scores.test.mjs",
+    "test:stints": "node test/stint-booking.test.mjs",
+    "test:stint-trades": "node test/stint-trades.test.mjs && node --test test/stint-interactions.test.mjs",
+    "validate:stints": "node scripts/validate-stints.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.52.0",
@@ -20,6 +28,7 @@
     "uplot": "^1.6.32"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

@@ -73,7 +73,7 @@ export async function announceSession(sessionId: string) {
   // Rank promotion (lib/ranks.ts): the only post besides lap records
   const [r] = await sql<{ rating: number; prev: number | null }[]>`
     select rating, prev from (select session_id, rating, lag(rating) over (order by id) as prev
-                              from driver_rating where driver_id = ${s.driver_id}) x
+                              from acc_driver_rating where driver_id = ${s.driver_id}) x
     where session_id = ${sessionId}`;   // only this upload's rating: no repeat when a session is not rated
   if (r?.prev != null && rankLevel(r.rating) > rankLevel(r.prev)) embeds.push(promotion(s.driver, s.driver_id, r.rating, r.prev));
   if (embeds.length) await post({ embeds });
@@ -93,7 +93,7 @@ const promotion = (driver: string, driverId: string, rating: number, prev: numbe
 /** Every driver's current rating (their latest rating row). */
 export async function currentRatings() {
   const rows = await sql<{ driver_id: string; rating: number }[]>`
-    select distinct on (driver_id) driver_id, rating from driver_rating order by driver_id, id desc`;
+    select distinct on (driver_id) driver_id, rating from acc_driver_rating order by driver_id, id desc`;
   return new Map(rows.map((r) => [r.driver_id, r.rating]));
 }
 
